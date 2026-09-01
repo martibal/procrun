@@ -10,6 +10,8 @@ MODEL_DIR="$RUNTIME_ROOT/models"
 MODEL_PATH="$MODEL_DIR/$MODEL_FILENAME"
 MODEL_URL="https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/$MODEL_REVISION/$MODEL_FILENAME?download=true"
 
+python3 scripts/check_compliance_gate.py --service huggingface_model_download
+
 mkdir -p "$MODEL_DIR"
 
 if [[ -f "$MODEL_PATH" ]]; then
