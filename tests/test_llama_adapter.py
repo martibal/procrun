@@ -4,22 +4,21 @@ from pathlib import Path
 
 import pytest
 
-from procrun.component_engine import ComponentDomain
-from procrun.llama_adapter import (
-    LlamaAdapterError,
-    LlamaBenchmarkConfig,
-    ProcessResult,
-    benchmark_cache_key,
-    prepare_llama_benchmark_runtime,
-    run_llama_component_benchmark,
-)
-from procrun.model_fallback import (
-    AllowedComponentCategory,
-    LocalModelIdentity,
-    LocalModelRequest,
-    ModelPromptSpan,
-)
-from procrun.model_registry import ModelApprovalStatus, ModelArtifactSpec
+from procrun import component_engine, llama_adapter, model_fallback, model_registry
+
+ComponentDomain = component_engine.ComponentDomain
+LlamaAdapterError = llama_adapter.LlamaAdapterError
+LlamaBenchmarkConfig = llama_adapter.LlamaBenchmarkConfig
+ProcessResult = llama_adapter.ProcessResult
+benchmark_cache_key = llama_adapter.benchmark_cache_key
+prepare_llama_benchmark_runtime = llama_adapter.prepare_llama_benchmark_runtime
+run_llama_component_benchmark = llama_adapter.run_llama_component_benchmark
+AllowedComponentCategory = model_fallback.AllowedComponentCategory
+LocalModelIdentity = model_fallback.LocalModelIdentity
+LocalModelRequest = model_fallback.LocalModelRequest
+ModelPromptSpan = model_fallback.ModelPromptSpan
+ModelApprovalStatus = model_registry.ModelApprovalStatus
+ModelArtifactSpec = model_registry.ModelArtifactSpec
 
 
 SPAN_TEXT = "nova subestação"
