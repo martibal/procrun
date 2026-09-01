@@ -11,6 +11,14 @@ if [[ "$(uname -s)" != "Linux" ]]; then
   exit 2
 fi
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "python3 is required from cloud-init before benchmark bootstrap" >&2
+  exit 2
+fi
+
+python3 scripts/check_compliance_gate.py --service github_development
+python3 scripts/check_compliance_gate.py --dependencies
+
 if ! command -v sudo >/dev/null 2>&1; then
   echo "sudo is required" >&2
   exit 2
@@ -50,7 +58,7 @@ cmake --build "$LLAMA_BUILD" --target llama-cli -j "$(nproc)"
 
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -e .
+.venv/bin/python -m pip install -c requirements-runtime.lock -e .
 
 printf '%s\n' "llama.cpp commit: $(git -C "$LLAMA_SRC" rev-parse HEAD)"
 printf '%s\n' "llama-cli: $LLAMA_BUILD/bin/llama-cli"
