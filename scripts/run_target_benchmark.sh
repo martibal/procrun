@@ -47,6 +47,7 @@ done
   printf 'llama_cpp_commit=%s\n' "$(git -C "$RUNTIME_ROOT/llama.cpp" rev-parse HEAD)"
 } > "$HOST_REPORT"
 
+set +e
 /usr/bin/time -v \
   .venv/bin/procrun-model-benchmark \
     --corpus "$CORPUS" \
@@ -55,6 +56,25 @@ done
     --output "$REPORT" \
     --cache-dir "$CACHE_DIR" \
   2> "$TIME_REPORT"
+BENCHMARK_STATUS=$?
+set -e
+
+if [[ $BENCHMARK_STATUS -ne 0 ]]; then
+  printf '%s\n' "benchmark command failed with exit code $BENCHMARK_STATUS" >&2
+  if [[ -s "$TIME_REPORT" ]]; then
+    printf '%s\n' "---- benchmark stderr/resource report ----" >&2
+    cat "$TIME_REPORT" >&2
+    printf '%s\n' "---- end benchmark stderr/resource report ----" >&2
+  else
+    printf '%s\n' "benchmark stderr/resource report is empty: $TIME_REPORT" >&2
+  fi
+  if [[ -s "$HOST_REPORT" ]]; then
+    printf '%s\n' "---- benchmark host report ----" >&2
+    cat "$HOST_REPORT" >&2
+    printf '%s\n' "---- end benchmark host report ----" >&2
+  fi
+  exit "$BENCHMARK_STATUS"
+fi
 
 printf '%s\n' "benchmark report: $REPORT"
 printf '%s\n' "resource report:  $TIME_REPORT"
