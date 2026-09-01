@@ -258,8 +258,7 @@ def _invoke_process(
         completed = subprocess.run(
             argv,
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             env=dict(env),
             timeout=timeout_seconds,
             check=False,

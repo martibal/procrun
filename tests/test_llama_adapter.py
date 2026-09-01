@@ -19,10 +19,7 @@ from procrun.model_fallback import (
     LocalModelRequest,
     ModelPromptSpan,
 )
-from procrun.model_registry import (
-    ModelApprovalStatus,
-    ModelArtifactSpec,
-)
+from procrun.model_registry import ModelApprovalStatus, ModelArtifactSpec
 
 
 SPAN_TEXT = "nova subestação"
