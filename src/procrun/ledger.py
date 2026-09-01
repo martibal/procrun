@@ -363,21 +363,23 @@ def _current_version(
     logical_column: str,
     logical_id: str,
 ) -> tuple[UUID, str, UUID | None] | None:
-    allowed = {
-        ("source_record_versions", "logical_key"),
-        ("funding_project_versions", "operation_code"),
-        ("component_versions", "component_id"),
-        ("procurement_evidence_versions", "evidence_id"),
-        ("assessment_versions", "assessment_id"),
-        ("project_assessment_versions", "operation_code"),
-        ("outcome_versions", "outcome_id"),
-        ("run_manifests", "run_key"),
+    digest_columns = {
+        ("source_record_versions", "logical_key"): "content_sha256",
+        ("funding_project_versions", "operation_code"): "content_sha256",
+        ("component_versions", "component_id"): "content_sha256",
+        ("procurement_evidence_versions", "evidence_id"): "content_sha256",
+        ("assessment_versions", "assessment_id"): "content_sha256",
+        ("project_assessment_versions", "operation_code"): "content_sha256",
+        ("outcome_versions", "outcome_id"): "content_sha256",
+        ("run_manifests", "run_key"): "manifest_sha256",
     }
-    if (table, logical_column) not in allowed:
-        raise ValueError("unsupported ledger version table")
+    try:
+        digest_column = digest_columns[(table, logical_column)]
+    except KeyError as exc:
+        raise ValueError("unsupported ledger version table") from exc
     row = conn.execute(
         f"""
-        SELECT current.version_id, current.content_sha256, current.supersedes_version_id
+        SELECT current.version_id, current.{digest_column}, current.supersedes_version_id
         FROM procrun.{table} AS current
         WHERE current.{logical_column} = %s
           AND NOT EXISTS (
