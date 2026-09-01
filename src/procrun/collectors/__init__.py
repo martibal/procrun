@@ -1,0 +1,1 @@
+"""Approved live source collectors."""

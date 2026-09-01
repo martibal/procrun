@@ -1,16 +1,16 @@
-# Phase A source status
+# Phase A/B source status
 
 Status date: 2026-09-01.
 
 ## Decision summary
 
-Production source use is now enforced in code by `procrun.source_contracts`. A network collector must call `require_live_source()` before retrieval. Anything other than `APPROVED` fails closed.
+Production source use is enforced in code by `procrun.source_contracts`. A network collector must call `require_live_source()` before retrieval. Anything other than `APPROVED` fails closed.
 
 Current registry:
 
 | Source | Status | Production implication |
 | --- | --- | --- |
-| TED Search API | APPROVED | May be implemented with explicit server-side field projection and schema-drift rejection. |
+| TED Search API | APPROVED | Live collector implemented with frozen server-side field projection and schema-drift rejection. |
 | Portugal 2030 project search | CONDITIONAL | Do not implement live retrieval yet. |
 | Portugal 2030 full project detail | BLOCKED | Must not be ingested. |
 | AD&C/dados.gov.pt PT2030 operations bulk file | BLOCKED | Must not be downloaded and filtered after receipt. |
@@ -46,9 +46,48 @@ A production route must demonstrate all of the following before its registry sta
 
 For newly observed projects, local observation time may later serve as first-seen provenance once a safe discovery transport is approved. Historical backfills without defensible source snapshot dates must remain `temporal_provenance=UNRESOLVED` and cannot support historical lead-time claims.
 
-## TED
+## TED production contract
 
-TED remains approved in principle because its Search API supports an explicit requested-fields projection. Production implementation must still use the frozen allowlist and reject unexpected fields before normalization or persistence.
+Official documentation:
+
+- `https://docs.ted.europa.eu/api/latest/search.html`
+- `https://docs.ted.europa.eu/ODS/latest/reuse/search-api.html`
+- `https://docs.ted.europa.eu/ODS/latest/reuse/field-list.html`
+
+Frozen transport:
+
+- endpoint: `POST https://api.ted.europa.eu/v3/notices/search`;
+- pagination: `ITERATION` only for complete walks;
+- default page size: 100, hard maximum: 250;
+- hard TED field-cell budget: 10,000 per page;
+- response completion: an empty `notices` page plus count reconciliation;
+- `timedOut != false`, missing continuation token, count mismatch or `max_pages` exhaustion means incomplete coverage and must never support an `OPEN` conclusion;
+- raw response bodies and iteration tokens are not persisted by the collector.
+
+Frozen requested fields:
+
+- `publication-number`
+- `publication-date`
+- `notice-title`
+- `description-proc`
+- `classification-cpv`
+- `contract-nature`
+- `procedure-type`
+- `estimated-value-proc`
+- `estimated-value-cur-proc`
+- `result-value-notice`
+- `result-value-cur-notice`
+- `place-of-performance-city-proc`
+- `place-of-performance-subdiv-proc`
+- `buyer-name`
+- `eu-funds-financing-id-lot`
+- `eu-funds-identifier`
+
+TED automatically attaches `links`; this is accepted only as transport metadata and is not copied into the canonical record. Unknown envelope fields or notice fields fail closed before normalization.
+
+The field list deliberately excludes buyer contact person/email/phone/touchpoint fields, supplier/winner fields, street addresses and business identifiers. `buyer-name` is retained only as the contracting-authority organisation name required for evidence matching.
+
+Currency values are mapped into canonical `*_eur` fields only when TED explicitly reports `EUR`. The current canonical ledger stores integer EUR amounts, so fractional values are withheld rather than silently rounded; this can be revisited through an explicit schema migration.
 
 ## Rule
 
