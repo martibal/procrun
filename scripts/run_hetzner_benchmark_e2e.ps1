@@ -143,8 +143,8 @@ finally {
     }
     elseif ($ServerCreated) {
         Write-Warning (
-            "Benchmark did not complete. $ServerName is intentionally still running for " +
-            "diagnostics and continues billing until explicitly deleted."
+            "Benchmark did not complete. $ServerName is intentionally still running for diagnostics " +
+            "and continues billing until explicitly deleted."
         )
         Write-Warning (
             "Delete with: .\scripts\destroy_benchmark_server.ps1 -ServerName $ServerName"
