@@ -1,6 +1,6 @@
 # Procurement Runway
 
-Private Phase A data-plane repository for Procurement Runway.
+Private core repository for Procurement Runway.
 
 ## Product boundary
 
@@ -13,11 +13,11 @@ Core states:
 - `PARTIAL` — project contains components with different procurement states.
 - `UNRESOLVED` — evidence or source coverage is insufficient; fail closed and do not surface an opportunity.
 
-## Phase A scope
+## MVP scope
 
 Portugal only. No customer UI, billing, CRM, contact database, or generic tender search.
 
-The first milestone is a deterministic pipeline:
+The deterministic pipeline is:
 
 `Portugal 2030 project -> components -> prior procurement evidence -> component state -> evidence ledger`
 
@@ -75,6 +75,8 @@ docker compose down
 
 ## Current status
 
-Phase A data-plane work is active. Source contracts, fail-closed PII boundaries, deterministic classification aggregation, bounded local storage, and the append-only PostgreSQL ledger are implemented. The Portugal 2030 live collector remains gated until an approved transport-level PII-safe project route and defensible first-seen provenance are proven.
+The core Phase A ledger and privacy boundary are implemented. TED is the approved live procurement source and uses frozen server-side field projection; Portal BASE is hard blocked because its documented response cannot be field-projected before receipt. Portugal 2030 funding discovery remains gated until a transport-level PII-safe route and defensible first-seen provenance are proven.
 
-Product Requirements v1.0 and Phase-0 V1.1 are the governing specifications; implementation must not weaken their evidence or PII rules.
+The conservative Phase B matching hierarchy is implemented without inventing an unfrozen numeric score. Phase C deterministic component extraction is implemented with the five initial infrastructure domains, exact source evidence spans, deterministic IDs, CPV-family hints, duplicate canonicalisation, and fail-closed handoff of unmatched scope to the future local-model fallback. No local model is wired into the analytical path yet.
+
+Product Requirements v1.0 and Phase-0 V1.1 are the governing specifications; implementation must not weaken their evidence, classification, or PII rules.

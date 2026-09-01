@@ -181,7 +181,9 @@ def classify_component(
         evidence_ids = tuple(evaluation.evidence_id for evaluation in high_confidence + review)
     elif high_confidence:
         state = ComponentState.CLOSED
-        rationale = "At least one high-confidence pre-cutoff procurement record covers the component."
+        rationale = (
+            "At least one high-confidence pre-cutoff procurement record covers the component."
+        )
         evidence_ids = tuple(evaluation.evidence_id for evaluation in high_confidence)
     elif review:
         state = ComponentState.UNRESOLVED
