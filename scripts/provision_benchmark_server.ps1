@@ -28,8 +28,13 @@ if (-not $env:HCLOUD_TOKEN) {
     throw "HCLOUD_TOKEN must be set in the current PowerShell session."
 }
 
-& hcloud server describe $ServerName *> $null
-if ($LASTEXITCODE -eq 0) {
+$ExistingServersJson = & hcloud server list -o json
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to query existing Hetzner servers. No server was created."
+}
+
+$ExistingServers = @($ExistingServersJson | ConvertFrom-Json)
+if ($ExistingServers | Where-Object { $_.name -eq $ServerName }) {
     throw "Server '$ServerName' already exists. Refusing to create a duplicate billable server."
 }
 
