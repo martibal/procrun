@@ -36,10 +36,11 @@ def normalize_ted_record(
         publication_date = date.fromisoformat(str(publication))
 
     raw_cpv = safe.get("cpv_codes") or ()
-    if isinstance(raw_cpv, str):
-        cpv_codes = (raw_cpv,)
-    else:
-        cpv_codes = tuple(str(code) for code in raw_cpv)
+    cpv_codes = (
+        (raw_cpv,)
+        if isinstance(raw_cpv, str)
+        else tuple(str(code) for code in raw_cpv)
+    )
 
     return ProcurementEvidence(
         evidence_id=evidence_id,

@@ -9,7 +9,6 @@ from procrun.ingest.portugal2030 import (
 from procrun.ingest.ted import TED_ALLOWED_FIELDS, normalize_ted_record
 from procrun.privacy import UnexpectedFieldError, validate_projected_record
 
-
 PROHIBITED_FIELD_NAMES = {
     "name",
     "beneficiary_name",

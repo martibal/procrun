@@ -1,8 +1,11 @@
 from datetime import date
 
 from procrun.classification import aggregate_project_state
-from procrun.domain import ComponentAssessment, ComponentState, ProjectState
-
+from procrun.domain import (
+    ComponentAssessment,
+    ComponentState,
+    ProjectState,
+)
 
 CUTOFF = date(2026, 7, 31)
 
@@ -20,14 +23,21 @@ def component(component_id: str, state: ComponentState) -> ComponentAssessment:
 
 def test_all_closed_is_closed() -> None:
     result = aggregate_project_state(
-        "OP-1", CUTOFF, (component("a", ComponentState.CLOSED), component("b", ComponentState.CLOSED))
+        "OP-1",
+        CUTOFF,
+        (
+            component("a", ComponentState.CLOSED),
+            component("b", ComponentState.CLOSED),
+        ),
     )
     assert result.state is ProjectState.CLOSED
 
 
 def test_all_open_is_open() -> None:
     result = aggregate_project_state(
-        "OP-1", CUTOFF, (component("a", ComponentState.OPEN), component("b", ComponentState.OPEN))
+        "OP-1",
+        CUTOFF,
+        (component("a", ComponentState.OPEN), component("b", ComponentState.OPEN)),
     )
     assert result.state is ProjectState.OPEN
 
@@ -36,7 +46,10 @@ def test_open_and_closed_is_partial() -> None:
     result = aggregate_project_state(
         "PACS-FC-04022300",
         CUTOFF,
-        (component("crossing-a", ComponentState.CLOSED), component("crossing-b", ComponentState.OPEN)),
+        (
+            component("crossing-a", ComponentState.CLOSED),
+            component("crossing-b", ComponentState.OPEN),
+        ),
     )
     assert result.state is ProjectState.PARTIAL
 
@@ -45,7 +58,10 @@ def test_closed_and_unresolved_is_partial_not_open() -> None:
     result = aggregate_project_state(
         "OP-1",
         CUTOFF,
-        (component("a", ComponentState.CLOSED), component("b", ComponentState.UNRESOLVED)),
+        (
+            component("a", ComponentState.CLOSED),
+            component("b", ComponentState.UNRESOLVED),
+        ),
     )
     assert result.state is ProjectState.PARTIAL
 

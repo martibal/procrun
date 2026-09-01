@@ -28,11 +28,7 @@ def aggregate_project_state(
         project_state = ProjectState.CLOSED
     elif states == {ComponentState.OPEN}:
         project_state = ProjectState.OPEN
-    elif ComponentState.OPEN in states and ComponentState.CLOSED in states:
-        project_state = ProjectState.PARTIAL
-    elif ComponentState.CLOSED in states and ComponentState.UNRESOLVED in states:
-        project_state = ProjectState.PARTIAL
-    elif ComponentState.OPEN in states and ComponentState.UNRESOLVED in states:
+    elif len(states) > 1:
         project_state = ProjectState.PARTIAL
     else:
         project_state = ProjectState.UNRESOLVED
