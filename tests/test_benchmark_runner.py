@@ -1,4 +1,5 @@
 import hashlib
+from datetime import date
 from pathlib import Path
 
 from procrun import benchmark_runner, model_benchmark, model_fallback, model_registry
@@ -35,6 +36,10 @@ def test_one_command_runner_writes_complete_hash_bound_report(tmp_path: Path) ->
         ),
         size_bytes=len(model_bytes),
         license_id="Apache-2.0",
+        license_url="https://example.invalid/model-license",
+        commercial_use_allowed=True,
+        license_reviewed_on=date(2026, 9, 1),
+        license_review_due_on=date(2026, 11, 30),
         status=ModelApprovalStatus.BENCHMARK_CANDIDATE,
     )
 
