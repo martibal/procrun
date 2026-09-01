@@ -14,15 +14,19 @@ def test_target_benchmark_scripts_pin_registered_model() -> None:
     assert QWEN3_4B_Q4_K_M.filename in download
     assert QWEN3_4B_Q4_K_M.identity.artifact_sha256 in download
     assert str(QWEN3_4B_Q4_K_M.size_bytes) in download
+    assert "--service huggingface_model_download" in download
 
 
-def test_target_benchmark_bootstrap_pins_llama_cpp_commit() -> None:
+def test_target_benchmark_bootstrap_pins_llama_cpp_and_dependency_closure() -> None:
     bootstrap = (REPO_ROOT / "scripts" / "bootstrap_benchmark_host.sh").read_text(
         encoding="utf-8"
     )
 
     assert "b95502ba9aa0eb73a2f4fc8878d7fbe6a847a0b9" in bootstrap
     assert "git -C \"$LLAMA_SRC\" checkout --detach FETCH_HEAD" in bootstrap
+    assert "--service github_development" in bootstrap
+    assert "--dependencies" in bootstrap
+    assert "-c requirements-runtime.lock -e ." in bootstrap
 
 
 def test_target_benchmark_runtime_stays_outside_repository() -> None:
@@ -35,6 +39,16 @@ def test_target_benchmark_runtime_stays_outside_repository() -> None:
 
     assert "$HOME/.local/share/procrun-benchmark" in run_script
     assert "$HOME/.local/share/procrun-benchmark" in download
+
+
+def test_provisioning_checks_compliance_before_billable_server_create() -> None:
+    provision = (REPO_ROOT / "scripts" / "provision_benchmark_server.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    gate = provision.index("--service hetzner_cloud")
+    create = provision.index("hcloud server create")
+    assert gate < create
 
 
 def test_e2e_runner_transfers_only_committed_code_and_preserves_failures() -> None:
