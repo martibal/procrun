@@ -47,7 +47,7 @@ class AllowedComponentCategory(StrictModel):
 
 
 class LocalModelRequest(StrictModel):
-    contract_version: Literal["local-component-proposal-v1"] = MODEL_FALLBACK_CONTRACT_VERSION
+    contract_version: Literal["local-component-proposal-v1"] = "local-component-proposal-v1"
     operation_code: str
     source_sha256: str = Field(pattern=_SHA256_PATTERN)
     domains: tuple[ComponentDomain, ...]
@@ -64,7 +64,7 @@ class ModelComponentProposal(StrictModel):
 
 
 class ModelProposalBatch(StrictModel):
-    contract_version: Literal["local-component-proposal-v1"] = MODEL_FALLBACK_CONTRACT_VERSION
+    contract_version: Literal["local-component-proposal-v1"] = "local-component-proposal-v1"
     operation_code: str
     source_sha256: str = Field(pattern=_SHA256_PATTERN)
     model_identity: LocalModelIdentity
