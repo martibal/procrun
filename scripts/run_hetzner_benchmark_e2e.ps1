@@ -139,6 +139,7 @@ rm -rf /root/procrun
 mkdir -p /root/procrun
 unzip -q /root/procrun.zip -d /root/procrun
 cd /root/procrun
+find scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
 bash scripts/bootstrap_benchmark_host.sh
 bash scripts/download_benchmark_model.sh
 bash scripts/run_target_benchmark.sh
