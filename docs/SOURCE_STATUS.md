@@ -1,68 +1,81 @@
 # Phase A/B source status
 
-Status date: 2026-09-01.
+Status date: 2026-09-01. Terms/compliance re-review due: 2026-11-30.
 
-## Decision summary
+## Production rule
 
-Production source use is enforced in code by `procrun.source_contracts`. A network collector must call `require_live_source()` before retrieval. Anything other than `APPROVED` fails closed.
+Production source use is enforced by `procrun.source_contracts`. Every network collector must call `require_live_source()` before retrieval.
 
-Current registry:
+A route is usable only when all three gates are approved:
 
-| Source | Status | Production implication |
-| --- | --- | --- |
-| TED Search API | APPROVED | Live collector implemented with frozen server-side field projection and schema-drift rejection. |
-| Portugal 2030 project search | CONDITIONAL | Do not implement live retrieval yet. |
-| Portugal 2030 full project detail | BLOCKED | Must not be ingested. |
-| AD&C/dados.gov.pt PT2030 operations bulk file | BLOCKED | Must not be downloaded and filtered after receipt. |
-| Portal BASE / IMPIC APIBase2 | BLOCKED | Documented response surface is broader than the MVP allowlist and no output-field projection is documented. |
+1. **RIGHTS** — commercial reuse/derivative use is approved;
+2. **ACCESS** — automated access through the exact route is approved;
+3. **DATA SAFETY** — prohibited person/supplier fields can be excluded before receipt.
+
+Anything else fails closed. Public availability is not sufficient.
+
+## Current registry
+
+| Source | Overall | Rights | Access | Data safety | Production implication |
+| --- | --- | --- | --- | --- | --- |
+| TED Search API | APPROVED | APPROVED | APPROVED | APPROVED | Live collector implemented with frozen server-side projection and schema-drift rejection |
+| Portugal 2030 / Mais Transparência project search | CONDITIONAL | CONDITIONAL | CONDITIONAL | CONDITIONAL | Human/reference discovery only; no live production collector |
+| Portugal 2030 full project detail | BLOCKED | CONDITIONAL | CONDITIONAL | BLOCKED | Must not be ingested |
+| AD&C/dados.gov.pt PT2030 operations bulk file | BLOCKED | CONDITIONAL | APPROVED | BLOCKED | Must not be downloaded and filtered after receipt |
+| Portal BASE / IMPIC APIBase2 | BLOCKED | CONDITIONAL | CONDITIONAL | BLOCKED | No production calls |
+
+See `docs/COMPLIANCE.md` for rights/access reasoning and external legal references.
 
 ## Portugal 2030 project discovery
 
-The official Mais Transparência project-search surface currently exposes useful project cards including project title, operation code, expected completion date and funding amount. It reports roughly 23,609 funded projects.
+The Mais Transparência search surface exposes useful human-visible project cards, but it does not establish a complete, production-approved transport contract. The exact route still lacks all of the following simultaneously:
 
-Official surface:
+- source-specific commercial/automated reuse clearance for the chosen transport;
+- a response that proves prohibited beneficiary/contact/tax fields cannot enter before validation;
+- the required project scope field surface;
+- defensible historical `first_seen_at` provenance.
 
-`https://transparencia.gov.pt/pt/fundos-europeus/pt2030/beneficiarios-projetos/pesquisar/projeto/`
+The portal terms are not treated as an open-data licence for automated commercial HTML scraping. Production ingestion should use a separately approved underlying official/open-data route.
 
-This is not enough to approve a collector. The rendered/searchable surface does not establish a complete project scope field or defensible historical `first_seen_at`, and transport-level zero-PII safety has not been proven for the exact retrieval route.
+The full project-detail page is hard blocked because beneficiary content appears in the same response.
 
-### Blocked routes
+The PT2030 bulk operations resource is also hard blocked by the zero-PII pre-receipt rule. Its dados.gov.pt metadata currently states `Licença não especificada`; ProcRun therefore keeps source-specific rights `CONDITIONAL` even though dados.gov.pt terms state CC BY 4.0 as the default for State datasets unless otherwise specified.
 
-The full project-detail page contains beneficiary content in the same response and is therefore blocked.
+### Portugal production gate
 
-The official PT2030 approved-operations dataset is distributed as a bulk workbook. Government material confirms Mais Transparência is based on AD&C open data from dados.gov.pt, but public availability does not satisfy the product boundary. The broad bulk file may not be downloaded into the intelligence environment and column-filtered afterwards.
+A Portugal 2030 route may change to `APPROVED` only when all of the following are frozen and tested:
 
-## A1/A2 gate
+1. commercial reuse rights for the exact source/route;
+2. automated-access rights/conditions for the exact route;
+3. prohibited fields cannot enter the received response;
+4. required identity, funding, dates and project-scope fields are available;
+5. a defensible `first_seen_at` can be recorded without using project start date as proxy;
+6. schema drift is detectable before persistence;
+7. retrieval method, allowlist, attribution and terms references are frozen in code/tests.
 
-**Portugal 2030 live collector remains blocked pending proof.**
-
-A production route must demonstrate all of the following before its registry status may change to `APPROVED`:
-
-1. prohibited beneficiary/contact/tax-identifier fields cannot enter the response received by the collector;
-2. the required project identity, funding, dates and project-scope fields are available through the approved route(s);
-3. a defensible `first_seen_at` can be recorded without using project start date as a proxy;
-4. schema drift is detectable before persistence;
-5. the exact retrieval method and field contract are frozen in tests/documentation.
-
-For newly observed projects, local observation time may later serve as first-seen provenance once a safe discovery transport is approved. Historical backfills without defensible source snapshot dates must remain `temporal_provenance=UNRESOLVED` and cannot support historical lead-time claims.
+For newly observed projects, local observation time may serve as first-seen provenance after a safe discovery route is approved. Historical backfills without defensible snapshot dates remain `temporal_provenance=UNRESOLVED` and cannot support historical lead-time claims.
 
 ## TED production contract
 
-Official documentation:
+Official references:
 
 - `https://docs.ted.europa.eu/api/latest/search.html`
-- `https://docs.ted.europa.eu/ODS/latest/reuse/search-api.html`
-- `https://docs.ted.europa.eu/ODS/latest/reuse/field-list.html`
+- `https://ted.europa.eu/en/legal-notice`
+- `https://ted.europa.eu/en/news/fair-usage-policy-on-ted`
+- `https://eur-lex.europa.eu/eli/dec/2011/833/oj`
+
+Rights/access conclusion: TED explicitly supports notice reuse for commercial/non-commercial purposes and identifies commercial value-added platforms as Search API users. Technical users are directed to the public API. The published HTTP limit is 700 requests/minute; ProcRun freezes an internal ceiling of 600 and is expected to operate far below it.
 
 Frozen transport:
 
 - endpoint: `POST https://api.ted.europa.eu/v3/notices/search`;
+- server-side explicit fields list only;
 - pagination: `ITERATION` only for complete walks;
 - default page size: 100, hard maximum: 250;
-- hard TED field-cell budget: 10,000 per page;
-- response completion: an empty `notices` page plus count reconciliation;
-- `timedOut != false`, missing continuation token, count mismatch or `max_pages` exhaustion means incomplete coverage and must never support an `OPEN` conclusion;
-- raw response bodies and iteration tokens are not persisted by the collector.
+- hard field-cell budget: 10,000 per page;
+- completion: empty `notices` page plus count reconciliation;
+- timeout, missing continuation token, count mismatch or `max_pages` exhaustion => incomplete coverage and never `OPEN`;
+- raw response bodies and iteration tokens are not persisted.
 
 Frozen requested fields:
 
@@ -83,25 +96,25 @@ Frozen requested fields:
 - `eu-funds-financing-id-lot`
 - `eu-funds-identifier`
 
-TED automatically attaches `links`; this is accepted only as transport metadata and is not copied into the canonical record. Unknown envelope fields or notice fields fail closed before normalization.
+TED may attach `links` automatically; it is accepted only as transport metadata and is not copied into the canonical record. Unknown envelope/notice fields fail before normalization.
 
-The field list deliberately excludes buyer contact person/email/phone/touchpoint fields, supplier/winner fields, street addresses and business identifiers. `buyer-name` is retained only as the contracting-authority organisation name required for evidence matching.
+The field list excludes contact person/email/phone/touchpoint, supplier/winner, street-address and business-identifier fields. `buyer-name` is retained only as contracting-authority organisation name needed for evidence matching.
 
-Currency values are mapped into canonical `*_eur` fields only when TED explicitly reports `EUR`. The current canonical ledger stores integer EUR amounts, so fractional values are withheld rather than silently rounded; this can be revisited through an explicit schema migration.
+Customer-facing source surfaces must credit TED/EU, identify ProcRun transformation/classification, avoid implying EU endorsement and avoid distorting source meaning.
 
 ## Portal BASE / IMPIC decision
 
-Official references audited on 2026-09-01:
+Official references:
 
+- `https://www.base.gov.pt/Base4/pt/o-portal/base/`
 - `https://www.base.gov.pt/Base4/pt/documentacao/formas-de-obter-dados-sobre-os-contratos-publicos/`
 - `https://www.base.gov.pt/APIBase2`
+- `https://www.base.gov.pt/Base4/pt/noticias/2025/api-para-consulta-de-dados-do-portal-base/`
 
-The IMPIC documentation states that API access is token-authorised and daily, but that the fields returned by the API are the same as the files published through dados.gov.pt. The documented API endpoints accept search/filter parameters such as contract ID, procedure ID, announcement number, CPV, year and entity NIF; no server-side output field projection is documented.
+Public BASE data can be automatically extracted, but large-volume API access requires registration and prior IMPIC authorization. Current documentation says API fields are the same as the broad dados.gov files, and the response example includes `adjudicatarios` identifiers/names. No server-side output field projection is documented.
 
-The official response example includes `adjudicatarios` entries that combine supplier identifiers with names. Supplier/adjudicatario data and tax identifiers are outside the MVP intelligence allowlist. Because the documented API route cannot be constrained to prevent those fields from entering the response, APIBase2 is **BLOCKED** under the pre-receipt zero-PII rule.
+Therefore APIBase2 remains `DATA SAFETY=BLOCKED`. Obtaining an IMPIC token would not change that. Any future route additionally needs the exact IMPIC authorization/commercial terms frozen before activation.
 
-This decision does not claim that every future IMPIC route is unusable. A new, separately documented route may be reconsidered only if it supports a field-bounded response that excludes prohibited fields before receipt. Until then, no BASE collector may be implemented.
+## Review expiry
 
-## Rule
-
-Public availability is not sufficient. A source is production-safe only when prohibited data cannot enter the intelligence pipeline in the first place.
+Approved live-source reviews are deliberately time-bounded. `require_live_source()` rejects an approved source after its review due date until the then-current terms are rechecked and the registry is explicitly renewed.
