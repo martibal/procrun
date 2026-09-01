@@ -9,9 +9,19 @@ param(
 
 $ErrorActionPreference = "Stop"
 $CloudInit = Join-Path $PSScriptRoot "..\infra\benchmark\cloud-init.yaml"
+$ComplianceGate = Join-Path $PSScriptRoot "check_compliance_gate.py"
+
+if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+    throw "Python 3.12+ is required to run the repository compliance gate."
+}
+
+& python $ComplianceGate --service hetzner_cloud
+if ($LASTEXITCODE -ne 0) {
+    throw "Hetzner compliance review is not currently approved. No server was created."
+}
 
 if (-not (Get-Command hcloud -ErrorAction SilentlyContinue)) {
-    throw "hcloud CLI is required. Install with: winget install --id HetznerCloud.CLI -e"
+    throw "hcloud CLI is required. Install the official Hetzner Cloud CLI before proceeding."
 }
 
 if (-not $env:HCLOUD_TOKEN) {
