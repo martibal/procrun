@@ -177,7 +177,9 @@ def validate_model_proposals(
         if not proposal.source_text.strip():
             raise ModelFallbackError("model proposal source_text cannot be blank")
         if text[proposal.start : proposal.end] != proposal.source_text:
-            raise ModelFallbackError("model proposal source_text is not the exact cited source span")
+            raise ModelFallbackError(
+                "model proposal source_text is not the exact cited source span"
+            )
         if not any(
             proposal.start >= span.start and proposal.end <= span.end for span in unmatched
         ):
