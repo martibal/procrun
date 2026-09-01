@@ -1,5 +1,6 @@
 import hashlib
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -41,6 +42,10 @@ def fixture_spec(
         ),
         size_bytes=len(content),
         license_id="Apache-2.0",
+        license_url="https://example.invalid/model-license",
+        commercial_use_allowed=True,
+        license_reviewed_on=date(2026, 9, 1),
+        license_review_due_on=date(2026, 11, 30),
         status=status,
     )
 
