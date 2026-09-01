@@ -145,6 +145,7 @@ bash scripts/run_target_benchmark.sh
 tar -C /root/.local/share/procrun-benchmark/results \
   -czf /root/procrun-benchmark-results.tgz .
 '@
+    $RemoteBenchmark = $RemoteBenchmark.Replace("`r", "")
     & ssh @SshOptions $Remote $RemoteBenchmark
     if ($LASTEXITCODE -ne 0) {
         throw "Remote benchmark execution failed."
