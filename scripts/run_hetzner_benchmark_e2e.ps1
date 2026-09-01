@@ -70,6 +70,12 @@ if ($Dirty) {
 $ArchivePath = Join-Path ([System.IO.Path]::GetTempPath()) (
     "procrun-benchmark-{0}.zip" -f ([guid]::NewGuid().ToString("N"))
 )
+$KnownHostsPath = Join-Path ([System.IO.Path]::GetTempPath()) (
+    "procrun-known-hosts-{0}" -f ([guid]::NewGuid().ToString("N"))
+)
+New-Item -ItemType File -Force -Path $KnownHostsPath | Out-Null
+$SshKnownHostsPath = $KnownHostsPath.Replace("\", "/")
+
 $ServerCreated = $false
 $BenchmarkSucceeded = $false
 $Remote = $null
@@ -77,6 +83,7 @@ $Remote = $null
 $SshOptions = @(
     "-o", "BatchMode=yes",
     "-o", "StrictHostKeyChecking=accept-new",
+    "-o", "UserKnownHostsFile=$SshKnownHostsPath",
     "-o", "ConnectTimeout=5"
 )
 if ($IdentityFile) {
@@ -158,6 +165,7 @@ tar -C /root/.local/share/procrun-benchmark/results \
 }
 finally {
     Remove-Item $ArchivePath -Force -ErrorAction SilentlyContinue
+    Remove-Item $KnownHostsPath -Force -ErrorAction SilentlyContinue
 
     if ($ServerCreated -and $BenchmarkSucceeded -and -not $KeepServer) {
         & $DestroyScript -ServerName $ServerName
