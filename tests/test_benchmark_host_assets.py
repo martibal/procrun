@@ -41,6 +41,16 @@ def test_target_benchmark_runtime_stays_outside_repository() -> None:
     assert "$HOME/.local/share/procrun-benchmark" in download
 
 
+def test_target_benchmark_accepts_explicit_archived_source_commit() -> None:
+    run_script = (REPO_ROOT / "scripts" / "run_target_benchmark.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'REPO_COMMIT="${PROCRUN_REPO_COMMIT:-}"' in run_script
+    assert "missing benchmark prerequisite: PROCRUN_REPO_COMMIT" in run_script
+    assert "printf 'repo_commit=%s\\n' \"$REPO_COMMIT\"" in run_script
+
+
 def test_provisioning_checks_compliance_before_billable_server_create() -> None:
     provision = (REPO_ROOT / "scripts" / "provision_benchmark_server.ps1").read_text(
         encoding="utf-8"
@@ -57,6 +67,9 @@ def test_e2e_runner_transfers_only_committed_code_and_preserves_failures() -> No
     )
 
     assert "git -C $RepoRoot archive --format=zip" in runner
+    assert "$RepoCommit = (& git -C $RepoRoot rev-parse HEAD).Trim()" in runner
+    assert "-o $ArchivePath $RepoCommit" in runner
+    assert "PROCRUN_REPO_COMMIT=__PROCRUN_REPO_COMMIT__" in runner
     assert "$BenchmarkSucceeded = $true" in runner
     assert "$ServerCreated -and $BenchmarkSucceeded -and -not $KeepServer" in runner
     assert "intentionally still running for diagnostics" in runner
