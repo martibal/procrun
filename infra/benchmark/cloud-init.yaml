@@ -1,0 +1,10 @@
+#cloud-config
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - python3
+
+runcmd:
+  - [sh, -c, "date -u +%Y-%m-%dT%H:%M:%SZ > /var/tmp/procrun-cloud-init-ready"]
