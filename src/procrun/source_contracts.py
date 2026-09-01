@@ -1,7 +1,7 @@
 """Frozen production source-approval registry.
 
 No live collector may run unless its retrieval route is explicitly APPROVED. This prevents
-accidental use of public-but-PII-bearing bulk/detail sources while Phase A source audits are open.
+accidental use of public-but-PII-bearing bulk/detail sources while source audits are open.
 """
 
 from dataclasses import dataclass
@@ -38,9 +38,7 @@ SOURCE_CONTRACTS = {
     "pt2030_project_search": SourceContract(
         source_id="pt2030_project_search",
         status=SourceStatus.CONDITIONAL,
-        retrieval_route=(
-            "Mais Transparencia Portugal 2030 project-only search surface"
-        ),
+        retrieval_route="Mais Transparencia Portugal 2030 project-only search surface",
         reason=(
             "Useful discovery cards are visible, but transport-level zero-PII safety and the "
             "required scope/temporal field surface are not yet proven."
@@ -63,9 +61,15 @@ SOURCE_CONTRACTS = {
     ),
     "portal_base": SourceContract(
         source_id="portal_base",
-        status=SourceStatus.CONDITIONAL,
-        retrieval_route="Portal BASE / IMPIC approved field-bounded API route",
-        reason="Production use remains conditional until its exact response schema is audited.",
+        status=SourceStatus.BLOCKED,
+        retrieval_route="Portal BASE / IMPIC APIBase2 contract and announcement endpoints",
+        reason=(
+            "Official documentation states that the API returns the same fields as the broad "
+            "dados.gov files and documents supplier/adjudicatario identifiers in responses. "
+            "No server-side output field projection is documented, so prohibited fields cannot "
+            "be excluded before receipt."
+        ),
+        server_side_projection=False,
     ),
 }
 

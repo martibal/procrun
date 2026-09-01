@@ -28,9 +28,15 @@ def test_nonapproved_sources_fail_before_retrieval(source_id: str) -> None:
         require_live_source(source_id)
 
 
-def test_pt2030_bulk_and_detail_are_hard_blocked() -> None:
+def test_known_broad_response_routes_are_hard_blocked() -> None:
     assert SOURCE_CONTRACTS["pt2030_project_detail"].status is SourceStatus.BLOCKED
     assert SOURCE_CONTRACTS["pt2030_operations_bulk"].status is SourceStatus.BLOCKED
+    assert SOURCE_CONTRACTS["portal_base"].status is SourceStatus.BLOCKED
+    assert SOURCE_CONTRACTS["portal_base"].server_side_projection is False
+
+
+def test_pt2030_project_search_remains_conditional() -> None:
+    assert SOURCE_CONTRACTS["pt2030_project_search"].status is SourceStatus.CONDITIONAL
 
 
 def test_unknown_source_fails_closed() -> None:

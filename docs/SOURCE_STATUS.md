@@ -14,7 +14,7 @@ Current registry:
 | Portugal 2030 project search | CONDITIONAL | Do not implement live retrieval yet. |
 | Portugal 2030 full project detail | BLOCKED | Must not be ingested. |
 | AD&C/dados.gov.pt PT2030 operations bulk file | BLOCKED | Must not be downloaded and filtered after receipt. |
-| Portal BASE / IMPIC | CONDITIONAL | Requires exact schema audit before implementation. |
+| Portal BASE / IMPIC APIBase2 | BLOCKED | Documented response surface is broader than the MVP allowlist and no output-field projection is documented. |
 
 ## Portugal 2030 project discovery
 
@@ -88,6 +88,19 @@ TED automatically attaches `links`; this is accepted only as transport metadata 
 The field list deliberately excludes buyer contact person/email/phone/touchpoint fields, supplier/winner fields, street addresses and business identifiers. `buyer-name` is retained only as the contracting-authority organisation name required for evidence matching.
 
 Currency values are mapped into canonical `*_eur` fields only when TED explicitly reports `EUR`. The current canonical ledger stores integer EUR amounts, so fractional values are withheld rather than silently rounded; this can be revisited through an explicit schema migration.
+
+## Portal BASE / IMPIC decision
+
+Official references audited on 2026-09-01:
+
+- `https://www.base.gov.pt/Base4/pt/documentacao/formas-de-obter-dados-sobre-os-contratos-publicos/`
+- `https://www.base.gov.pt/APIBase2`
+
+The IMPIC documentation states that API access is token-authorised and daily, but that the fields returned by the API are the same as the files published through dados.gov.pt. The documented API endpoints accept search/filter parameters such as contract ID, procedure ID, announcement number, CPV, year and entity NIF; no server-side output field projection is documented.
+
+The official response example includes `adjudicatarios` entries that combine supplier identifiers with names. Supplier/adjudicatario data and tax identifiers are outside the MVP intelligence allowlist. Because the documented API route cannot be constrained to prevent those fields from entering the response, APIBase2 is **BLOCKED** under the pre-receipt zero-PII rule.
+
+This decision does not claim that every future IMPIC route is unusable. A new, separately documented route may be reconsidered only if it supports a field-bounded response that excludes prohibited fields before receipt. Until then, no BASE collector may be implemented.
 
 ## Rule
 
