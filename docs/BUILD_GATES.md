@@ -11,7 +11,7 @@ Implementation is not allowed to weaken the Product Requirements v1.0 or Phase-0
 
 ## A2 — Temporal provenance
 
-Every funded project must retain a defensible `first_seen_at`. A current project start date is not a substitute for first public observability.
+Every funded project must retain a defensible `first_seen_at`. A current project start date is not a substitute for first public observability. If first public observability is not proven, `temporal_provenance` remains `UNRESOLVED` and the project cannot support a historical lead-time claim.
 
 ## A3 — Evidence semantics
 
@@ -44,3 +44,14 @@ Given a new Portugal 2030 project, the system can automatically produce:
 `project -> purchasable components -> pre-cutoff procurement evidence -> component states -> project state -> evidence ledger`
 
 with no manual decision in the normal path and no prohibited data entering the intelligence pipeline.
+
+## A8 — PostgreSQL ledger
+
+- PostgreSQL 16 is the canonical ledger; `pg_trgm` and full-text indexes are enabled for later bounded candidate search.
+- Every persisted source content version has source ID/record ID/URL, normalized allowlisted fields, schema version and SHA-256.
+- Source retrieval timestamps are stored as immutable retrieval observations.
+- Funding projects, components, procurement evidence, component assessments, project assessments, outcomes and manifests are versioned.
+- Corrections append a new version with explicit `supersedes_version_id`; database triggers reject `UPDATE` and `DELETE` on ledger tables.
+- Classification provenance retains exact accepted evidence version IDs, candidate data and rejected-evidence reasons.
+- `first_seen_at` may remain unresolved; project start date is never substituted.
+- CI must exercise these invariants against PostgreSQL 16, not only mocks.
