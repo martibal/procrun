@@ -8,7 +8,7 @@ from datetime import date, datetime
 from typing import Any
 
 from procrun.domain import ProcurementEvidence
-from procrun.privacy import project_allowlisted
+from procrun.privacy import validate_projected_record
 
 TED_ALLOWED_FIELDS = frozenset(
     {
@@ -23,8 +23,10 @@ TED_ALLOWED_FIELDS = frozenset(
 )
 
 
-def normalize_ted_record(record: dict[str, Any], *, evidence_id: str, component_id: str) -> ProcurementEvidence:
-    safe = project_allowlisted(record, TED_ALLOWED_FIELDS)
+def normalize_ted_record(
+    record: dict[str, Any], *, evidence_id: str, component_id: str
+) -> ProcurementEvidence:
+    safe = validate_projected_record(record, TED_ALLOWED_FIELDS)
     publication = safe["publication_date"]
     if isinstance(publication, datetime):
         publication_date = publication.date()
@@ -48,7 +50,9 @@ def normalize_ted_record(record: dict[str, Any], *, evidence_id: str, component_
         cpv_codes=cpv_codes,
         procedure_value_eur=safe.get("procedure_value_eur"),
         project_reference=(
-            None if safe.get("project_reference") in (None, "") else str(safe["project_reference"])
+            None
+            if safe.get("project_reference") in (None, "")
+            else str(safe["project_reference"])
         ),
         source_url=str(safe["source_url"]),
     )
