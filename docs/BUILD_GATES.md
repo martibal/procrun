@@ -55,3 +55,14 @@ with no manual decision in the normal path and no prohibited data entering the i
 - Classification provenance retains exact accepted evidence version IDs, candidate data and rejected-evidence reasons.
 - `first_seen_at` may remain unresolved; project start date is never substituted.
 - CI must exercise these invariants against PostgreSQL 16, not only mocks.
+
+## A9 — Local-model benchmark boundary
+
+- Rules remain primary; the model sees only unmatched, allowlisted scope spans and frozen categories.
+- Model output is proposal-only and can never set procurement or opportunity state.
+- The benchmark adapter accepts only `BENCHMARK_CANDIDATE` registry artifacts.
+- Exact GGUF bytes and the local `llama-cli` binary are hash-bound before inference.
+- Runtime is offline, deterministic, time-bounded and resource-bounded; Linux benchmark memory is capped.
+- Every generated or cached proposal is revalidated against exact source spans and allowed domain/category pairs.
+- Benchmark cache storage is bounded and disposable.
+- Production approval requires a later explicit evidence-backed registry/governance change.

@@ -20,11 +20,12 @@ from procrun.model_fallback import (
     ModelProposalBatch,
 )
 from procrun.model_registry import (
+    ModelApprovalStatus,
     ModelArtifactSpec,
     verify_local_model_artifact,
 )
 
-LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v1"
+LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v2"
 
 
 class LlamaAdapterError(RuntimeError):
@@ -50,6 +51,8 @@ class LlamaBenchmarkConfig:
     max_stdout_bytes: int = 256 * 1024
     max_stderr_bytes: int = 2 * 1024 * 1024
     max_cache_record_bytes: int = 512 * 1024
+    max_cache_entries: int = 256
+    max_memory_mb: int = 6 * 1024
 
     def __post_init__(self) -> None:
         positive_ints = (
@@ -60,9 +63,13 @@ class LlamaBenchmarkConfig:
             self.max_stdout_bytes,
             self.max_stderr_bytes,
             self.max_cache_record_bytes,
+            self.max_cache_entries,
+            self.max_memory_mb,
         )
         if any(value <= 0 for value in positive_ints):
             raise ValueError("llama benchmark integer limits must all be positive")
+        if self.max_memory_mb < 1024:
+            raise ValueError("llama benchmark max_memory_mb must be at least 1024")
         if self.timeout_seconds <= 0:
             raise ValueError("llama benchmark timeout_seconds must be positive")
         if self.seed < 0:
@@ -89,7 +96,7 @@ class ProcessResult:
 
 
 ProcessInvoker = Callable[
-    [tuple[str, ...], Mapping[str, str], float],
+    [tuple[str, ...], Mapping[str, str], float, int],
     ProcessResult,
 ]
 
@@ -126,11 +133,18 @@ def prepare_llama_benchmark_runtime(
 ) -> PreparedLlamaRuntime:
     """Verify exact local model/runtime bytes before any benchmark inference."""
 
+    if model_spec.status is not ModelApprovalStatus.BENCHMARK_CANDIDATE:
+        raise LlamaAdapterError(
+            "benchmark adapter accepts BENCHMARK_CANDIDATE model artifacts only"
+        )
+
     actual_config = config if config is not None else LlamaBenchmarkConfig()
     resolved_cli = llama_cli_path.resolve()
     resolved_model = model_path.resolve()
     if not resolved_cli.is_file():
         raise LlamaAdapterError(f"llama-cli binary does not exist: {resolved_cli}")
+    if os.name == "posix" and not os.access(resolved_cli, os.X_OK):
+        raise LlamaAdapterError(f"llama-cli binary is not executable: {resolved_cli}")
 
     verify_local_model_artifact(resolved_model, model_spec)
     return PreparedLlamaRuntime(
@@ -169,6 +183,13 @@ def benchmark_cache_key(
             "max_output_tokens": runtime.config.max_output_tokens,
             "seed": runtime.config.seed,
             "max_proposals": runtime.config.max_proposals,
+            "max_memory_mb": runtime.config.max_memory_mb,
+            "reasoning": "off",
+            "temperature": 0,
+            "top_k": 1,
+            "top_p": 1,
+            "min_p": 0,
+            "offline": True,
         },
     }
     return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
@@ -248,10 +269,25 @@ def _sanitized_environment() -> dict[str, str]:
     return env
 
 
+def _posix_memory_limiter(max_memory_mb: int) -> Callable[[], None] | None:
+    if os.name != "posix":
+        return None
+
+    max_bytes = max_memory_mb * 1024 * 1024
+
+    def apply_limit() -> None:
+        import resource
+
+        resource.setrlimit(resource.RLIMIT_AS, (max_bytes, max_bytes))
+
+    return apply_limit
+
+
 def _invoke_process(
     argv: tuple[str, ...],
     env: Mapping[str, str],
     timeout_seconds: float,
+    max_memory_mb: int,
 ) -> ProcessResult:
     started = time.perf_counter()
     try:
@@ -262,6 +298,7 @@ def _invoke_process(
             env=dict(env),
             timeout=timeout_seconds,
             check=False,
+            preexec_fn=_posix_memory_limiter(max_memory_mb),
         )
     except subprocess.TimeoutExpired as exc:
         raise LlamaAdapterError(
@@ -295,6 +332,7 @@ def _invoke_llama(
 
         argv = (
             str(runtime.llama_cli_path),
+            "--offline",
             "-m",
             str(runtime.model_path),
             "--threads",
@@ -313,9 +351,15 @@ def _invoke_llama(
             "1",
             "--min-p",
             "0",
+            "--reasoning",
+            "off",
+            "--reasoning-budget",
+            "0",
             "--single-turn",
             "--no-display-prompt",
             "--no-show-timings",
+            "--log-verbosity",
+            "1",
             "--color",
             "off",
             "--file",
@@ -327,6 +371,7 @@ def _invoke_llama(
             argv,
             _sanitized_environment(),
             runtime.config.timeout_seconds,
+            runtime.config.max_memory_mb,
         )
 
 
@@ -437,6 +482,7 @@ def _read_cache(
     cache_dir: Path,
     cache_key: str,
     runtime: PreparedLlamaRuntime,
+    request: LocalModelRequest,
 ) -> ModelProposalBatch | None:
     path = _cache_path(cache_dir, cache_key)
     if not path.exists():
@@ -456,7 +502,26 @@ def _read_cache(
         raise LlamaAdapterError("benchmark cache key mismatch")
     if record.batch.model_identity != runtime.model_spec.identity:
         raise LlamaAdapterError("benchmark cache model identity mismatch")
-    return record.batch
+    if record.batch.operation_code != request.operation_code:
+        raise LlamaAdapterError("benchmark cache operation_code mismatch")
+    if record.batch.source_sha256 != request.source_sha256:
+        raise LlamaAdapterError("benchmark cache source hash mismatch")
+
+    validated = _validate_against_request(
+        request,
+        GeneratedProposalEnvelope(proposals=record.batch.proposals),
+    )
+    return record.batch.model_copy(update={"proposals": validated.proposals})
+
+
+def _prune_cache(cache_dir: Path, max_entries: int) -> None:
+    entries = sorted(
+        (path for path in cache_dir.glob("*.json") if path.is_file()),
+        key=lambda path: (path.stat().st_mtime_ns, path.name),
+    )
+    excess = len(entries) - max_entries
+    for path in entries[: max(excess, 0)]:
+        path.unlink(missing_ok=True)
 
 
 def _write_cache(
@@ -480,6 +545,7 @@ def _write_cache(
     try:
         temporary.write_bytes(encoded)
         os.replace(temporary, destination)
+        _prune_cache(cache_dir, runtime.config.max_cache_entries)
     except OSError as exc:
         temporary.unlink(missing_ok=True)
         raise LlamaAdapterError("benchmark cache entry could not be written") from exc
@@ -496,12 +562,8 @@ def run_llama_component_benchmark(
 
     cache_key = benchmark_cache_key(request, runtime)
     if cache_dir is not None:
-        cached = _read_cache(cache_dir, cache_key, runtime)
+        cached = _read_cache(cache_dir, cache_key, runtime, request)
         if cached is not None:
-            if cached.operation_code != request.operation_code:
-                raise LlamaAdapterError("benchmark cache operation_code mismatch")
-            if cached.source_sha256 != request.source_sha256:
-                raise LlamaAdapterError("benchmark cache source hash mismatch")
             return LlamaBenchmarkResult(
                 batch=cached,
                 cache_key=cache_key,
