@@ -21,9 +21,9 @@ changes the model registry.
 - Model SHA-256:
   `7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5`.
 
-The llama.cpp revision is pinned to an exact upstream release commit rather than a moving branch.
-The model download script uses the exact Hugging Face revision and independently verifies size and
-SHA-256 before the file becomes usable.
+The llama.cpp revision is pinned to an exact upstream commit rather than a moving branch. The model
+download script uses the exact Hugging Face revision and independently verifies size and SHA-256
+before the file becomes usable.
 
 ## Local Windows provisioning
 
@@ -45,19 +45,36 @@ $env:HCLOUD_TOKEN = "<temporary-token>"
 ```
 
 The helper refuses to create a second server with the same name. It does not enable backups or
-deletion protection because the benchmark host is intended to be short-lived. It also never falls
-back to another server type if CX33 is unavailable.
+deletion protection because the benchmark host is intended to be short-lived.
+
+### One-command end-to-end run
+
+Once `HCLOUD_TOKEN` is set and the named SSH key exists in the Hetzner project, the preferred path
+from a clean Windows checkout is:
+
+```powershell
+.\scripts\run_hetzner_benchmark_e2e.ps1 -SshKey "<hetzner-ssh-key-name>"
+```
+
+This orchestration script:
+
+1. creates the exact requested CX33 host with no SKU fallback;
+2. waits for SSH and cloud-init;
+3. uses `git archive HEAD`, so only committed repository content is transferred;
+4. runs host bootstrap, the verified model download and the frozen benchmark remotely;
+5. bundles the three result artifacts and copies them to
+   `data\exports\model-benchmark\` locally; and
+6. deletes the billable server only after the result bundle exists locally.
+
+If any remote step fails, the server is intentionally kept for diagnostics and the script prints the
+explicit deletion command. Use `-KeepServer` to keep a successful host as well. An optional
+`-IdentityFile` can be supplied when the private key is not available through the normal SSH agent
+or default key locations.
 
 ## Host setup
 
-Connect to the new Ubuntu host and wait for the small cloud-init package bootstrap to finish:
-
-```bash
-cloud-init status --wait
-```
-
-Clone this private repository using the user's normal GitHub authentication method, then run from the
-repository root:
+Connect to the new Ubuntu host. Clone this private repository using the user's normal GitHub
+authentication method, then run from the repository root:
 
 ```bash
 bash scripts/bootstrap_benchmark_host.sh
@@ -68,14 +85,13 @@ bash scripts/run_target_benchmark.sh
 The bootstrap:
 
 - installs only the build/runtime packages required for the CPU benchmark;
-- fetches the exact pinned llama.cpp release commit;
+- fetches the exact pinned llama.cpp commit;
 - builds only the local `llama-cli` path needed by the adapter;
 - creates a repository-local Python virtual environment; and
 - installs ProcRun from the checked-out repository.
 
 The model download is deliberately separate from bootstrap because it is the large network transfer.
-Partial downloads can be resumed, while the final file is still accepted only after exact byte-size
-and SHA-256 verification. An existing incorrect final model file is never overwritten silently.
+An existing incorrect model file is never overwritten silently.
 
 ## Generated evidence
 

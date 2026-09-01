@@ -16,7 +16,7 @@ def test_target_benchmark_scripts_pin_registered_model() -> None:
     assert str(QWEN3_4B_Q4_K_M.size_bytes) in download
 
 
-def test_target_benchmark_bootstrap_pins_llama_cpp_release_commit() -> None:
+def test_target_benchmark_bootstrap_pins_llama_cpp_commit() -> None:
     bootstrap = (REPO_ROOT / "scripts" / "bootstrap_benchmark_host.sh").read_text(
         encoding="utf-8"
     )
@@ -35,3 +35,15 @@ def test_target_benchmark_runtime_stays_outside_repository() -> None:
 
     assert "$HOME/.local/share/procrun-benchmark" in run_script
     assert "$HOME/.local/share/procrun-benchmark" in download
+
+
+def test_e2e_runner_transfers_only_committed_code_and_preserves_failures() -> None:
+    runner = (REPO_ROOT / "scripts" / "run_hetzner_benchmark_e2e.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "git -C $RepoRoot archive --format=zip" in runner
+    assert "$BenchmarkSucceeded = $true" in runner
+    assert "$ServerCreated -and $BenchmarkSucceeded -and -not $KeepServer" in runner
+    assert "intentionally still running for diagnostics" in runner
+    assert "data\\exports\\model-benchmark" in runner
