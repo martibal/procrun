@@ -285,7 +285,9 @@ def build_component_benchmark_report(
             elapsed.append(result.elapsed_seconds)
 
     if len(model_ids) != 1 or len(model_hashes) != 1 or len(cli_hashes) != 1:
-        raise BenchmarkCorpusError("one benchmark report must use one exact model and llama runtime")
+        raise BenchmarkCorpusError(
+            "one benchmark report must use one exact model and llama runtime"
+        )
 
     score = score_component_benchmark(loaded.corpus, predictions)
     measured = tuple(elapsed)
