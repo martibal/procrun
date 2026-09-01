@@ -51,6 +51,18 @@ def test_target_benchmark_accepts_explicit_archived_source_commit() -> None:
     assert "printf 'repo_commit=%s\\n' \"$REPO_COMMIT\"" in run_script
 
 
+def test_target_benchmark_surfaces_runtime_failure_diagnostics() -> None:
+    run_script = (REPO_ROOT / "scripts" / "run_target_benchmark.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "set +e" in run_script
+    assert "BENCHMARK_STATUS=$?" in run_script
+    assert 'cat "$TIME_REPORT" >&2' in run_script
+    assert 'cat "$HOST_REPORT" >&2' in run_script
+    assert 'exit "$BENCHMARK_STATUS"' in run_script
+
+
 def test_provisioning_checks_compliance_before_billable_server_create() -> None:
     provision = (REPO_ROOT / "scripts" / "provision_benchmark_server.ps1").read_text(
         encoding="utf-8"
