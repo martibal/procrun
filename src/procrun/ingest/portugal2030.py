@@ -9,7 +9,7 @@ from datetime import date, datetime
 from typing import Any
 
 from procrun.domain import FundingProject
-from procrun.privacy import project_allowlisted
+from procrun.privacy import validate_projected_record
 
 PORTUGAL2030_ALLOWED_FIELDS = frozenset(
     {
@@ -40,7 +40,7 @@ def _parse_datetime(value: Any) -> datetime:
 
 
 def normalize_project_record(record: dict[str, Any]) -> FundingProject:
-    safe = project_allowlisted(record, PORTUGAL2030_ALLOWED_FIELDS)
+    safe = validate_projected_record(record, PORTUGAL2030_ALLOWED_FIELDS)
     return FundingProject(
         operation_code=str(safe["operation_code"]),
         first_seen_at=_parse_datetime(safe["first_seen_at"]),
