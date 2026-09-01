@@ -110,9 +110,11 @@ def test_unknown_response_field_fails_closed() -> None:
         del request
         return response({"notices": [], "timedOut": False, "unexpected": 1})
 
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(TedContractError):
-            collect_ted_notices("buyer-country=PRT", client=client)
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(TedContractError),
+    ):
+        collect_ted_notices("buyer-country=PRT", client=client)
 
 
 def test_non_projected_notice_field_fails_closed() -> None:
@@ -127,9 +129,11 @@ def test_non_projected_notice_field_fails_closed() -> None:
             }
         )
 
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(TedContractError):
-            collect_ted_notices("buyer-country=PRT", client=client)
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(TedContractError),
+    ):
+        collect_ted_notices("buyer-country=PRT", client=client)
 
 
 def test_timed_out_page_is_never_accepted_as_complete() -> None:
