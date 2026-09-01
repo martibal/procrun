@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Runtime data: NEVER commit datasets or caches
+data/raw/
+data/cache/
+data/downloads/
+data/exports/
+data/db/
+cache/
+downloads/
+exports/
+*.db
+*.sqlite
+*.sqlite3
+*.parquet
+*.feather
+*.arrow
+*.duckdb
+*.gz
+*.zip
+*.7z
+*.tar
+*.tgz
+
+# Model weights / large binaries
+models/
+*.bin
+*.safetensors
+*.gguf
+*.onnx
+
+# Logs
+logs/
+*.log
+
+# Keep only explicitly curated tiny fixtures
+!tests/fixtures/**
