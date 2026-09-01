@@ -76,8 +76,17 @@ try {
 
     $SshReady = $false
     for ($Attempt = 0; $Attempt -lt 60; $Attempt++) {
-        & ssh @SshOptions $Remote "true" *> $null
-        if ($LASTEXITCODE -eq 0) {
+        $ProbeErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "SilentlyContinue"
+            & ssh @SshOptions $Remote "true" *> $null
+            $SshExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $ProbeErrorActionPreference
+        }
+
+        if ($SshExitCode -eq 0) {
             $SshReady = $true
             break
         }
