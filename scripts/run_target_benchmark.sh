@@ -4,7 +4,7 @@ set -euo pipefail
 RUNTIME_ROOT="${PROCRUN_BENCHMARK_ROOT:-$HOME/.local/share/procrun-benchmark}"
 LLAMA_CLI="$RUNTIME_ROOT/llama.cpp/build/bin/llama-cli"
 MODEL="$RUNTIME_ROOT/models/Qwen3-4B-Q4_K_M.gguf"
-CORPUS="tests/fixtures/component_model_benchmark_v1.json"
+CORPUS="tests/fixtures/component_benchmark_v1.json"
 OUTPUT_DIR="$RUNTIME_ROOT/results"
 CACHE_DIR="$RUNTIME_ROOT/cache"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
