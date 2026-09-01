@@ -67,6 +67,11 @@ if ($Dirty) {
     throw "Repository has uncommitted changes. Benchmark only committed, reproducible code."
 }
 
+$RepoCommit = (& git -C $RepoRoot rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $RepoCommit -notmatch "^[0-9a-f]{40}$") {
+    throw "Could not resolve the exact repository commit for the benchmark."
+}
+
 $ArchivePath = Join-Path ([System.IO.Path]::GetTempPath()) (
     "procrun-benchmark-{0}.zip" -f ([guid]::NewGuid().ToString("N"))
 )
@@ -123,7 +128,7 @@ try {
         throw "cloud-init failed on the benchmark host."
     }
 
-    & git -C $RepoRoot archive --format=zip -o $ArchivePath HEAD
+    & git -C $RepoRoot archive --format=zip -o $ArchivePath $RepoCommit
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $ArchivePath)) {
         throw "Could not create the committed-code benchmark archive."
     }
@@ -142,11 +147,12 @@ cd /root/procrun
 find scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
 bash scripts/bootstrap_benchmark_host.sh
 bash scripts/download_benchmark_model.sh
-bash scripts/run_target_benchmark.sh
+PROCRUN_REPO_COMMIT=__PROCRUN_REPO_COMMIT__ bash scripts/run_target_benchmark.sh
 tar -C /root/.local/share/procrun-benchmark/results \
   -czf /root/procrun-benchmark-results.tgz .
 '@
     $RemoteBenchmark = $RemoteBenchmark.Replace("`r", "")
+    $RemoteBenchmark = $RemoteBenchmark.Replace("__PROCRUN_REPO_COMMIT__", $RepoCommit)
     & ssh @SshOptions $Remote $RemoteBenchmark
     if ($LASTEXITCODE -ne 0) {
         throw "Remote benchmark execution failed."
