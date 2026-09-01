@@ -21,6 +21,31 @@ function Require-Command {
     }
 }
 
+function Test-TcpPort {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$HostName,
+        [int]$Port = 22,
+        [int]$TimeoutMilliseconds = 1000
+    )
+
+    $Client = [System.Net.Sockets.TcpClient]::new()
+    try {
+        $Connect = $Client.BeginConnect($HostName, $Port, $null, $null)
+        if (-not $Connect.AsyncWaitHandle.WaitOne($TimeoutMilliseconds, $false)) {
+            return $false
+        }
+        $Client.EndConnect($Connect)
+        return $true
+    }
+    catch {
+        return $false
+    }
+    finally {
+        $Client.Close()
+    }
+}
+
 Require-Command "hcloud"
 Require-Command "git"
 Require-Command "ssh"
@@ -75,25 +100,15 @@ try {
     $Remote = "root@$IpAddress"
 
     $SshReady = $false
-    for ($Attempt = 0; $Attempt -lt 60; $Attempt++) {
-        $ProbeErrorActionPreference = $ErrorActionPreference
-        try {
-            $ErrorActionPreference = "SilentlyContinue"
-            & ssh @SshOptions $Remote "true" *> $null
-            $SshExitCode = $LASTEXITCODE
-        }
-        finally {
-            $ErrorActionPreference = $ProbeErrorActionPreference
-        }
-
-        if ($SshExitCode -eq 0) {
+    for ($Attempt = 0; $Attempt -lt 90; $Attempt++) {
+        if (Test-TcpPort -HostName $IpAddress -Port 22 -TimeoutMilliseconds 1000) {
             $SshReady = $true
             break
         }
         Start-Sleep -Seconds 2
     }
     if (-not $SshReady) {
-        throw "SSH did not become reachable."
+        throw "SSH port 22 did not become reachable."
     }
 
     & ssh @SshOptions $Remote "cloud-init status --wait"
