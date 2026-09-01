@@ -1,0 +1,195 @@
+import json
+from pathlib import Path
+
+import pytest
+
+from procrun import model_benchmark, model_fallback
+from procrun.llama_adapter import LlamaBenchmarkResult
+
+BenchmarkCorpusError = model_benchmark.BenchmarkCorpusError
+benchmark_request = model_benchmark.benchmark_request
+build_component_benchmark_report = model_benchmark.build_component_benchmark_report
+load_component_benchmark = model_benchmark.load_component_benchmark
+score_component_benchmark = model_benchmark.score_component_benchmark
+LocalModelIdentity = model_fallback.LocalModelIdentity
+ModelComponentProposal = model_fallback.ModelComponentProposal
+ModelProposalBatch = model_fallback.ModelProposalBatch
+
+FIXTURE = Path(__file__).parent / "fixtures" / "component_benchmark_v1.json"
+
+
+def loaded():
+    return load_component_benchmark(FIXTURE)
+
+
+def test_frozen_portuguese_corpus_is_small_synthetic_and_exact() -> None:
+    benchmark = loaded()
+
+    assert benchmark.corpus.schema_version == "component-benchmark-v1"
+    assert benchmark.corpus.language == "pt-PT"
+    assert len(benchmark.corpus.cases) == 12
+    assert sum(bool(case.expected_proposals) for case in benchmark.corpus.cases) == 10
+    assert all(case.operation_code.startswith("BENCH-") for case in benchmark.corpus.cases)
+    assert all("http" not in case.scope_text.lower() for case in benchmark.corpus.cases)
+    assert all("@" not in case.scope_text for case in benchmark.corpus.cases)
+    assert len(benchmark.sha256) == 64
+
+    for case in benchmark.corpus.cases:
+        for proposal in case.expected_proposals:
+            assert case.scope_text[proposal.start : proposal.end] == proposal.source_text
+
+
+def test_benchmark_request_contains_only_synthetic_scope_and_frozen_categories() -> None:
+    case = loaded().corpus.cases[0]
+    request = benchmark_request(case)
+
+    assert request.operation_code == case.operation_code
+    assert len(request.source_sha256) == 64
+    assert len(request.unmatched_scope_spans) == 1
+    assert request.unmatched_scope_spans[0].text == case.scope_text
+    assert request.unmatched_scope_spans[0].start == 0
+    assert request.unmatched_scope_spans[0].end == len(case.scope_text)
+    assert request.allowed_categories
+    assert all(item.domain in case.domains for item in request.allowed_categories)
+
+
+def test_exact_oracle_scores_perfectly_without_inventing_thresholds() -> None:
+    benchmark = loaded()
+    predictions = {
+        case.case_id: case.expected_proposals for case in benchmark.corpus.cases
+    }
+
+    score = score_component_benchmark(benchmark.corpus, predictions)
+
+    assert score.case_count == 12
+    assert score.expected_proposal_count == 10
+    assert score.predicted_proposal_count == 10
+    assert score.true_positive_count == 10
+    assert score.false_positive_count == 0
+    assert score.false_negative_count == 0
+    assert score.exact_precision == 1.0
+    assert score.exact_recall == 1.0
+    assert score.exact_f1 == 1.0
+    assert score.exact_case_match_rate == 1.0
+    assert score.abstention_case_count == 2
+    assert score.correct_abstention_count == 2
+    assert score.correct_abstention_rate == 1.0
+
+
+def test_false_positive_on_abstention_case_is_measured_explicitly() -> None:
+    benchmark = loaded()
+    predictions = {
+        case.case_id: case.expected_proposals for case in benchmark.corpus.cases
+    }
+    negative = next(
+        case for case in benchmark.corpus.cases if case.case_id == "negative_generic"
+    )
+    predictions[negative.case_id] = (
+        ModelComponentProposal(
+            domain=negative.domains[0],
+            category="pumps",
+            start=0,
+            end=1,
+            source_text=negative.scope_text[0:1],
+        ),
+    )
+
+    score = score_component_benchmark(benchmark.corpus, predictions)
+
+    assert score.false_positive_count == 1
+    assert score.false_positive_abstention_case_count == 1
+    assert score.correct_abstention_count == 1
+    assert score.exact_case_match_count == 11
+
+
+def test_missing_case_predictions_fail_instead_of_silently_improving_score() -> None:
+    benchmark = loaded()
+    predictions = {
+        case.case_id: case.expected_proposals for case in benchmark.corpus.cases[:-1]
+    }
+
+    with pytest.raises(BenchmarkCorpusError, match="exact case set"):
+        score_component_benchmark(benchmark.corpus, predictions)
+
+
+def test_corpus_rejects_non_exact_expected_span(tmp_path: Path) -> None:
+    payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    payload["cases"][0]["expected_proposals"][0]["start"] = 19
+    path = tmp_path / "bad.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(BenchmarkCorpusError, match="exact source span"):
+        load_component_benchmark(path)
+
+
+def test_corpus_rejects_real_looking_operation_code(tmp_path: Path) -> None:
+    payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    payload["cases"][0]["operation_code"] = "PACS-FC-REAL"
+    path = tmp_path / "bad.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(BenchmarkCorpusError, match="synthetic BENCH"):
+        load_component_benchmark(path)
+
+
+def test_execution_report_binds_model_runtime_corpus_and_measurements() -> None:
+    benchmark = loaded()
+    identity = LocalModelIdentity(
+        model_id="fixture/model:Q4",
+        artifact_sha256="a" * 64,
+    )
+    results: dict[str, LlamaBenchmarkResult] = {}
+
+    for index, case in enumerate(benchmark.corpus.cases):
+        request = benchmark_request(case)
+        results[case.case_id] = LlamaBenchmarkResult(
+            batch=ModelProposalBatch(
+                operation_code=request.operation_code,
+                source_sha256=request.source_sha256,
+                model_identity=identity,
+                proposals=case.expected_proposals,
+            ),
+            cache_key=f"key-{index}",
+            cache_hit=index == 0,
+            elapsed_seconds=None if index == 0 else float(index),
+            llama_cli_sha256="b" * 64,
+        )
+
+    report = build_component_benchmark_report(benchmark, results)
+
+    assert report.corpus_sha256 == benchmark.sha256
+    assert report.model_id == "fixture/model:Q4"
+    assert report.model_artifact_sha256 == "a" * 64
+    assert report.llama_cli_sha256 == "b" * 64
+    assert report.score.exact_case_match_rate == 1.0
+    assert report.cache_hit_count == 1
+    assert report.inference_count == 11
+    assert report.median_elapsed_seconds == 6.0
+    assert report.max_elapsed_seconds == 11.0
+
+
+def test_execution_report_rejects_mixed_runtime_hashes() -> None:
+    benchmark = loaded()
+    identity = LocalModelIdentity(
+        model_id="fixture/model:Q4",
+        artifact_sha256="a" * 64,
+    )
+    results: dict[str, LlamaBenchmarkResult] = {}
+
+    for index, case in enumerate(benchmark.corpus.cases):
+        request = benchmark_request(case)
+        results[case.case_id] = LlamaBenchmarkResult(
+            batch=ModelProposalBatch(
+                operation_code=request.operation_code,
+                source_sha256=request.source_sha256,
+                model_identity=identity,
+                proposals=case.expected_proposals,
+            ),
+            cache_key=f"key-{index}",
+            cache_hit=False,
+            elapsed_seconds=0.1,
+            llama_cli_sha256=("b" * 64 if index else "c" * 64),
+        )
+
+    with pytest.raises(BenchmarkCorpusError, match="one exact model and llama runtime"):
+        build_component_benchmark_report(benchmark, results)
