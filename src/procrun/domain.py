@@ -12,6 +12,11 @@ class ComponentState(StrEnum):
     UNRESOLVED = "UNRESOLVED"
 
 
+class TemporalProvenance(StrEnum):
+    RESOLVED = "RESOLVED"
+    UNRESOLVED = "UNRESOLVED"
+
+
 class ProjectState(StrEnum):
     OPEN = "OPEN"
     CLOSED = "CLOSED"
@@ -25,12 +30,21 @@ class StrictModel(BaseModel):
 
 class FundingProject(StrictModel):
     operation_code: str
-    first_seen_at: datetime
+    first_seen_at: datetime | None = None
+    temporal_provenance: TemporalProvenance = TemporalProvenance.UNRESOLVED
+    project_title: str | None = None
     project_start: date | None = None
     project_end: date | None = None
     approved_funding_eur: int | None = Field(default=None, ge=0)
     executed_funding_eur: int | None = Field(default=None, ge=0)
     project_scope_text: str
+    fund: str | None = None
+    programme: str | None = None
+    objective: str | None = None
+    theme: str | None = None
+    region: str | None = None
+    municipality: str | None = None
+    nuts_code: str | None = None
     source_url: str
 
 
@@ -47,9 +61,21 @@ class ProcurementEvidence(StrictModel):
     component_id: str
     notice_id: str
     publication_date: date
+    award_date: date | None = None
+    contract_date: date | None = None
     title: str
+    scope_description: str | None = None
     cpv_codes: tuple[str, ...] = ()
+    contract_nature: str | None = None
+    procedure_type: str | None = None
     procedure_value_eur: int | None = Field(default=None, ge=0)
+    estimated_value_eur: int | None = Field(default=None, ge=0)
+    base_value_eur: int | None = Field(default=None, ge=0)
+    awarded_value_eur: int | None = Field(default=None, ge=0)
+    place_of_performance: str | None = None
+    nuts_code: str | None = None
+    municipality: str | None = None
+    contracting_authority_name: str | None = None
     project_reference: str | None = None
     source_url: str
 
