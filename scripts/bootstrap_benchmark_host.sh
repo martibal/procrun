@@ -40,10 +40,17 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
 mkdir -p "$RUNTIME_ROOT"
 
 if [[ ! -d "$LLAMA_SRC/.git" ]]; then
-  git clone --filter=blob:none --no-checkout https://github.com/ggml-org/llama.cpp.git "$LLAMA_SRC"
+  mkdir -p "$LLAMA_SRC"
+  git -C "$LLAMA_SRC" init -q
+  git -C "$LLAMA_SRC" remote add origin https://github.com/ggml-org/llama.cpp.git
 fi
 
-git -C "$LLAMA_SRC" fetch --depth=1 origin "$LLAMA_CPP_COMMIT"
+# Fetch the exact pinned commit as a normal shallow repository. Do not use a
+# partial/promisor clone: a missing blob would otherwise trigger a second
+# network fetch during checkout and make the benchmark bootstrap less robust.
+git -C "$LLAMA_SRC" config --unset-all remote.origin.promisor >/dev/null 2>&1 || true
+git -C "$LLAMA_SRC" config --unset-all remote.origin.partialclonefilter >/dev/null 2>&1 || true
+GIT_TERMINAL_PROMPT=0 git -C "$LLAMA_SRC" fetch --depth=1 --no-tags origin "$LLAMA_CPP_COMMIT"
 git -C "$LLAMA_SRC" checkout --detach FETCH_HEAD
 
 cmake -S "$LLAMA_SRC" -B "$LLAMA_BUILD" -G Ninja \
