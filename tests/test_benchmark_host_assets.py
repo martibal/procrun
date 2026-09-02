@@ -31,6 +31,21 @@ def test_target_benchmark_bootstrap_pins_llama_cpp_and_dependency_closure() -> N
     assert '--target llama-completion -j "$(nproc)"' in bootstrap
 
 
+def test_target_benchmark_bootstrap_avoids_partial_promisor_clone() -> None:
+    bootstrap = (REPO_ROOT / "scripts" / "bootstrap_benchmark_host.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "--filter=blob:none" not in bootstrap
+    assert 'git -C "$LLAMA_SRC" init -q' in bootstrap
+    assert "remote.origin.promisor" in bootstrap
+    assert "remote.origin.partialclonefilter" in bootstrap
+    assert (
+        'GIT_TERMINAL_PROMPT=0 git -C "$LLAMA_SRC" fetch '
+        '--depth=1 --no-tags origin "$LLAMA_CPP_COMMIT"'
+    ) in bootstrap
+
+
 def test_target_benchmark_uses_non_interactive_completion_runtime() -> None:
     run_script = (REPO_ROOT / "scripts" / "run_target_benchmark.sh").read_text(
         encoding="utf-8"
