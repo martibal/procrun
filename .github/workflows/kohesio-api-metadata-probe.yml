@@ -13,14 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe transport metadata only
+      - name: Probe Kohesio transport metadata without project retrieval
         shell: bash
         run: |
           set -euo pipefail
           base='https://kohesio.ec.europa.eu'
 
           echo '=== HEAD /api/projects (no response body) ==='
-          curl --fail-with-body --silent --show-error --location \
+          curl --silent --show-error --location \
             --connect-timeout 10 --max-time 20 \
             --head "$base/api/projects" || true
 
@@ -31,12 +31,7 @@ jobs:
             "$base/api/projects" || true
 
           echo '=== Documentation candidates ==='
-          for path in \
-            /v3/api-docs \
-            /api-docs \
-            /swagger.json \
-            /openapi.json \
-            /swagger-ui/index.html
+          for path in /v3/api-docs /api-docs /swagger.json /openapi.json /swagger-ui/index.html
           do
             tmp="$(mktemp)"
             headers="$(mktemp)"
@@ -47,37 +42,91 @@ jobs:
             content_type="$(awk 'BEGIN{IGNORECASE=1} /^content-type:/ {gsub(/\r/,""); print substr($0,index($0,":")+2)}' "$headers" | tail -n1)"
             bytes="$(wc -c < "$tmp" | tr -d ' ')"
             echo "$path status=$status content_type=${content_type:-unknown} bytes=$bytes"
+            rm -f "$tmp" "$headers"
+          done
 
-            # Print only schema metadata when the response is recognisably OpenAPI/Swagger.
-            python3 - "$tmp" "$path" <<'PY'
+          echo 'Safety assertion: no GET request to /api/projects and no project query was performed.'
+
+      - name: Query EU Knowledge Graph property metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          api='https://linkedopendata.eu/w/api.php'
+          tmp="$(mktemp)"
+
+          echo '=== Known/candidate property entity metadata ==='
+          status="$(curl --silent --show-error --location \
+            --connect-timeout 10 --max-time 30 --max-filesize 1048576 \
+            --get "$api" \
+            --data-urlencode 'action=wbgetentities' \
+            --data-urlencode 'ids=P20|P33|P32|P35|P127|P474|P835|P836|P841|P1584|P1367' \
+            --data-urlencode 'props=labels|descriptions' \
+            --data-urlencode 'languages=en' \
+            --data-urlencode 'format=json' \
+            --output "$tmp" --write-out '%{http_code}' || true)"
+          echo "wbgetentities status=$status bytes=$(wc -c < "$tmp" | tr -d ' ')"
+          python3 - "$tmp" <<'PY'
           import json
           import sys
 
-          filename, path = sys.argv[1:]
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              payload = json.load(handle)
+          entities = payload.get("entities", {}) if isinstance(payload, dict) else {}
+          for entity_id in sorted(entities):
+              entity = entities[entity_id]
+              label = (entity.get("labels", {}).get("en") or {}).get("value")
+              description = (entity.get("descriptions", {}).get("en") or {}).get("value")
+              print("PROPERTY", entity_id, "label=", label, "description=", description)
+          PY
+
+          echo '=== Property-only search metadata ==='
+          for term in \
+            'operation identifier' \
+            'operation code' \
+            'start date' \
+            'end date' \
+            'programme' \
+            'programming period' \
+            'fund' \
+            'total budget' \
+            'EU contribution' \
+            'summary' \
+            'NUTS' \
+            'last update'
+          do
+            : > "$tmp"
+            status="$(curl --silent --show-error --location \
+              --connect-timeout 10 --max-time 30 --max-filesize 1048576 \
+              --get "$api" \
+              --data-urlencode 'action=wbsearchentities' \
+              --data-urlencode 'type=property' \
+              --data-urlencode 'language=en' \
+              --data-urlencode 'limit=10' \
+              --data-urlencode "search=$term" \
+              --data-urlencode 'format=json' \
+              --output "$tmp" --write-out '%{http_code}' || true)"
+            echo "SEARCH term=$term status=$status bytes=$(wc -c < "$tmp" | tr -d ' ')"
+            python3 - "$tmp" "$term" <<'PY'
+          import json
+          import sys
+
+          filename, term = sys.argv[1:]
           try:
               with open(filename, encoding="utf-8") as handle:
                   payload = json.load(handle)
           except (OSError, UnicodeDecodeError, json.JSONDecodeError):
               raise SystemExit(0)
-
-          if not isinstance(payload, dict):
-              raise SystemExit(0)
-          if "openapi" not in payload and "swagger" not in payload:
-              raise SystemExit(0)
-
-          paths = payload.get("paths")
-          path_keys = sorted(paths) if isinstance(paths, dict) else []
-          print(
-              "OPENAPI_METADATA",
-              f"source={path}",
-              f"openapi={payload.get('openapi')}",
-              f"swagger={payload.get('swagger')}",
-              f"path_count={len(path_keys)}",
-          )
-          for key in path_keys:
-              print("OPENAPI_PATH", key)
+          results = payload.get("search", []) if isinstance(payload, dict) else []
+          for item in results:
+              print(
+                  "PROPERTY_SEARCH",
+                  f"term={term}",
+                  f"id={item.get('id')}",
+                  f"label={item.get('label')}",
+                  f"description={item.get('description')}",
+              )
           PY
-            rm -f "$tmp" "$headers"
           done
+          rm -f "$tmp"
 
-          echo 'Safety assertion: this workflow performs no GET request to /api/projects and no project query.'
+          echo 'Safety assertion: only Wikibase property entities/search results were requested; no item/project entities were requested.'
