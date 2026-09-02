@@ -16,6 +16,7 @@ from procrun.model_fallback import LocalModelIdentity
 class ModelApprovalStatus(StrEnum):
     BENCHMARK_CANDIDATE = "BENCHMARK_CANDIDATE"
     APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class ModelArtifactError(RuntimeError):
@@ -50,10 +51,29 @@ QWEN3_4B_Q4_K_M = ModelArtifactSpec(
     commercial_use_allowed=True,
     license_reviewed_on=date(2026, 9, 1),
     license_review_due_on=date(2026, 11, 30),
+    status=ModelApprovalStatus.REJECTED,
+)
+
+
+MINISTRAL3_3B_Q4_K_M = ModelArtifactSpec(
+    repository="mistralai/Ministral-3-3B-Instruct-2512-GGUF",
+    revision="eb599d408350ea2bb60452cb86be7c7b2fc28227",
+    filename="Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
+    identity=LocalModelIdentity(
+        model_id="mistralai/Ministral-3-3B-Instruct-2512-GGUF:Q4_K_M",
+        artifact_sha256="9ed150d4367e68df0ac8e1540f6ddc65b42d0ee26378329d1ecbca60f93fc5f8",
+    ),
+    size_bytes=2_147_023_008,
+    license_id="Apache-2.0",
+    license_url="https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512-GGUF",
+    commercial_use_allowed=True,
+    license_reviewed_on=date(2026, 9, 2),
+    license_review_due_on=date(2026, 11, 30),
     status=ModelApprovalStatus.BENCHMARK_CANDIDATE,
 )
 
-SELECTED_COMPONENT_MODEL = QWEN3_4B_Q4_K_M
+
+SELECTED_COMPONENT_MODEL = MINISTRAL3_3B_Q4_K_M
 
 
 def verify_model_compliance(

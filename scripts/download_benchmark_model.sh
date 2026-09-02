@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODEL_REVISION="bc640142c66e1fdd12af0bd68f40445458f3869b"
-MODEL_FILENAME="Qwen3-4B-Q4_K_M.gguf"
-MODEL_SHA256="7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
-MODEL_SIZE_BYTES="2497280256"
+MODEL_REVISION="eb599d408350ea2bb60452cb86be7c7b2fc28227"
+MODEL_FILENAME="Ministral-3-3B-Instruct-2512-Q4_K_M.gguf"
+MODEL_SHA256="9ed150d4367e68df0ac8e1540f6ddc65b42d0ee26378329d1ecbca60f93fc5f8"
+MODEL_SIZE_BYTES="2147023008"
 RUNTIME_ROOT="${PROCRUN_BENCHMARK_ROOT:-$HOME/.local/share/procrun-benchmark}"
 MODEL_DIR="$RUNTIME_ROOT/models"
 MODEL_PATH="$MODEL_DIR/$MODEL_FILENAME"
-MODEL_URL="https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/$MODEL_REVISION/$MODEL_FILENAME?download=true"
+MODEL_URL="https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512-GGUF/resolve/$MODEL_REVISION/$MODEL_FILENAME?download=true"
 
 python3 scripts/check_compliance_gate.py --service huggingface_model_download
 

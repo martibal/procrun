@@ -13,10 +13,16 @@ governance change.
 
 Current candidate:
 
-- `Qwen/Qwen3-4B-GGUF:Q4_K_M`
+- `mistralai/Ministral-3-3B-Instruct-2512-GGUF:Q4_K_M`
 - artifact SHA-256:
-  `7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5`
+  `9ed150d4367e68df0ac8e1540f6ddc65b42d0ee26378329d1ecbca60f93fc5f8`
+- artifact size: `2,147,023,008` bytes
 - weights remain outside Git.
+
+Rejected measured candidate retained for provenance:
+
+- `Qwen/Qwen3-4B-GGUF:Q4_K_M`
+- status: `REJECTED` after the 2026-09-02 target-host quality runs.
 
 ## Input boundary
 
@@ -39,9 +45,9 @@ unmatched scope span. The prompt includes the original span text plus an indexed
 indices are adapter-local evidence references; they do not replace the canonical character offsets in
 the accepted `ModelComponentProposal` contract.
 
-The complete request, including category selection rules, is part of the deterministic cache key. The
-adapter version is also bound into the key, so the v6 token-reference contract cannot reuse v5 cached
-outputs.
+The complete request, including category selection rules, is part of the deterministic cache key.
+Adapter v7 is separately bound into that key, so the model-neutral v7 prompt/cache contract cannot
+reuse v6 outputs.
 
 The model does not receive raw HTTP bodies, HTML, PDFs, procurement state, contact records,
 beneficiary contact data, or arbitrary source fields.
@@ -53,15 +59,13 @@ The prompt and JSON schema are temporary local files and are removed after each 
 Before inference, the adapter verifies:
 
 1. the exact local GGUF size and SHA-256;
-2. the exact local `llama-cli` binary path; and
+2. the exact local `llama-completion` binary path; and
 3. the SHA-256 of that runtime binary.
 
 The process is launched without a shell and with explicit local model loading. The adapter passes
 `--offline`, removes ambient Hugging Face/llama argument overrides and proxy variables, and does not
-use remote-model flags.
-
-Qwen reasoning is disabled twice: the prompt contains `/no_think`, while the runtime also receives
-`--reasoning off` and `--reasoning-budget 0`.
+use remote-model flags. Reasoning output is disabled through the pinned llama.cpp runtime flags so the
+constrained JSON proposal is the only accepted output surface.
 
 Current deterministic generation settings are:
 
@@ -94,19 +98,40 @@ The model does **not** generate source text and does not calculate character off
 a contiguous range of token identifiers that Python supplied with the original source span.
 
 Python validates the domain/category pair, span index and token range. It then reconstructs the
-canonical evidence deterministically from the original request bytes represented as text:
+canonical evidence deterministically from the original request text:
 
 - absolute start offset = unmatched-span absolute start + first selected token start;
 - absolute end offset = unmatched-span absolute start + last selected token end;
 - `source_text` = the exact original substring between those two character positions.
 
-The reconstructed `ModelComponentProposal` is then passed through the existing exact request-span
-validation again. The model therefore cannot paraphrase, translate, normalize or invent evidence text,
-and it no longer needs to count Unicode character offsets. An invalid token range or disallowed
-category fails closed.
+The reconstructed `ModelComponentProposal` is then passed through exact request-span validation again.
+The model therefore cannot paraphrase, translate, normalize or invent evidence text, and it does not
+calculate Unicode character offsets. An invalid token range or disallowed category fails closed.
 
 An empty proposal list is valid. It means the fallback did not resolve that scope. It never means that
 no component exists.
+
+## Per-case failure scoring
+
+A malformed model response is benchmark evidence, not a reason to discard the rest of a paid corpus
+run. The v3 benchmark report therefore records adapter/model-output failures per synthetic case and
+continues with the remaining cases.
+
+For a failed case:
+
+- the accepted proposal set is empty;
+- `inference_error` records the fail-closed adapter reason;
+- the case can never count as an exact match;
+- expected positive proposals count as false negatives; and
+- a failed negative case can never count as a correct abstention.
+
+Only `LlamaAdapterError` is converted into a scored case failure. Programming errors, corpus invariant
+violations and report/provenance failures still abort the run rather than being hidden as model
+quality.
+
+This distinction exists so malformed token indices, invalid constrained JSON, runtime non-zero exits
+and similar model/adapter failures remain visible while one failure no longer destroys all remaining
+primary/holdout measurements.
 
 ## Deterministic bounded cache
 
@@ -115,14 +140,14 @@ The optional cache key binds:
 - adapter version;
 - complete `LocalModelRequest`, including category selection rules;
 - model ID and artifact SHA-256;
-- `llama-cli` executable SHA-256;
+- `llama-completion` executable SHA-256;
 - deterministic inference settings;
 - evidence-reference mode (`inclusive_token_indices`); and
 - the benchmark memory bound.
 
 The cache stores only canonical `ModelProposalBatch` records after Python has reconstructed exact
 source evidence. Every cache hit is revalidated against the current request spans before it can be
-returned. Editing a cache file therefore cannot bypass the source-span or taxonomy checks.
+returned. Failed outputs are not written as valid cache entries.
 
 Cache records are size-limited and the directory is capped at 256 JSON entries by default. Cache data
 is disposable runtime state and remains outside Git.
@@ -137,28 +162,37 @@ The target-host run executes both:
 Both are run in one ephemeral CX33 session against the same verified model/runtime. Separate corpus
 SHA-256 values, quality reports and GNU `time -v` resource reports are retained.
 
-Improvement on the primary corpus alone is not independent evidence because that corpus informed the
-error analysis that led to the taxonomy-guidance change. The holdout result must therefore be
-inspected separately.
+The scoring contract remains strict: one true positive requires the exact frozen category and exact
+frozen evidence span. No fuzzy credit is introduced after observing model behavior.
 
-## Empirical host evidence so far
+## Qwen3-4B empirical rejection
 
-The 2026-09-02 v5 primary run reached real inference on the pinned CX33/model/runtime and recorded a
-maximum resident-set size of 4,967,728 KiB with zero swaps before an evidence-format validation error
-stopped the run. That observation supports memory feasibility for the candidate on the measured host,
-but it is not a completed quality benchmark and does not approve the model.
+The exact pinned Qwen3-4B Q4_K_M artifact is no longer a candidate.
+
+Observed evidence included:
+
+- v5: only 2 exact positive hits from the 10 positive primary cases;
+- v6 primary after taxonomy guidance/token evidence: 0 exact true positives from 10 positive cases,
+  with 10 false positives and 10 false negatives under the frozen exact scoring contract;
+- both v6 negative primary cases correctly abstained;
+- v6 primary median inference latency about 42.0 seconds and maximum about 44.5 seconds per case;
+- v6 holdout produced an out-of-range token reference before the old runner could complete the corpus;
+- partial holdout peak RSS about 4.91 million KiB with zero swap on CX33.
+
+The resource envelope was feasible, but the quality/output-validity evidence was not. The artifact is
+therefore `REJECTED`; the primary benchmark will not be weakened to make it pass.
 
 ## Production approval remains closed
 
-The candidate stays `BENCHMARK_CANDIDATE` until a later explicit decision. Before production approval,
-at minimum the following evidence is still required:
+The selected Ministral artifact stays `BENCHMARK_CANDIDATE` until a later explicit decision. Before
+production approval, at minimum the following evidence is still required:
 
-1. a larger curated PII-safe Portuguese component-extraction evaluation set with frozen expected
-   components and exact evidence spans;
-2. accuracy/error analysis across primary and holdout data, including false proposals and unresolved
-   behavior;
+1. complete primary and disjoint holdout results from the exact pinned artifact;
+2. error analysis including malformed/failed cases, false proposals and unresolved behavior;
 3. completed RAM and latency measurements on the actual target server;
 4. exact llama.cpp runtime/model/corpus provenance; and
 5. an explicit registry and governance change.
 
-No numeric quality threshold is invented here because the governing requirements have not frozen one.
+No numeric production threshold is invented here because the governing requirements have not frozen
+one. A passing-looking small benchmark is evidence for a later decision, not automatic production
+approval.

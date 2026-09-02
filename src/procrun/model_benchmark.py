@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import median
@@ -64,6 +64,8 @@ class ComponentBenchmarkScore(StrictModel):
     correct_abstention_count: int
     correct_abstention_rate: float | None
     false_positive_abstention_case_count: int
+    failed_case_count: int
+    failed_abstention_case_count: int
 
 
 class ComponentBenchmarkCaseResult(StrictModel):
@@ -75,10 +77,11 @@ class ComponentBenchmarkCaseResult(StrictModel):
     exact_match: bool
     cache_hit: bool
     elapsed_seconds: float | None
+    inference_error: str | None = None
 
 
 class ComponentBenchmarkReport(StrictModel):
-    schema_version: Literal["component-benchmark-report-v2"] = "component-benchmark-report-v2"
+    schema_version: Literal["component-benchmark-report-v3"] = "component-benchmark-report-v3"
     corpus_sha256: str
     model_id: str
     model_artifact_sha256: str
@@ -202,6 +205,8 @@ def _safe_ratio(numerator: int, denominator: int) -> float | None:
 def score_component_benchmark(
     corpus: ComponentBenchmarkCorpus,
     predictions: Mapping[str, Sequence[ModelComponentProposal]],
+    *,
+    failed_case_ids: Collection[str] = (),
 ) -> ComponentBenchmarkScore:
     """Score exact category + exact evidence-span matches; no fuzzy credit is awarded."""
 
@@ -213,23 +218,33 @@ def score_component_benchmark(
         raise BenchmarkCorpusError(
             f"benchmark predictions must cover the exact case set; missing={missing}, extra={extra}"
         )
+    failed = frozenset(failed_case_ids)
+    unknown_failed = failed - expected_ids
+    if unknown_failed:
+        raise BenchmarkCorpusError(
+            f"benchmark failed_case_ids are outside the corpus: {sorted(unknown_failed)}"
+        )
 
     tp = fp = fn = predicted_count = expected_count = 0
     exact_cases = abstention_cases = correct_abstentions = false_abstention_cases = 0
+    failed_abstention_cases = 0
 
     for case in corpus.cases:
         expected = {_proposal_key(item) for item in case.expected_proposals}
         predicted = {_proposal_key(item) for item in predictions[case.case_id]}
+        case_failed = case.case_id in failed
         expected_count += len(expected)
         predicted_count += len(predicted)
         tp += len(expected & predicted)
         fp += len(predicted - expected)
         fn += len(expected - predicted)
-        if predicted == expected:
+        if not case_failed and predicted == expected:
             exact_cases += 1
         if not expected:
             abstention_cases += 1
-            if not predicted:
+            if case_failed:
+                failed_abstention_cases += 1
+            elif not predicted:
                 correct_abstentions += 1
             else:
                 false_abstention_cases += 1
@@ -256,12 +271,16 @@ def score_component_benchmark(
         correct_abstention_count=correct_abstentions,
         correct_abstention_rate=_safe_ratio(correct_abstentions, abstention_cases),
         false_positive_abstention_case_count=false_abstention_cases,
+        failed_case_count=len(failed),
+        failed_abstention_case_count=failed_abstention_cases,
     )
 
 
 def build_component_benchmark_report(
     loaded: LoadedBenchmarkCorpus,
     results: Mapping[str, LlamaBenchmarkResult],
+    *,
+    failures: Mapping[str, str] | None = None,
 ) -> ComponentBenchmarkReport:
     """Validate benchmark run provenance and produce measurements without an approval verdict."""
 
@@ -271,6 +290,12 @@ def build_component_benchmark_report(
         extra = sorted(set(results) - expected_ids)
         raise BenchmarkCorpusError(
             f"benchmark results must cover the exact case set; missing={missing}, extra={extra}"
+        )
+    case_failures = dict(failures or {})
+    unknown_failures = set(case_failures) - expected_ids
+    if unknown_failures:
+        raise BenchmarkCorpusError(
+            f"benchmark failures are outside the corpus: {sorted(unknown_failures)}"
         )
 
     model_ids: set[str] = set()
@@ -295,14 +320,16 @@ def build_component_benchmark_report(
         predictions[case.case_id] = batch.proposals
         expected_keys = {_proposal_key(item) for item in case.expected_proposals}
         predicted_keys = {_proposal_key(item) for item in batch.proposals}
+        inference_error = case_failures.get(case.case_id)
         case_results.append(
             ComponentBenchmarkCaseResult(
                 case_id=case.case_id,
                 expected_proposals=case.expected_proposals,
                 predicted_proposals=batch.proposals,
-                exact_match=predicted_keys == expected_keys,
+                exact_match=inference_error is None and predicted_keys == expected_keys,
                 cache_hit=result.cache_hit,
                 elapsed_seconds=result.elapsed_seconds,
+                inference_error=inference_error,
             )
         )
         cache_hits += int(result.cache_hit)
@@ -314,7 +341,11 @@ def build_component_benchmark_report(
             "one benchmark report must use one exact model and llama runtime"
         )
 
-    score = score_component_benchmark(loaded.corpus, predictions)
+    score = score_component_benchmark(
+        loaded.corpus,
+        predictions,
+        failed_case_ids=case_failures,
+    )
     measured = tuple(elapsed)
     return ComponentBenchmarkReport(
         corpus_sha256=loaded.sha256,

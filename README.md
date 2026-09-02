@@ -188,7 +188,7 @@ The executable registry is `src/procrun/source_contracts.py`. `require_live_sour
 Current status:
 
 | Route | Overall | Rights | Access | Data safety |
-| --- | --- | --- | --- | --- |
+| --- | --- | --- | --- |
 | TED Search API | APPROVED | APPROVED | APPROVED | APPROVED |
 | Mais Transparência project search | CONDITIONAL | CONDITIONAL | CONDITIONAL | CONDITIONAL |
 | Mais Transparência project detail | BLOCKED | CONDITIONAL | CONDITIONAL | BLOCKED |
@@ -281,7 +281,7 @@ The local model is a parser fallback, not a procurement decision-maker.
 
 ## 12. Local-model boundary
 
-Current benchmark candidate: **Qwen3-4B Q4_K_M**.
+Current benchmark candidate: **Ministral 3 3B Instruct Q4_K_M**.
 
 - model licence reviewed as Apache-2.0;
 - exact repository revision/file/size/SHA-256 pinned;
@@ -289,11 +289,12 @@ Current benchmark candidate: **Qwen3-4B Q4_K_M**.
 - local/offline inference only;
 - fixed resource/time bounds;
 - model sees only unmatched allowlisted spans and frozen category choices;
-- model output may propose component/category + exact supporting span only;
+- the model selects domain/category plus source-token indices; Python reconstructs exact source text and character offsets deterministically;
 - model cannot set `OPEN`, `CLOSED`, `PARTIAL` or `UNRESOLVED`;
-- every proposal/cached result is revalidated against source spans/categories.
+- every accepted proposal/cached result is revalidated against source spans/categories;
+- malformed per-case model output is retained as benchmark failure and is never repaired into a valid proposal.
 
-The model remains `BENCHMARK_CANDIDATE`, not production-approved. Production promotion requires empirical quality/RAM/latency evidence on the target host and an explicit registry decision.
+The previously measured **Qwen3-4B Q4_K_M** artifact is `REJECTED`: it fit the CX33 memory envelope but failed the frozen exact category+evidence quality/output-validity gate. Ministral remains `BENCHMARK_CANDIDATE`, not production-approved. Production promotion requires complete primary/holdout quality, RAM and latency evidence on the target host plus an explicit registry decision.
 
 ---
 
@@ -377,7 +378,8 @@ Key licences include:
 - Psycopg/Psycopg Binary — LGPL-3.0-only;
 - Pydantic/Pydantic Core — MIT;
 - certifi — MPL-2.0;
-- Qwen3-4B-GGUF — Apache-2.0;
+- Ministral-3-3B-Instruct-2512-GGUF — Apache-2.0;
+- Qwen3-4B-GGUF — Apache-2.0 (rejected benchmark artifact retained for provenance);
 - llama.cpp — MIT;
 - PostgreSQL — PostgreSQL License.
 
@@ -452,9 +454,9 @@ Implemented and regression-tested before this compliance hardening round:
 - conservative matching engine;
 - five-domain deterministic component engine + exact spans;
 - local-model request/response safety contract;
-- pinned Qwen benchmark candidate and llama.cpp runtime;
-- synthetic pt-PT benchmark corpus;
-- one-command benchmark runner;
+- rejected Qwen3-4B benchmark evidence plus an exactly pinned Ministral 3 3B benchmark candidate and llama.cpp runtime;
+- synthetic pt-PT primary and disjoint holdout benchmark corpora;
+- one-command benchmark runner with fail-closed per-case model-output failure reporting;
 - ephemeral Hetzner benchmark provisioning/cleanup automation;
 - CI with shell/PowerShell syntax, Ruff, strict mypy, pytest and PostgreSQL integration.
 
@@ -474,7 +476,7 @@ Still intentionally blocked/open:
 1. **Portugal 2030 production discovery route** — must be legally cleared, automation-safe, field-bounded, zero-PII and temporally defensible.
 2. **PT2030 source-specific licence clarification** for the currently "licence unspecified" bulk dataset (which remains data-safety blocked regardless).
 3. **Portal BASE** — current API response surface remains blocked; future use also requires IMPIC authorization/terms.
-4. **Local-model production approval** — target-host benchmark must pass before promotion.
+4. **Local-model production approval** — selected candidate must complete target-host primary/holdout evaluation before any promotion decision.
 5. **Shadow run** — continuous Portugal outcomes must accumulate before strong performance claims.
 6. **Customer website/control plane** — privacy, terms, attribution, organisation entitlement and payments are release gates.
 
@@ -528,12 +530,13 @@ The benchmark is separate from production approval. The Windows end-to-end runne
 2. wait for cloud-init;
 3. transfer only committed repository content;
 4. build the pinned llama.cpp revision;
-5. download and verify the pinned Qwen GGUF;
-6. run the frozen synthetic benchmark corpus;
-7. retrieve the result bundle locally;
-8. delete the server only after results are safely copied.
+5. download and verify the exact selected Ministral GGUF;
+6. run the frozen synthetic primary and disjoint holdout corpora on the same model/runtime;
+7. retain malformed individual model outputs as failed cases while continuing the remaining corpus cases;
+8. retrieve the result bundle locally;
+9. delete the server only after results are safely copied.
 
-If execution fails, the server is intentionally retained for diagnostics and must be explicitly deleted to stop billing. Model files/results stay outside Git.
+If an infrastructure/programming failure prevents a completed result bundle, the server is intentionally retained for diagnostics and must be explicitly deleted to stop billing. Per-case fail-closed model-output errors are instead reported inside the completed benchmark. Model files/results stay outside Git.
 
 ---
 

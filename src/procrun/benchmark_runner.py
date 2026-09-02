@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
 from collections.abc import Callable
 from pathlib import Path
 
 from procrun.llama_adapter import (
+    LlamaAdapterError,
     LlamaBenchmarkConfig,
     LlamaBenchmarkResult,
     PreparedLlamaRuntime,
+    benchmark_cache_key,
     prepare_llama_benchmark_runtime,
     run_llama_component_benchmark,
 )
@@ -21,6 +24,7 @@ from procrun.model_benchmark import (
     build_component_benchmark_report,
     load_component_benchmark,
 )
+from procrun.model_fallback import ModelProposalBatch
 from procrun.model_registry import SELECTED_COMPONENT_MODEL, ModelArtifactSpec
 
 CaseRunner = Callable[..., LlamaBenchmarkResult]
@@ -33,16 +37,41 @@ def execute_component_benchmark(
     cache_dir: Path | None = None,
     case_runner: CaseRunner = run_llama_component_benchmark,
 ) -> ComponentBenchmarkReport:
-    """Execute every frozen case exactly once or satisfy it from the bound cache."""
+    """Execute every frozen case once and retain fail-closed per-case model errors."""
 
     results: dict[str, LlamaBenchmarkResult] = {}
+    failures: dict[str, str] = {}
     for case in loaded.corpus.cases:
-        results[case.case_id] = case_runner(
-            benchmark_request(case),
-            runtime,
-            cache_dir=cache_dir,
-        )
-    return build_component_benchmark_report(loaded, results)
+        request = benchmark_request(case)
+        started = time.perf_counter()
+        try:
+            results[case.case_id] = case_runner(
+                request,
+                runtime,
+                cache_dir=cache_dir,
+            )
+        except LlamaAdapterError as exc:
+            # Invalid/malformed model output is itself benchmark evidence. Do not let one
+            # synthetic case erase the rest of a paid corpus run, and do not convert the
+            # failure into a valid abstention. The scorer receives the failure separately.
+            results[case.case_id] = LlamaBenchmarkResult(
+                batch=ModelProposalBatch(
+                    operation_code=request.operation_code,
+                    source_sha256=request.source_sha256,
+                    model_identity=runtime.model_spec.identity,
+                    proposals=(),
+                ),
+                cache_key=benchmark_cache_key(request, runtime),
+                cache_hit=False,
+                elapsed_seconds=time.perf_counter() - started,
+                llama_cli_sha256=runtime.llama_cli_sha256,
+            )
+            failures[case.case_id] = f"{type(exc).__name__}: {exc}"
+    return build_component_benchmark_report(
+        loaded,
+        results,
+        failures=failures,
+    )
 
 
 def write_benchmark_report(report: ComponentBenchmarkReport, output_path: Path) -> None:
