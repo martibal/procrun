@@ -60,6 +60,14 @@ class ComponentBenchmarkScore(StrictModel):
     exact_f1: float | None
     exact_case_match_count: int
     exact_case_match_rate: float
+    semantic_true_positive_count: int
+    semantic_false_positive_count: int
+    semantic_false_negative_count: int
+    semantic_precision: float | None
+    semantic_recall: float | None
+    semantic_f1: float | None
+    semantic_case_match_count: int
+    semantic_case_match_rate: float
     abstention_case_count: int
     correct_abstention_count: int
     correct_abstention_rate: float | None
@@ -75,13 +83,14 @@ class ComponentBenchmarkCaseResult(StrictModel):
     expected_proposals: tuple[ModelComponentProposal, ...]
     predicted_proposals: tuple[ModelComponentProposal, ...]
     exact_match: bool
+    semantic_match: bool
     cache_hit: bool
     elapsed_seconds: float | None
     inference_error: str | None = None
 
 
 class ComponentBenchmarkReport(StrictModel):
-    schema_version: Literal["component-benchmark-report-v3"] = "component-benchmark-report-v3"
+    schema_version: Literal["component-benchmark-report-v4"] = "component-benchmark-report-v4"
     corpus_sha256: str
     model_id: str
     model_artifact_sha256: str
@@ -107,6 +116,10 @@ def _proposal_key(proposal: ModelComponentProposal) -> tuple[str, str, int, int,
         proposal.end,
         proposal.source_text,
     )
+
+
+def _semantic_key(proposal: ModelComponentProposal) -> tuple[str, str]:
+    return (proposal.domain.value, proposal.category)
 
 
 def _allowed_categories(
@@ -202,13 +215,25 @@ def _safe_ratio(numerator: int, denominator: int) -> float | None:
     return numerator / denominator if denominator else None
 
 
+def _f1(precision: float | None, recall: float | None) -> float | None:
+    if precision is None or recall is None or precision + recall <= 0:
+        return None
+    return 2 * precision * recall / (precision + recall)
+
+
 def score_component_benchmark(
     corpus: ComponentBenchmarkCorpus,
     predictions: Mapping[str, Sequence[ModelComponentProposal]],
     *,
     failed_case_ids: Collection[str] = (),
 ) -> ComponentBenchmarkScore:
-    """Score exact category + exact evidence-span matches; no fuzzy credit is awarded."""
+    """Score both legacy exact spans and product-aligned domain/category semantics.
+
+    The canonical fallback contract accepts any exact source substring contained in one supplied
+    unmatched span. Therefore minimal-phrase equality is retained as a strict diagnostic only;
+    production-relevant semantic quality is scored independently on frozen domain/category pairs.
+    Adapter/source validation remains responsible for evidence integrity.
+    """
 
     expected_ids = {case.case_id for case in corpus.cases}
     supplied_ids = set(predictions)
@@ -226,34 +251,45 @@ def score_component_benchmark(
         )
 
     tp = fp = fn = predicted_count = expected_count = 0
-    exact_cases = abstention_cases = correct_abstentions = false_abstention_cases = 0
+    semantic_tp = semantic_fp = semantic_fn = 0
+    exact_cases = semantic_cases = 0
+    abstention_cases = correct_abstentions = false_abstention_cases = 0
     failed_abstention_cases = 0
 
     for case in corpus.cases:
         expected = {_proposal_key(item) for item in case.expected_proposals}
         predicted = {_proposal_key(item) for item in predictions[case.case_id]}
+        expected_semantic = {_semantic_key(item) for item in case.expected_proposals}
+        predicted_semantic = {_semantic_key(item) for item in predictions[case.case_id]}
         case_failed = case.case_id in failed
+
         expected_count += len(expected)
         predicted_count += len(predicted)
         tp += len(expected & predicted)
         fp += len(predicted - expected)
         fn += len(expected - predicted)
+        semantic_tp += len(expected_semantic & predicted_semantic)
+        semantic_fp += len(predicted_semantic - expected_semantic)
+        semantic_fn += len(expected_semantic - predicted_semantic)
+
         if not case_failed and predicted == expected:
             exact_cases += 1
-        if not expected:
+        if not case_failed and predicted_semantic == expected_semantic:
+            semantic_cases += 1
+
+        if not expected_semantic:
             abstention_cases += 1
             if case_failed:
                 failed_abstention_cases += 1
-            elif not predicted:
+            elif not predicted_semantic:
                 correct_abstentions += 1
             else:
                 false_abstention_cases += 1
 
     precision = _safe_ratio(tp, tp + fp)
     recall = _safe_ratio(tp, tp + fn)
-    f1 = None
-    if precision is not None and recall is not None and precision + recall > 0:
-        f1 = 2 * precision * recall / (precision + recall)
+    semantic_precision = _safe_ratio(semantic_tp, semantic_tp + semantic_fp)
+    semantic_recall = _safe_ratio(semantic_tp, semantic_tp + semantic_fn)
 
     return ComponentBenchmarkScore(
         case_count=len(corpus.cases),
@@ -264,9 +300,17 @@ def score_component_benchmark(
         false_negative_count=fn,
         exact_precision=precision,
         exact_recall=recall,
-        exact_f1=f1,
+        exact_f1=_f1(precision, recall),
         exact_case_match_count=exact_cases,
         exact_case_match_rate=exact_cases / len(corpus.cases),
+        semantic_true_positive_count=semantic_tp,
+        semantic_false_positive_count=semantic_fp,
+        semantic_false_negative_count=semantic_fn,
+        semantic_precision=semantic_precision,
+        semantic_recall=semantic_recall,
+        semantic_f1=_f1(semantic_precision, semantic_recall),
+        semantic_case_match_count=semantic_cases,
+        semantic_case_match_rate=semantic_cases / len(corpus.cases),
         abstention_case_count=abstention_cases,
         correct_abstention_count=correct_abstentions,
         correct_abstention_rate=_safe_ratio(correct_abstentions, abstention_cases),
@@ -320,6 +364,8 @@ def build_component_benchmark_report(
         predictions[case.case_id] = batch.proposals
         expected_keys = {_proposal_key(item) for item in case.expected_proposals}
         predicted_keys = {_proposal_key(item) for item in batch.proposals}
+        expected_semantic = {_semantic_key(item) for item in case.expected_proposals}
+        predicted_semantic = {_semantic_key(item) for item in batch.proposals}
         inference_error = case_failures.get(case.case_id)
         case_results.append(
             ComponentBenchmarkCaseResult(
@@ -327,6 +373,9 @@ def build_component_benchmark_report(
                 expected_proposals=case.expected_proposals,
                 predicted_proposals=batch.proposals,
                 exact_match=inference_error is None and predicted_keys == expected_keys,
+                semantic_match=(
+                    inference_error is None and predicted_semantic == expected_semantic
+                ),
                 cache_hit=result.cache_hit,
                 elapsed_seconds=result.elapsed_seconds,
                 inference_error=inference_error,
