@@ -3,6 +3,8 @@ param()
 
 $ErrorActionPreference = "Stop"
 
+Add-Type -AssemblyName System.Net.Http
+
 $ApiUri = "https://opencoesione.gov.it/api/progetti.json"
 $AllowedHost = "opencoesione.gov.it"
 $MaxBodyBytes = 128KB
