@@ -47,7 +47,7 @@ passed the existing allowlist boundary.
 
 ## Local inference transport output
 
-The benchmark adapter's v6 model-facing JSON transport is deliberately narrower than the canonical
+The benchmark adapter's v7 model-facing JSON transport is deliberately narrower than the canonical
 proposal object. A generated proposal contains exactly:
 
 - domain;
@@ -69,7 +69,9 @@ Python resolves those token references back to the original span and constructs 
 - exact source text copied from the original request span.
 
 This separation is intentional: semantic selection is model work; evidence copying and Unicode
-character-offset calculation are deterministic adapter work.
+character-offset calculation are deterministic adapter work. Adapter v7 also removes the historical
+Qwen-specific `/no_think` prompt directive so the benchmark prompt is model-neutral; deterministic
+reasoning/output controls remain runtime-level llama.cpp settings.
 
 ## Validation gates
 
@@ -90,6 +92,19 @@ Pydantic `extra=forbid` applies recursively. A generated response that tries to 
 indices, inverted ranges, disallowed categories or tampered cached source text fail closed.
 
 A proposal cannot rewrite a span already covered by deterministic rules.
+
+## Benchmark failure semantics
+
+A fail-closed model response remains invalid. The benchmark harness does not clamp an out-of-range
+token index, guess an intended evidence span, or convert malformed output into a valid proposal.
+
+For benchmark observability only, an adapter/model-output failure is retained as `inference_error` on
+the affected synthetic case while the remaining corpus cases continue. A failed positive case remains
+unresolved and its missing expected proposal is scored as a false negative. A failed negative case is
+not counted as a correct abstention.
+
+This continuation rule changes only benchmark reporting. It does not make failed output acceptable to
+the analytical component pipeline.
 
 ## Canonicalisation
 
@@ -116,6 +131,6 @@ This contract contains no HTTP client or external inference API. The llama.cpp a
 local model file whose exact size and SHA-256 are checked before inference, removes remote-model and
 proxy configuration from the child environment, and runs with explicit offline/resource bounds.
 
-Model approval remains a separate evidence gate. License, Portuguese quality, completed benchmark
+Model approval remains a separate evidence gate. Licence, Portuguese quality, completed benchmark
 results, target-host memory/latency and exact runtime provenance must all be evaluated before production
 inference is enabled.
