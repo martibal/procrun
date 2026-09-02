@@ -4,7 +4,7 @@ set -euo pipefail
 RUNTIME_ROOT="${PROCRUN_BENCHMARK_ROOT:-$HOME/.local/share/procrun-benchmark}"
 LLAMA_RUNTIME="$RUNTIME_ROOT/llama.cpp/build/bin/llama-completion"
 LLAMA_COMMIT_FILE="$RUNTIME_ROOT/llama.cpp/.procrun-llama-commit"
-MODEL="$RUNTIME_ROOT/models/Qwen3-4B-Q4_K_M.gguf"
+MODEL="$RUNTIME_ROOT/models/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf"
 PRIMARY_CORPUS="tests/fixtures/component_benchmark_v1.json"
 HOLDOUT_CORPUS="tests/fixtures/component_benchmark_holdout_v1.json"
 OUTPUT_DIR="$RUNTIME_ROOT/results"
