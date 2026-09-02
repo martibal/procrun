@@ -3,9 +3,9 @@ param()
 
 $ErrorActionPreference = "Stop"
 
-# Use only the current public EU Knowledge Graph Wikibase API. The former
-# dev.linkedopendata.eu host is intentionally excluded because it no longer
-# resolves publicly and must never mask the error from the production host.
+# Use only the current public EU Knowledge Graph Wikibase API. Obsolete
+# development hosts are intentionally excluded so they can never mask the
+# error returned by the production host.
 $Endpoint = "https://linkedopendata.eu/w/api.php"
 $Headers = @{
     "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
