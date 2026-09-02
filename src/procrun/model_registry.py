@@ -16,6 +16,7 @@ from procrun.model_fallback import LocalModelIdentity
 class ModelApprovalStatus(StrEnum):
     BENCHMARK_CANDIDATE = "BENCHMARK_CANDIDATE"
     APPROVED = "APPROVED"
+    INCONCLUSIVE = "INCONCLUSIVE"
     REJECTED = "REJECTED"
 
 
@@ -51,7 +52,7 @@ QWEN3_4B_Q4_K_M = ModelArtifactSpec(
     commercial_use_allowed=True,
     license_reviewed_on=date(2026, 9, 1),
     license_review_due_on=date(2026, 11, 30),
-    status=ModelApprovalStatus.REJECTED,
+    status=ModelApprovalStatus.INCONCLUSIVE,
 )
 
 
