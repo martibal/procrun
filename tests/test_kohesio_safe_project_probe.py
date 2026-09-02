@@ -1,3 +1,6 @@
+import re
+
+
 SCRIPT = "scripts/probe_kohesio_pt2030_project.ps1"
 
 
@@ -46,8 +49,6 @@ def test_probe_uses_only_frozen_safe_properties() -> None:
         "P192",
         "P1820",
     }
-
-    import re
 
     used = set(re.findall(r"kohesio:(P[0-9]+)", query))
     assert used == expected
