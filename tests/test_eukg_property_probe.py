@@ -1,11 +1,13 @@
-from pathlib import Path
+SCRIPT = "scripts/probe_eukg_property_metadata.ps1"
 
 
-SCRIPT = Path("scripts/probe_eukg_property_metadata.ps1")
+def _script_text() -> str:
+    with open(SCRIPT, encoding="utf-8") as handle:
+        return handle.read()
 
 
 def test_eukg_probe_is_property_metadata_only() -> None:
-    text = SCRIPT.read_text(encoding="utf-8")
+    text = _script_text()
 
     assert 'action = "wbgetentities"' in text
     assert 'action = "wbsearchentities"' in text
@@ -27,7 +29,7 @@ def test_eukg_probe_is_property_metadata_only() -> None:
 
 
 def test_eukg_probe_uses_only_property_ids_for_direct_entity_lookup() -> None:
-    text = SCRIPT.read_text(encoding="utf-8")
+    text = _script_text()
     marker = "$KnownPropertyIds = @("
     start = text.index(marker)
     end = text.index(")\n\n$knownResponse", start)
