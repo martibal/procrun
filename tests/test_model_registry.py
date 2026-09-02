@@ -42,7 +42,7 @@ def fixture_spec(
     )
 
 
-def test_qwen_candidate_is_pinned_but_empirically_rejected() -> None:
+def test_qwen_candidate_is_pinned_but_exact_span_verdict_is_inconclusive() -> None:
     assert QWEN3_4B_Q4_K_M.repository == "Qwen/Qwen3-4B-GGUF"
     assert QWEN3_4B_Q4_K_M.filename == "Qwen3-4B-Q4_K_M.gguf"
     assert QWEN3_4B_Q4_K_M.size_bytes == 2_497_280_256
@@ -51,7 +51,7 @@ def test_qwen_candidate_is_pinned_but_empirically_rejected() -> None:
     assert QWEN3_4B_Q4_K_M.identity.artifact_sha256 == (
         "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
     )
-    assert QWEN3_4B_Q4_K_M.status is ModelApprovalStatus.REJECTED
+    assert QWEN3_4B_Q4_K_M.status is ModelApprovalStatus.INCONCLUSIVE
 
 
 def test_ministral_candidate_is_exactly_pinned_and_selected() -> None:
