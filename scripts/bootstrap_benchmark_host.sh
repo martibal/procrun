@@ -51,18 +51,18 @@ cmake -S "$LLAMA_SRC" -B "$LLAMA_BUILD" -G Ninja \
   -DLLAMA_BUILD_COMMON=ON \
   -DLLAMA_BUILD_TOOLS=ON \
   -DLLAMA_BUILD_TESTS=OFF \
-  -DLLAMA_BUILD_SERVER=ON \
+  -DLLAMA_BUILD_SERVER=OFF \
   -DLLAMA_BUILD_EXAMPLES=OFF \
   -DLLAMA_BUILD_APP=OFF \
   -DLLAMA_BUILD_UI=OFF \
   -DLLAMA_OPENSSL=OFF
 
-cmake --build "$LLAMA_BUILD" --target llama-cli -j "$(nproc)"
+cmake --build "$LLAMA_BUILD" --target llama-completion -j "$(nproc)"
 
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -c requirements-runtime.lock -e .
 
 printf '%s\n' "llama.cpp commit: $(git -C "$LLAMA_SRC" rev-parse HEAD)"
-printf '%s\n' "llama-cli: $LLAMA_BUILD/bin/llama-cli"
+printf '%s\n' "llama-completion: $LLAMA_BUILD/bin/llama-completion"
 printf '%s\n' "venv: $(pwd)/.venv"
