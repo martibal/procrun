@@ -27,7 +27,7 @@ from procrun.model_registry import (
     verify_local_model_artifact,
 )
 
-LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v6"
+LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v7"
 _TOKEN_PATTERN = re.compile(r"\w+(?:[-’']\w+)*|[^\w\s]", flags=re.UNICODE)
 
 
@@ -319,7 +319,7 @@ def _prompt(request: LocalModelRequest) -> str:
         "procurement status, opportunity state, buyer contacts, dates, values, or facts absent "
         "from the input. If either the category or minimal token sequence cannot be identified "
         "defensibly, omit the proposal. Return only JSON matching the constrained schema; do "
-        "not emit reasoning or commentary. /no_think\nINPUT_JSON:\n"
+        "not emit reasoning or commentary.\nINPUT_JSON:\n"
         f"{input_json}"
     )
 
