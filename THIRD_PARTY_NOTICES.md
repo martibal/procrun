@@ -1,6 +1,6 @@
 # Third-party notices and reviewed licences
 
-Status date: 2026-09-01.
+Status date: 2026-09-02.
 
 This file records software/model components intentionally used by Procurement Runway. It is not a replacement for each upstream licence; exact upstream licence text and requirements remain authoritative.
 
@@ -47,6 +47,19 @@ The lock is a reproducibility/compliance constraint, not a substitute for retain
 
 ## Local inference components
 
+### Ministral-3-3B-Instruct-2512-GGUF / Q4_K_M
+
+- Licence reviewed: Apache-2.0
+- Repository: https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512-GGUF
+- Frozen revision: `eb599d408350ea2bb60452cb86be7c7b2fc28227`
+- Frozen file: `Ministral-3-3B-Instruct-2512-Q4_K_M.gguf`
+- Frozen size: `2,147,023,008` bytes
+- Frozen SHA-256: `9ed150d4367e68df0ac8e1540f6ddc65b42d0ee26378329d1ecbca60f93fc5f8`
+- Use: selected local benchmark candidate for component proposal only.
+- Registry status: `BENCHMARK_CANDIDATE`; not approved for production.
+- No hosted Hugging Face inference is approved.
+- Model weights are not committed to this repository.
+
 ### Qwen3-4B-GGUF / Q4_K_M
 
 - Licence reviewed: Apache-2.0
@@ -54,7 +67,8 @@ The lock is a reproducibility/compliance constraint, not a substitute for retain
 - Frozen revision: `bc640142c66e1fdd12af0bd68f40445458f3869b`
 - Frozen file: `Qwen3-4B-Q4_K_M.gguf`
 - Frozen SHA-256: `7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5`
-- Use: local benchmark candidate for component proposal only.
+- Historical use: local component benchmark candidate.
+- Registry status: `REJECTED` after the 2026-09-02 empirical quality runs; retained only for provenance.
 - No hosted Hugging Face inference is approved.
 - Model weights are not committed to this repository.
 
