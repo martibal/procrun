@@ -13,6 +13,8 @@ $Headers = @{
     "Accept" = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream;q=0.9"
 }
 
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
 function Get-Sha256HexFromFile {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -158,20 +160,21 @@ $tempPath = Join-Path ([System.IO.Path]::GetTempPath()) ("procrun-opencoesione-m
 $archive = $null
 
 try {
-    # Metadata-only research probe. The exact URI below is the only network resource this script may fetch.
+    $requestedUri = [System.Uri]$MetadataUri
+    if ($requestedUri.Scheme -ne "https" -or $requestedUri.Host -ne $AllowedHost) {
+        throw "Configured OpenCoesione metadata URI is outside the approved origin."
+    }
+
+    # Metadata-only research probe. Redirects are disabled so this exact URI is the only network resource fetched.
     $response = Invoke-WebRequest `
         -Uri $MetadataUri `
         -Method Get `
         -Headers $Headers `
         -OutFile $tempPath `
         -PassThru `
+        -MaximumRedirection 0 `
         -UseBasicParsing `
         -TimeoutSec 45
-
-    $requestedUri = [System.Uri]$MetadataUri
-    if ($requestedUri.Scheme -ne "https" -or $requestedUri.Host -ne $AllowedHost) {
-        throw "Configured OpenCoesione metadata URI is outside the approved origin."
-    }
 
     $contentType = [string]$response.Headers["Content-Type"]
     if ($contentType -notmatch "(?i)(spreadsheetml|octet-stream|application/zip)") {
@@ -191,7 +194,6 @@ try {
         throw "OpenCoesione metadata workbook is not an XLSX/ZIP payload."
     }
 
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
     $archive = [System.IO.Compression.ZipFile]::OpenRead($tempPath)
     if ($archive.Entries.Count -gt 500) {
         throw "OpenCoesione metadata workbook contains more than 500 ZIP entries; failing closed."
