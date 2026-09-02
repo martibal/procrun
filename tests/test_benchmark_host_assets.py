@@ -122,3 +122,15 @@ def test_e2e_runner_transfers_only_committed_code_and_preserves_failures() -> No
     assert "$ServerCreated -and $BenchmarkSucceeded -and -not $KeepServer" in runner
     assert "intentionally still running for diagnostics" in runner
     assert "data\\exports\\model-benchmark" in runner
+
+
+def test_destroy_benchmark_server_is_idempotent_when_server_is_absent() -> None:
+    destroy = (REPO_ROOT / "scripts" / "destroy_benchmark_server.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "hcloud server describe" not in destroy
+    assert "hcloud server list -o json" in destroy
+    assert '$lookupExitCode = $LASTEXITCODE' in destroy
+    assert "does not exist; nothing to delete" in destroy
+    assert '$ErrorActionPreference = "Continue"' in destroy
