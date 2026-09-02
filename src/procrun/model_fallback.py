@@ -89,8 +89,8 @@ _MODEL_CATEGORY_SELECTION_RULES: dict[tuple[ComponentDomain, str], str] = {
     ),
     (ComponentDomain.RAIL_TRANSPORT, "electrification_catenary"): (
         "Select for railway traction-power supply and electrification, including traction "
-        "substations, traction transformers, overhead line, and catenary. Do not use for signalling "
-        "or station building electrical services."
+        "substations, traction transformers, overhead line, and catenary. Do not use for "
+        "signalling or station building electrical services."
     ),
     (ComponentDomain.RAIL_TRANSPORT, "stations"): (
         "Select when the named purchasable scope is a railway station or station-specific "
@@ -171,7 +171,8 @@ _MODEL_CATEGORY_SELECTION_RULES: dict[tuple[ComponentDomain, str], str] = {
     ),
     (ComponentDomain.ENERGY_EFFICIENCY, "lighting"): (
         "Select for lighting systems, luminaires, LED retrofits, or lighting controls when "
-        "lighting is the named purchasable package. Do not use for general electrical installations."
+        "lighting is the named purchasable package. Do not use for general electrical "
+        "installations."
     ),
     (ComponentDomain.ENERGY_EFFICIENCY, "insulation_envelope"): (
         "Select for thermal envelope improvements such as insulation, windows, frames, glazing, "
@@ -266,7 +267,7 @@ class AllowedComponentCategory(StrictModel):
     category: str = Field(min_length=1)
     label: str = Field(min_length=1)
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def selection_rule(self) -> str:
         """Frozen semantic boundary supplied to the local model with this category."""
