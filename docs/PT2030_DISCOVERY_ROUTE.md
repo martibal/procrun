@@ -6,12 +6,23 @@ Status date: 2026-09-02.
 
 No Portugal 2030 project-discovery route is production-approved yet.
 
-The current best technical candidate is the European Commission Kohesio / EU Knowledge Graph SPARQL
-surface, because a SPARQL `SELECT` can in principle project only ProcRun-approved project fields before
-any response is received. It is **research-only** at this stage and is deliberately not added to the
-live source registry.
+The EU Knowledge Graph SPARQL route has now passed its transport and zero-PII smoke mechanics but failed
+the first required **Portugal 2030 coverage** test: the known current operation
+`PACS-FC-01781200` returned a valid SPARQL Results response with zero rows. The operation code is
+independently current on Portugal's official Mais Transparência/PT2030 portal.
 
-Do not build a production collector for this candidate until every gate in this document is proven.
+Therefore ProcRun must not broaden the EUKG query to discover data. The EUKG route is not a viable
+PT2030 discovery source unless later evidence shows that Portugal 2021-2027 data has been loaded.
+
+The next research candidate is the European Commission's newer Kohesio 2021-2027 project-download
+surface at:
+
+`https://kohesio.ec.europa.eu/en/data/projects-2021-2027/latest`
+
+That surface is research-only. No CSV/XLSX/RDF project body may be downloaded until metadata proves that
+a Portugal-specific and pre-receipt-safe distribution or projection exists.
+
+Do not build a production collector for either candidate until every gate in this document is proven.
 
 ## Why the existing Portuguese routes remain blocked or conditional
 
@@ -52,127 +63,121 @@ does not silently replace the source-specific licence with the dados.gov.pt port
 
 Decision: `BLOCKED` for download-then-filter ingestion.
 
-## EU candidate: Kohesio / EU Knowledge Graph SPARQL
+## EUKG SPARQL route: measured result
 
-### What is promising
+### What was proven
 
-European Commission material documents a public SPARQL query surface for the EU Knowledge Graph and
-states that the graph contains Kohesio projects. SPARQL provides server-side variable projection, so a
-frozen `SELECT` can request only approved variables rather than receiving a complete project record.
+The European Commission EU Knowledge Graph public SPARQL surface can be queried with a frozen explicit
+`SELECT` allowlist. ProcRun froze the model-facing properties and excluded beneficiary/contact fields,
+including `P841` (beneficiary).
 
-The Commission's current Kohesio validation specification defines fields that map closely to ProcRun's
-required discovery record:
+The local Phase 2 smoke probe queried only `PACS-FC-01781200` and the frozen safe variables. The endpoint
+returned standards-compliant SPARQL Results XML over GET. ProcRun parsed it with DTD processing
+prohibited and external entity resolution disabled, then validated every declared/returned binding name
+against the frozen variable allowlist.
 
-- `Operation_Unique_Identifier`;
-- `Operation_Name_Programme_Language`;
-- `Operation_Start_Date`;
-- `Operation_Expected_End_Date` / `Operation_End_Date`;
-- eligible expenditure amount/currency;
-- NUTS/geographic indicators;
-- `Operation_Summary_Programme_Language`;
-- `Programming_Period` including `2021-2027`;
-- programme/fund/objective fields; and
-- `Date_Of_Last_Update`.
+Result:
 
-The same specification also includes fields ProcRun must never request, notably `Beneficiary_Name`,
-`Beneficiary_Unique_Identifier` and social-media links. Their existence is not itself disqualifying if
-the SPARQL transport can prove that only explicitly selected safe variables are returned.
+- transport: successful GET;
+- media type: `application/sparql-results+xml;charset=utf-8`;
+- target: `PACS-FC-01781200`;
+- row count: `0`;
+- `coverage_found`: `false`;
+- no project binding was returned.
 
-### What is not proven
+This resolves the earlier parser/transport uncertainty. The zero-row result is a real coverage result for
+the tested graph/query, not a malformed-response artefact.
 
-The route cannot be approved from the schema alone.
+### Why this is a no-go for current PT2030 discovery
 
-Current Commission documentation is inconsistent enough that coverage must be measured rather than
-assumed:
+The exact operation code is independently published by Portugal's official Mais Transparência/PT2030
+portal, including the project title and detailed summary. Therefore the graph miss is not explained by an
+invalid fixture.
 
-- the CORDIS federated-query guide currently describes the Kohesio content in the EU Knowledge Graph as
-  projects from the 2014-2020 programming period;
-- a current Commission ESF+ page says 2021-2027 Kohesio projects are not yet available for every
-  country; and
-- the Kohesio validator already accepts `Programming_Period = 2021-2027`, which proves schema support
-  but not that current Portugal 2030 operations are present in the query endpoint.
+Current Commission material also says 2021-2027 Kohesio projects are not yet available for every
+country. Other 2026 material demonstrates that the newer Kohesio platform/download layer does contain
+2021-2027 project data, so the safest interpretation is that the EUKG query layer tested here must not be
+assumed equivalent to the current downloadable Kohesio 2021-2027 project layer.
 
-Public web/index searches performed on 2026-09-02 did not establish that the known Portugal 2030
-operation `PACS-FC-01781200` is present in the EU Knowledge Graph. Search-engine absence is not treated
-as proof of endpoint absence.
+Decision: do **not** broaden the graph query, walk arbitrary properties, search beneficiary records, or
+try alternative identifiers against project entities. Such exploration would weaken the pre-receipt
+zero-PII guarantee without solving the production coverage requirement.
 
-### Rights/access status
+## Next candidate: Kohesio 2021-2027 download surface
 
-The Commission publicly documents machine queries against the SPARQL endpoint, which is strong evidence
-that automated query access is an intended use. The Commission's general reuse notice permits reuse of
-EU-owned website content under CC BY 4.0 unless otherwise indicated.
+A 2026 European Parliament study cites the European Commission Kohesio project dataset for the current
+programming period at:
 
-ProcRun nevertheless keeps commercial reuse **unresolved for this dataset** until the applicable
-Kohesio/EU Knowledge Graph data licence and upstream Member-State project-data reuse basis are frozen
-for the exact route. A general Commission website notice is not silently promoted into a source-specific
-project-data licence.
+`https://kohesio.ec.europa.eu/en/data/projects-2021-2027/latest`
 
-## Frozen pre-production verification gate
+Commission/data.europa.eu material states that Kohesio datasets are available for download and free
+reuse in machine-readable formats such as CSV/XLSX and RDF. This establishes that a current downloadable
+project layer exists, but it does **not** by itself make that layer safe for ProcRun.
 
-Before this route may be added to `SOURCE_CONTRACTS` as `APPROVED`, all of the following must be proven
-and retained in the repository.
+The broad Kohesio schema contains fields ProcRun must never receive, including beneficiary name and
+beneficiary identifiers. Therefore a combined EU-wide or Portugal-wide file containing those columns is
+still blocked under ProcRun's pre-receipt rule even if the file is openly licensed.
 
-1. **2021-2027 Portugal coverage**
-   - known current Portugal 2030 operation codes must resolve through the endpoint;
-   - coverage must include more than one programme/fund and not merely a hand-picked project;
-   - the route must expose a stable operation identifier that can be joined back to the Portuguese
-     operation code.
+### Frozen metadata-only gate
+
+Before any project distribution body is downloaded, ProcRun must inspect only the download catalogue
+metadata and answer:
+
+1. Does the current 2021-2027 surface expose a Portugal-specific distribution?
+2. Is there a server-side field projection or a separate projects-only distribution that excludes
+   beneficiary/person fields before receipt?
+3. What exact media types, file names, update timestamps and stable URLs are exposed?
+4. What exact licence/reuse metadata applies to that distribution?
+5. Can the distribution be retrieved automatically without browser/session coupling or unstable signed
+   links?
+
+The metadata probe must not follow CSV/XLSX/RDF links. It may retrieve only the HTML catalogue page,
+return catalogue link metadata and hash the page for provenance.
+
+If the only available distribution is a broad project dataset containing beneficiary/person columns,
+this route is `DATA SAFETY=BLOCKED` and ProcRun must move back to a national field-bounded source rather
+than download and filter the file.
+
+## Frozen production gate
+
+Any future Portugal 2030 route may be added to `SOURCE_CONTRACTS` as `APPROVED` only after all of the
+following are proven and retained in the repository.
+
+1. **Current Portugal coverage**
+   - known Portugal 2030 operation codes resolve;
+   - coverage includes more than one programme/fund;
+   - a stable operation identifier joins back to the Portuguese operation code.
 
 2. **Scope availability**
-   - the Portuguese operation summary/scope must be available through a documented property;
-   - for known fixtures, the returned scope must materially correspond to the official Portugal 2030
-     source rather than a title-only or machine-generated synopsis.
+   - Portuguese operation summary/scope is available;
+   - for known fixtures, scope materially corresponds to the official Portugal source rather than a
+     title-only or machine-generated synopsis.
 
-3. **Pre-receipt zero-PII projection**
-   - the exact query must use an explicit `SELECT` allowlist;
-   - no beneficiary, beneficiary identifier/VAT, contact, social-media or person field may be selected;
-   - no `DESCRIBE`, broad `CONSTRUCT`, `SELECT *`, generic property walk, or download-then-filter probe
-     is permitted;
-   - the response parser must reject any variable outside the frozen allowlist before persistence.
+3. **Pre-receipt zero-PII**
+   - prohibited beneficiary/person/contact/tax fields are excluded by the server or by a separately
+     published safe distribution before ProcRun receives a response body;
+   - download-then-filter is not permitted;
+   - broad graph walks, `SELECT *`, `DESCRIBE`, generic `CONSTRUCT`, and broad project records remain
+     prohibited.
 
 4. **Temporal provenance**
-   - `Date_Of_Last_Update`, if available, may be retained as source metadata but must not be relabelled
-     as first public observability;
-   - after route approval, ProcRun's own first successful observation time may establish `first_seen_at`
-     for newly observed projects;
-   - historical records without defensible snapshot/observation evidence remain
+   - source last-update metadata may be retained but is not relabelled as first public observability;
+   - after route approval, ProcRun's own first successful observation can establish `first_seen_at` for
+     newly observed projects;
+   - historical records without defensible snapshot evidence remain
      `temporal_provenance=UNRESOLVED`.
 
 5. **Rights and access**
-   - freeze the exact endpoint owner/operator and machine-access documentation;
-   - freeze the source-specific reuse/licence basis applicable to Kohesio project data;
+   - freeze endpoint/distribution owner and machine-access basis;
+   - freeze source-specific commercial reuse/licence basis;
    - record attribution/change-disclosure obligations;
-   - record any rate, fair-use or availability constraints.
+   - record availability/rate/fair-use constraints.
 
 6. **Schema/provenance controls**
-   - freeze the exact SPARQL properties used for every ProcRun field;
-   - freeze response media type and parser schema;
-   - bind retrieval to source URL, query version and content hash;
-   - unknown variables or missing mandatory variables fail closed;
-   - no raw broad graph response is persisted.
-
-## Safe next probe
-
-The next network probe must first discover the **documented property identifiers** for the allowlisted
-operation fields without walking arbitrary project records. Only after those property IDs are frozen may
-a project query be executed.
-
-The first project-level query should request only:
-
-- operation identifier;
-- operation name;
-- operation summary in programme language;
-- programming period;
-- programme/fund;
-- start/end dates;
-- eligible/financing amount and currency;
-- NUTS/geographic code; and
-- source last-update date.
-
-It must not request beneficiary or organisation data even for test purposes.
-
-A successful response for one known operation is only a transport smoke test. Production approval
-requires a small frozen cross-programme coverage sample and a documented source-specific rights review.
+   - freeze exact received fields and parser schema;
+   - bind retrieval to source URL, route/query version and content hash;
+   - unknown fields or missing mandatory fields fail closed;
+   - no broad raw response containing prohibited fields is persisted or received.
 
 ## Official evidence reviewed
 
@@ -184,6 +189,10 @@ requires a small frozen cross-programme coverage sample and a documented source-
   `https://european-social-fund-plus.ec.europa.eu/en/data-and-figures/kohesio-esf-projects`
 - European Commission Cohesion Open Data:
   `https://cohesiondata.ec.europa.eu/`
+- data.europa.eu Kohesio data story/download documentation:
+  `https://data.europa.eu/publications/datastories/linking-data-kohesio-platform`
+- European Parliament 2026 study citing the current-period Kohesio download surface:
+  `https://www.europarl.europa.eu/RegData/etudes/STUD/2026/783965/BUDG_STU(2026)783965_EN.pdf`
 - European Commission legal/reuse notice:
   `https://commission.europa.eu/legal-notice_en`
 - Mais Transparência Portugal 2030 example project:
@@ -195,10 +204,9 @@ requires a small frozen cross-programme coverage sample and a documented source-
 
 ## Bottom line
 
-Kohesio/SPARQL is the first discovered route that plausibly solves the **transport** side of ProcRun's
-zero-PII requirement while also having a schema capable of carrying the required project scope. It does
-not yet solve the **coverage** and **source-specific rights** gates.
+The EUKG/SPARQL experiment succeeded technically but failed the first required PT2030 coverage fixture.
+It is therefore not the current production-discovery solution.
 
-Therefore the Portugal production-discovery blocker remains open. The next useful work is a narrowly
-scoped property/coverage verification of this EU route, not further scraping of Mais Transparência and
-not another download of the broad AD&C workbook.
+The next evidence-driven path is the official Kohesio **2021-2027 download catalogue**, starting with a
+metadata-only inspection. No project file may be downloaded until the catalogue proves a pre-receipt-safe
+Portugal distribution or server-side projection.

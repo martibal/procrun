@@ -4,7 +4,8 @@ Status date: 2026-09-02. Terms/compliance re-review due: 2026-11-30.
 
 ## Production rule
 
-Production source use is enforced by `procrun.source_contracts`. Every network collector must call `require_live_source()` before retrieval.
+Production source use is enforced by `procrun.source_contracts`. Every network collector must call
+`require_live_source()` before retrieval.
 
 A route is usable only when all three gates are approved:
 
@@ -14,7 +15,9 @@ A route is usable only when all three gates are approved:
 
 Anything else fails closed. Public availability is not sufficient.
 
-Research candidates that have not yet established the complete transport, coverage and rights contract are deliberately kept out of `SOURCE_CONTRACTS`; an unregistered route therefore also fails closed if production code attempts to use it.
+Research candidates that have not established the complete transport, coverage and rights contract are
+deliberately kept out of `SOURCE_CONTRACTS`; an unregistered route therefore also fails closed if
+production code attempts to use it.
 
 ## Current registry
 
@@ -26,42 +29,70 @@ Research candidates that have not yet established the complete transport, covera
 | AD&C/dados.gov.pt PT2030 operations bulk file | BLOCKED | CONDITIONAL | APPROVED | BLOCKED | Must not be downloaded and filtered after receipt |
 | Portal BASE / IMPIC APIBase2 | BLOCKED | CONDITIONAL | CONDITIONAL | BLOCKED | No production calls |
 
-### Research candidate outside the live registry
+### Research candidates outside the live registry
 
-| Candidate | Overall | Rights | Access | Data safety | Remaining gate |
+| Candidate | Overall | Rights | Access | Data safety | Remaining gate / result |
 | --- | --- | --- | --- | --- | --- |
-| European Commission Kohesio / EU Knowledge Graph SPARQL | RESEARCH ONLY | UNRESOLVED | PROMISING | PROMISING | Prove current Portugal 2030 2021-2027 coverage, exact safe property projection, scope availability and source-specific reuse basis |
+| European Commission Kohesio / EU Knowledge Graph SPARQL | RESEARCH ONLY | UNRESOLVED | VERIFIED FOR NARROW QUERY | VERIFIED FOR FROZEN PROJECTION | Known PT2030 operation `PACS-FC-01781200` returned zero rows; do not broaden the graph query. Not a current PT2030 discovery route unless Portugal 2021-2027 graph coverage later changes. |
+| European Commission Kohesio 2021-2027 project-download catalogue | RESEARCH ONLY | PROMISING | UNVERIFIED | UNRESOLVED | Inspect catalogue metadata only. Prove a Portugal-specific pre-receipt-safe distribution/projection before any CSV/XLSX/RDF body is downloaded. |
 
-`RESEARCH ONLY`, `UNRESOLVED` and `PROMISING` in the candidate table are documentation labels, not `SourceStatus` enum values. The route is intentionally absent from the executable production registry and therefore cannot be retrieved through `require_live_source()`.
+`RESEARCH ONLY`, `UNRESOLVED`, `PROMISING`, `VERIFIED FOR NARROW QUERY` and
+`VERIFIED FOR FROZEN PROJECTION` are documentation labels, not `SourceStatus` enum values. Both research
+routes are intentionally absent from the executable production registry.
 
 See `docs/PT2030_DISCOVERY_ROUTE.md` for the evidence and frozen verification gate.
 
 ## Portugal 2030 project discovery
 
-The Mais Transparência search surface exposes useful human-visible project cards, but it does not establish a complete, production-approved transport contract. The exact route still lacks all of the following simultaneously:
+The Mais Transparência search surface exposes useful human-visible project cards, but it does not
+establish a complete, production-approved transport contract. It does not expose the required project
+`Sumário` / scope and its presentation-site terms are not treated as an open-data licence for automated
+commercial HTML scraping.
 
-- source-specific commercial/automated reuse clearance for the chosen transport;
-- a response that proves prohibited beneficiary/contact/tax fields cannot enter before validation;
-- the required project scope field surface;
-- defensible historical `first_seen_at` provenance.
+The full project-detail page is hard blocked because beneficiary content appears in the same response as
+the required scope. A corporate beneficiary in one fixture is not evidence that the route is
+natural-person-free across all projects.
 
-The portal terms are not treated as an open-data licence for automated commercial HTML scraping. Production ingestion should use a separately approved underlying official/open-data route.
+The PT2030 bulk operations resource is also hard blocked by the zero-PII pre-receipt rule. Its broad file
+contains beneficiary fields/identifiers, and its dados.gov.pt metadata currently states
+`Licença não especificada`; ProcRun therefore does not download and filter it after receipt.
 
-The full project-detail page is hard blocked because beneficiary content appears in the same response. A current project example confirms that the same page which exposes the required `Sumário`/scope also contains a beneficiary section; a corporate beneficiary in one example is not evidence that the route is natural-person-free across all projects.
+### EU Knowledge Graph SPARQL result
 
-The PT2030 bulk operations resource is also hard blocked by the zero-PII pre-receipt rule. Its dados.gov.pt metadata currently states `Licença não especificada`; ProcRun therefore keeps source-specific rights `CONDITIONAL` even though dados.gov.pt terms state CC BY 4.0 as the default for State datasets unless otherwise specified.
+The EUKG experiment resolved its transport and data-safety questions for the frozen smoke query.
 
-### Kohesio / EU Knowledge Graph research result
+ProcRun froze a narrow property allowlist and excluded beneficiary/contact properties, including `P841`.
+The local Phase 2 probe queried exactly `PACS-FC-01781200`. The public endpoint returned valid
+SPARQL Results XML over GET. ProcRun parsed it with DTD processing prohibited and external entity
+resolution disabled, then validated every declared/returned variable against the frozen allowlist.
 
-A 2026-09-02 review found the first technically plausible alternative to the Portuguese broad-response routes.
+The response contained zero rows (`coverage_found=false`). The same operation code is current on
+Portugal's official Mais Transparência/PT2030 portal. Therefore the miss is a real coverage miss for the
+queried EUKG layer, not a malformed fixture or parser artefact.
 
-European Commission documentation exposes a public SPARQL query mechanism for an EU Knowledge Graph that contains Kohesio projects. A SPARQL `SELECT` is structurally capable of server-side field projection, which is the transport property ProcRun needs to exclude beneficiary/person variables before receipt.
+ProcRun will not respond by broadening the graph query, walking arbitrary properties, querying
+beneficiary records, using `SELECT *`, `DESCRIBE`, or generic `CONSTRUCT`. The EUKG route is not the
+current PT2030 production candidate unless later evidence shows that Portugal 2021-2027 graph coverage
+has changed.
 
-The Commission's current Kohesio validation specification includes the project fields ProcRun needs: operation identifier/name, operation summary in the programme language, programming period, programme/fund/objective, start/end dates, eligible expenditure, geography and `Date_Of_Last_Update`. It also defines beneficiary name/unique-identifier fields, so any future ProcRun query must explicitly omit those fields rather than retrieve a whole project record.
+### Kohesio 2021-2027 download catalogue
 
-This is not enough for approval. Current Commission material still gives mixed coverage signals: the CORDIS federated-query guide describes Kohesio data in the EU Knowledge Graph as 2014-2020, while current Kohesio/ESF+ material says 2021-2027 projects are not yet available for every country. The schema supports `2021-2027`, but current Portugal 2030 coverage has not been proven. Public indexing also did not establish that known operation `PACS-FC-01781200` is present; absence from a search index is not treated as proof of endpoint absence.
+A 2026 European Parliament study cites a current-period Kohesio project data surface at:
 
-The route therefore remains research-only until the exact property identifiers, current Portugal 2030 coverage and source-specific commercial reuse basis are frozen. No generic graph walk, `SELECT *`, `DESCRIBE` or broad project download is allowed as a discovery shortcut because it could receive beneficiary data.
+`https://kohesio.ec.europa.eu/en/data/projects-2021-2027/latest`
+
+Commission/data.europa.eu documentation states that Kohesio datasets are made available for download and
+free reuse in machine-readable forms including CSV/XLSX and RDF. This improves the rights/reuse signal,
+but does not solve data safety.
+
+The broad Kohesio schema includes beneficiary name and beneficiary identifier fields. Therefore ProcRun
+must not download a combined project file and filter those columns locally. The next probe is limited to
+the HTML download catalogue itself and may return only catalogue-link metadata and a content hash. It
+must not follow a CSV/XLSX/RDF distribution link.
+
+If catalogue metadata proves a Portugal-specific distribution that still contains beneficiary/person
+columns, the route is `DATA SAFETY=BLOCKED`. A safe route requires either a separately published
+projects-only field-safe distribution or server-side field projection before receipt.
 
 ### Portugal production gate
 
@@ -73,11 +104,12 @@ A Portugal 2030 route may change to `APPROVED` only when all of the following ar
 4. required identity, funding, dates and project-scope fields are available;
 5. a defensible `first_seen_at` can be recorded without using project start date as proxy;
 6. schema drift is detectable before persistence;
-7. retrieval method, allowlist, attribution and terms references are frozen in code/tests.
+7. retrieval method, allowlist, attribution and terms references are frozen in code/tests;
+8. known PT2030 operation codes resolve across a small frozen cross-programme sample.
 
-For the Kohesio candidate, the pre-production probe must additionally prove that known 2021-2027 Portugal 2030 operation codes resolve and that the Portuguese operation summary is available through documented properties while beneficiary/person properties remain unselected.
-
-For newly observed projects, local observation time may serve as first-seen provenance after a safe discovery route is approved. Historical backfills without defensible snapshot dates remain `temporal_provenance=UNRESOLVED` and cannot support historical lead-time claims.
+For newly observed projects, local observation time may serve as first-seen provenance after a safe
+discovery route is approved. Historical backfills without defensible snapshot dates remain
+`temporal_provenance=UNRESOLVED` and cannot support historical lead-time claims.
 
 ## TED production contract
 
@@ -88,7 +120,10 @@ Official references:
 - `https://ted.europa.eu/en/news/fair-usage-policy-on-ted`
 - `https://eur-lex.europa.eu/eli/dec/2011/833/oj`
 
-Rights/access conclusion: TED explicitly supports notice reuse for commercial/non-commercial purposes and identifies commercial value-added platforms as Search API users. Technical users are directed to the public API. The published HTTP limit is 700 requests/minute; ProcRun freezes an internal ceiling of 600 and is expected to operate far below it.
+Rights/access conclusion: TED explicitly supports notice reuse for commercial/non-commercial purposes
+and identifies commercial value-added platforms as Search API users. Technical users are directed to
+the public API. The published HTTP limit is 700 requests/minute; ProcRun freezes an internal ceiling of
+600 and is expected to operate far below it.
 
 Frozen transport:
 
@@ -98,7 +133,8 @@ Frozen transport:
 - default page size: 100, hard maximum: 250;
 - hard field-cell budget: 10,000 per page;
 - completion: empty `notices` page plus count reconciliation;
-- timeout, missing continuation token, count mismatch or `max_pages` exhaustion => incomplete coverage and never `OPEN`;
+- timeout, missing continuation token, count mismatch or `max_pages` exhaustion => incomplete coverage
+  and never `OPEN`;
 - raw response bodies and iteration tokens are not persisted.
 
 Frozen requested fields:
@@ -120,11 +156,15 @@ Frozen requested fields:
 - `eu-funds-financing-id-lot`
 - `eu-funds-identifier`
 
-TED may attach `links` automatically; it is accepted only as transport metadata and is not copied into the canonical record. Unknown envelope/notice fields fail before normalization.
+TED may attach `links` automatically; it is accepted only as transport metadata and is not copied into
+the canonical record. Unknown envelope/notice fields fail before normalization.
 
-The field list excludes contact person/email/phone/touchpoint, supplier/winner, street-address and business-identifier fields. `buyer-name` is retained only as contracting-authority organisation name needed for evidence matching.
+The field list excludes contact person/email/phone/touchpoint, supplier/winner, street-address and
+business-identifier fields. `buyer-name` is retained only as contracting-authority organisation name
+needed for evidence matching.
 
-Customer-facing source surfaces must credit TED/EU, identify ProcRun transformation/classification, avoid implying EU endorsement and avoid distorting source meaning.
+Customer-facing source surfaces must credit TED/EU, identify ProcRun transformation/classification,
+avoid implying EU endorsement and avoid distorting source meaning.
 
 ## Portal BASE / IMPIC decision
 
@@ -135,10 +175,16 @@ Official references:
 - `https://www.base.gov.pt/APIBase2`
 - `https://www.base.gov.pt/Base4/pt/noticias/2025/api-para-consulta-de-dados-do-portal-base/`
 
-Public BASE data can be automatically extracted, but large-volume API access requires registration and prior IMPIC authorization. Current documentation says API fields are the same as the broad dados.gov files, and the response example includes `adjudicatarios` identifiers/names. No server-side output field projection is documented.
+Public BASE data can be automatically extracted, but large-volume API access requires registration and
+prior IMPIC authorization. Current documentation says API fields are the same as the broad dados.gov
+files, and the response example includes `adjudicatarios` identifiers/names. No server-side output field
+projection is documented.
 
-Therefore APIBase2 remains `DATA SAFETY=BLOCKED`. Obtaining an IMPIC token would not change that. Any future route additionally needs the exact IMPIC authorization/commercial terms frozen before activation.
+Therefore APIBase2 remains `DATA SAFETY=BLOCKED`. Obtaining an IMPIC token would not change that. Any
+future route additionally needs the exact IMPIC authorization/commercial terms frozen before activation.
 
 ## Review expiry
 
-Approved live-source reviews are deliberately time-bounded. `require_live_source()` rejects an approved source after its review due date until the then-current terms are rechecked and the registry is explicitly renewed.
+Approved live-source reviews are deliberately time-bounded. `require_live_source()` rejects an approved
+source after its review due date until the then-current terms are rechecked and the registry is explicitly
+renewed.
