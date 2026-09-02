@@ -59,9 +59,24 @@ def test_probe_fails_closed_on_unknown_response_variables() -> None:
     assert "Assert-AllowedVariables" in text
     assert "SPARQL response declared unexpected variable" in text
     assert "SPARQL response returned unexpected variable" in text
+    assert "SPARQL response is missing the required head/results envelope" in text
     assert '"operation_identifier"' in text
     assert '"summary"' in text
     assert '"last_update"' in text
+
+
+def test_probe_tolerates_only_blank_header_metadata_not_blank_bindings() -> None:
+    text = _script_text()
+
+    assert "foreach ($declared in @($Response.head.vars))" in text
+    assert "[string]::IsNullOrWhiteSpace($name)" in text
+    assert "continue" in text
+    assert "foreach ($property in $binding.PSObject.Properties)" in text
+    assert (
+        "[string]::IsNullOrWhiteSpace($name) -or -not $allowed.ContainsKey($name)"
+        in text
+    )
+    assert 'probe_contract = "kohesio-pt2030-safe-project-smoke-v2"' in text
 
 
 def test_probe_never_calls_broad_project_surfaces() -> None:
