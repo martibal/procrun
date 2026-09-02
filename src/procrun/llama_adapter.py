@@ -25,7 +25,7 @@ from procrun.model_registry import (
     verify_local_model_artifact,
 )
 
-LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v4"
+LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v5"
 
 
 class LlamaAdapterError(RuntimeError):
@@ -422,6 +422,23 @@ def _parse_generated_output(
     return _validate_against_request(request, envelope)
 
 
+def _source_text_occurrences(
+    request: LocalModelRequest,
+    source_text: str,
+) -> tuple[tuple[int, int], ...]:
+    matches: set[tuple[int, int]] = set()
+    for span in request.unmatched_scope_spans:
+        cursor = 0
+        while True:
+            local_start = span.text.find(source_text, cursor)
+            if local_start < 0:
+                break
+            absolute_start = span.start + local_start
+            matches.add((absolute_start, absolute_start + len(source_text)))
+            cursor = local_start + 1
+    return tuple(sorted(matches))
+
+
 def _validate_against_request(
     request: LocalModelRequest,
     envelope: GeneratedProposalEnvelope,
@@ -443,37 +460,42 @@ def _validate_against_request(
             raise LlamaAdapterError(
                 "model proposal domain/category pair is outside the request"
             )
-        if proposal.start >= proposal.end:
-            raise LlamaAdapterError("model proposal span must have positive length")
 
-        containing = [
-            span
-            for span in request.unmatched_scope_spans
-            if proposal.start >= span.start and proposal.end <= span.end
-        ]
-        if not containing:
-            raise LlamaAdapterError(
-                "model proposal is outside the supplied unmatched scope spans"
-            )
-        if not any(
-            span.text[
-                proposal.start - span.start : proposal.end - span.start
+        occurrences = _source_text_occurrences(request, proposal.source_text)
+        provided_range = (proposal.start, proposal.end)
+        if provided_range in occurrences:
+            normalized = proposal
+        elif len(occurrences) == 1:
+            start, end = occurrences[0]
+            normalized = proposal.model_copy(update={"start": start, "end": end})
+        elif not occurrences:
+            if proposal.start >= proposal.end:
+                raise LlamaAdapterError("model proposal span must have positive length")
+            containing = [
+                span
+                for span in request.unmatched_scope_spans
+                if proposal.start >= span.start and proposal.end <= span.end
             ]
-            == proposal.source_text
-            for span in containing
-        ):
+            if not containing:
+                raise LlamaAdapterError(
+                    "model proposal is outside the supplied unmatched scope spans"
+                )
             raise LlamaAdapterError(
                 "model proposal source_text does not match its cited request span"
             )
+        else:
+            raise LlamaAdapterError(
+                "model proposal source_text is ambiguous within the supplied unmatched spans"
+            )
 
         key = (
-            proposal.domain.value,
-            proposal.category,
-            proposal.start,
-            proposal.end,
-            proposal.source_text,
+            normalized.domain.value,
+            normalized.category,
+            normalized.start,
+            normalized.end,
+            normalized.source_text,
         )
-        unique[key] = proposal
+        unique[key] = normalized
 
     proposals = tuple(
         unique[key]
