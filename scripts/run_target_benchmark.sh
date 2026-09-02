@@ -2,7 +2,7 @@
 set -euo pipefail
 
 RUNTIME_ROOT="${PROCRUN_BENCHMARK_ROOT:-$HOME/.local/share/procrun-benchmark}"
-LLAMA_CLI="$RUNTIME_ROOT/llama.cpp/build/bin/llama-cli"
+LLAMA_RUNTIME="$RUNTIME_ROOT/llama.cpp/build/bin/llama-completion"
 MODEL="$RUNTIME_ROOT/models/Qwen3-4B-Q4_K_M.gguf"
 CORPUS="tests/fixtures/component_benchmark_v1.json"
 OUTPUT_DIR="$RUNTIME_ROOT/results"
@@ -28,7 +28,7 @@ fi
 
 mkdir -p "$OUTPUT_DIR" "$CACHE_DIR"
 
-for required in "$LLAMA_CLI" "$MODEL" "$CORPUS" ".venv/bin/procrun-model-benchmark"; do
+for required in "$LLAMA_RUNTIME" "$MODEL" "$CORPUS" ".venv/bin/procrun-model-benchmark"; do
   if [[ ! -e "$required" ]]; then
     echo "missing benchmark prerequisite: $required" >&2
     exit 2
@@ -41,7 +41,7 @@ done
   printf 'cpu_count=%s\n' "$(nproc)"
   printf 'memory_kib=%s\n' "$(awk '/MemTotal/ {print $2}' /proc/meminfo)"
   printf 'root_free_bytes=%s\n' "$(df -B1 --output=avail / | tail -1 | tr -d ' ')"
-  printf 'llama_cli_sha256=%s\n' "$(sha256sum "$LLAMA_CLI" | awk '{print $1}')"
+  printf 'llama_runtime_sha256=%s\n' "$(sha256sum "$LLAMA_RUNTIME" | awk '{print $1}')"
   printf 'model_sha256=%s\n' "$(sha256sum "$MODEL" | awk '{print $1}')"
   printf 'repo_commit=%s\n' "$REPO_COMMIT"
   printf 'llama_cpp_commit=%s\n' "$(git -C "$RUNTIME_ROOT/llama.cpp" rev-parse HEAD)"
@@ -51,29 +51,27 @@ set +e
 /usr/bin/time -v \
   .venv/bin/procrun-model-benchmark \
     --corpus "$CORPUS" \
-    --llama-cli "$LLAMA_CLI" \
+    --llama-cli "$LLAMA_RUNTIME" \
     --model "$MODEL" \
     --output "$REPORT" \
     --cache-dir "$CACHE_DIR" \
   2> "$TIME_REPORT"
-BENCHMARK_STATUS=$?
+BENCHMARK_EXIT=$?
 set -e
 
-if [[ $BENCHMARK_STATUS -ne 0 ]]; then
-  printf '%s\n' "benchmark command failed with exit code $BENCHMARK_STATUS" >&2
-  if [[ -s "$TIME_REPORT" ]]; then
-    printf '%s\n' "---- benchmark stderr/resource report ----" >&2
+if [[ "$BENCHMARK_EXIT" -ne 0 ]]; then
+  echo "benchmark command failed with exit code $BENCHMARK_EXIT" >&2
+  if [[ -f "$TIME_REPORT" ]]; then
+    echo "---- benchmark stderr/resource report ----" >&2
     cat "$TIME_REPORT" >&2
-    printf '%s\n' "---- end benchmark stderr/resource report ----" >&2
-  else
-    printf '%s\n' "benchmark stderr/resource report is empty: $TIME_REPORT" >&2
+    echo "---- end benchmark stderr/resource report ----" >&2
   fi
-  if [[ -s "$HOST_REPORT" ]]; then
-    printf '%s\n' "---- benchmark host report ----" >&2
+  if [[ -f "$HOST_REPORT" ]]; then
+    echo "---- benchmark host report ----" >&2
     cat "$HOST_REPORT" >&2
-    printf '%s\n' "---- end benchmark host report ----" >&2
+    echo "---- end benchmark host report ----" >&2
   fi
-  exit "$BENCHMARK_STATUS"
+  exit "$BENCHMARK_EXIT"
 fi
 
 printf '%s\n' "benchmark report: $REPORT"
