@@ -53,21 +53,35 @@ def test_probe_uses_only_frozen_safe_properties() -> None:
     assert used == expected
 
 
-def test_probe_validates_http_format_before_accepting_transport() -> None:
+def test_probe_accepts_only_standard_sparql_tuple_formats() -> None:
     text = _script_text()
 
     assert "Invoke-WebRequest" in text
     assert "Invoke-RestMethod" not in text
-    assert '"Accept" = "application/sparql-results+json"' in text
+    assert "application/sparql-results+xml" in text
+    assert "application/sparql-results+json" in text
     assert "ConvertFrom-SparqlWebResponse" in text
-    assert "non-SPARQL-JSON content type" in text
-    assert "JSON without the SPARQL head/results envelope" in text
+    assert "unsupported SPARQL result content type" in text
     assert "response body was not logged" in text
     assert "response values were not logged" in text
     assert 'response_content_type = $script:SuccessfulContentType' in text
 
 
-def test_probe_retries_same_query_as_post_after_invalid_get_transport() -> None:
+def test_probe_parses_xml_with_external_entities_disabled() -> None:
+    text = _script_text()
+
+    assert "ConvertFrom-SparqlXml" in text
+    assert "$settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit" in text
+    assert "$settings.XmlResolver = $null" in text
+    assert "$document.XmlResolver = $null" in text
+    assert 'AddNamespace("sr", "http://www.w3.org/2005/sparql-results#")' in text
+    assert 'SelectSingleNode("/sr:sparql/sr:head"' in text
+    assert 'SelectSingleNode("/sr:sparql/sr:results"' in text
+    assert "SPARQL XML binding without a variable name" in text
+    assert "SPARQL XML binding without a value node" in text
+
+
+def test_probe_reuses_same_query_for_get_and_post() -> None:
     text = _script_text()
 
     assert (
@@ -78,11 +92,11 @@ def test_probe_retries_same_query_as_post_after_invalid_get_transport() -> None:
         '$response = ConvertFrom-SparqlWebResponse -WebResponse $webResponse -Method "POST"'
         in text
     )
-    assert 'format = "application/sparql-results+json"' in text
+    assert 'format = "application/sparql-results+xml"' in text
     assert "$postParameters = @{" in text
     assert "query = $Query" in text
     assert '-ContentType "application/x-www-form-urlencoded"' in text
-    assert 'probe_contract = "kohesio-pt2030-safe-project-smoke-v3"' in text
+    assert 'probe_contract = "kohesio-pt2030-safe-project-smoke-v4"' in text
 
 
 def test_probe_fails_closed_on_unknown_response_variables() -> None:
