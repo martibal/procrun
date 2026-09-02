@@ -5,6 +5,8 @@ LLAMA_CPP_COMMIT="${LLAMA_CPP_COMMIT:-b95502ba9aa0eb73a2f4fc8878d7fbe6a847a0b9}"
 RUNTIME_ROOT="${PROCRUN_BENCHMARK_ROOT:-$HOME/.local/share/procrun-benchmark}"
 LLAMA_SRC="$RUNTIME_ROOT/llama.cpp"
 LLAMA_BUILD="$LLAMA_SRC/build"
+LLAMA_ARCHIVE="$RUNTIME_ROOT/llama.cpp-$LLAMA_CPP_COMMIT.tar.gz"
+LLAMA_COMMIT_FILE="$LLAMA_SRC/.procrun-llama-commit"
 
 if [[ "$(uname -s)" != "Linux" ]]; then
   echo "benchmark host bootstrap requires Linux" >&2
@@ -39,19 +41,37 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
 
 mkdir -p "$RUNTIME_ROOT"
 
-if [[ ! -d "$LLAMA_SRC/.git" ]]; then
-  mkdir -p "$LLAMA_SRC"
-  git -C "$LLAMA_SRC" init -q
-  git -C "$LLAMA_SRC" remote add origin https://github.com/ggml-org/llama.cpp.git
-fi
+# Download an archive addressed by the exact immutable commit rather than using
+# Git's smart-HTTP transport. Anonymous git fetches from fresh benchmark hosts
+# have intermittently received an authentication challenge, while codeload is
+# a plain HTTPS artifact fetch and therefore cannot fall back to a credential
+# prompt. The commit marker is carried into the host report below.
+rm -rf "$LLAMA_SRC"
+rm -f "$LLAMA_ARCHIVE"
+mkdir -p "$LLAMA_SRC"
+curl \
+  --fail \
+  --location \
+  --silent \
+  --show-error \
+  --retry 5 \
+  --retry-delay 2 \
+  --retry-all-errors \
+  --connect-timeout 15 \
+  --output "$LLAMA_ARCHIVE" \
+  "https://codeload.github.com/ggml-org/llama.cpp/tar.gz/$LLAMA_CPP_COMMIT"
+tar -xzf "$LLAMA_ARCHIVE" --strip-components=1 -C "$LLAMA_SRC"
+rm -f "$LLAMA_ARCHIVE"
+printf '%s\n' "$LLAMA_CPP_COMMIT" > "$LLAMA_COMMIT_FILE"
 
-# Fetch the exact pinned commit as a normal shallow repository. Do not use a
-# partial/promisor clone: a missing blob would otherwise trigger a second
-# network fetch during checkout and make the benchmark bootstrap less robust.
-git -C "$LLAMA_SRC" config --unset-all remote.origin.promisor >/dev/null 2>&1 || true
-git -C "$LLAMA_SRC" config --unset-all remote.origin.partialclonefilter >/dev/null 2>&1 || true
-GIT_TERMINAL_PROMPT=0 git -C "$LLAMA_SRC" fetch --depth=1 --no-tags origin "$LLAMA_CPP_COMMIT"
-git -C "$LLAMA_SRC" checkout --detach FETCH_HEAD
+if [[ ! -f "$LLAMA_SRC/CMakeLists.txt" ]]; then
+  echo "pinned llama.cpp archive did not contain CMakeLists.txt" >&2
+  exit 2
+fi
+if [[ "$(tr -d '\r\n' < "$LLAMA_COMMIT_FILE")" != "$LLAMA_CPP_COMMIT" ]]; then
+  echo "pinned llama.cpp source marker mismatch" >&2
+  exit 2
+fi
 
 cmake -S "$LLAMA_SRC" -B "$LLAMA_BUILD" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
@@ -70,6 +90,6 @@ python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -c requirements-runtime.lock -e .
 
-printf '%s\n' "llama.cpp commit: $(git -C "$LLAMA_SRC" rev-parse HEAD)"
+printf '%s\n' "llama.cpp commit: $(tr -d '\r\n' < "$LLAMA_COMMIT_FILE")"
 printf '%s\n' "llama-completion: $LLAMA_BUILD/bin/llama-completion"
 printf '%s\n' "venv: $(pwd)/.venv"
