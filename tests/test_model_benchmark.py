@@ -74,6 +74,8 @@ def test_exact_oracle_scores_perfectly_without_inventing_thresholds() -> None:
     assert score.abstention_case_count == 2
     assert score.correct_abstention_count == 2
     assert score.correct_abstention_rate == 1.0
+    assert score.failed_case_count == 0
+    assert score.failed_abstention_case_count == 0
 
 
 def test_false_positive_on_abstention_case_is_measured_explicitly() -> None:
@@ -99,6 +101,48 @@ def test_false_positive_on_abstention_case_is_measured_explicitly() -> None:
     assert score.false_positive_count == 1
     assert score.false_positive_abstention_case_count == 1
     assert score.correct_abstention_count == 1
+    assert score.exact_case_match_count == 11
+
+
+def test_failed_negative_case_is_not_misreported_as_correct_abstention() -> None:
+    benchmark = loaded()
+    predictions = {
+        case.case_id: case.expected_proposals for case in benchmark.corpus.cases
+    }
+    negative = next(
+        case for case in benchmark.corpus.cases if case.case_id == "negative_generic"
+    )
+    predictions[negative.case_id] = ()
+
+    score = score_component_benchmark(
+        benchmark.corpus,
+        predictions,
+        failed_case_ids={negative.case_id},
+    )
+
+    assert score.failed_case_count == 1
+    assert score.failed_abstention_case_count == 1
+    assert score.correct_abstention_count == 1
+    assert score.correct_abstention_rate == 0.5
+    assert score.exact_case_match_count == 11
+
+
+def test_failed_positive_case_counts_as_unresolved_false_negative() -> None:
+    benchmark = loaded()
+    predictions = {
+        case.case_id: case.expected_proposals for case in benchmark.corpus.cases
+    }
+    positive = next(case for case in benchmark.corpus.cases if case.expected_proposals)
+    predictions[positive.case_id] = ()
+
+    score = score_component_benchmark(
+        benchmark.corpus,
+        predictions,
+        failed_case_ids={positive.case_id},
+    )
+
+    assert score.failed_case_count == 1
+    assert score.false_negative_count == 1
     assert score.exact_case_match_count == 11
 
 
@@ -157,14 +201,16 @@ def test_execution_report_binds_model_runtime_corpus_and_measurements() -> None:
 
     report = build_component_benchmark_report(benchmark, results)
 
-    assert report.schema_version == "component-benchmark-report-v2"
+    assert report.schema_version == "component-benchmark-report-v3"
     assert report.corpus_sha256 == benchmark.sha256
     assert report.model_id == "fixture/model:Q4"
     assert report.model_artifact_sha256 == "a" * 64
     assert report.llama_cli_sha256 == "b" * 64
     assert report.score.exact_case_match_rate == 1.0
+    assert report.score.failed_case_count == 0
     assert len(report.case_results) == 12
     assert all(case_result.exact_match for case_result in report.case_results)
+    assert all(case_result.inference_error is None for case_result in report.case_results)
     assert (
         report.case_results[0].expected_proposals
         == benchmark.corpus.cases[0].expected_proposals
@@ -179,6 +225,45 @@ def test_execution_report_binds_model_runtime_corpus_and_measurements() -> None:
     assert report.inference_count == 11
     assert report.median_elapsed_seconds == 6.0
     assert report.max_elapsed_seconds == 11.0
+
+
+def test_execution_report_marks_failure_non_exact_and_retains_error() -> None:
+    benchmark = loaded()
+    identity = LocalModelIdentity(
+        model_id="fixture/model:Q4",
+        artifact_sha256="a" * 64,
+    )
+    results: dict[str, LlamaBenchmarkResult] = {}
+    failed_case = benchmark.corpus.cases[0]
+
+    for index, case in enumerate(benchmark.corpus.cases):
+        request = benchmark_request(case)
+        proposals = () if case.case_id == failed_case.case_id else case.expected_proposals
+        results[case.case_id] = LlamaBenchmarkResult(
+            batch=ModelProposalBatch(
+                operation_code=request.operation_code,
+                source_sha256=request.source_sha256,
+                model_identity=identity,
+                proposals=proposals,
+            ),
+            cache_key=f"key-{index}",
+            cache_hit=False,
+            elapsed_seconds=0.1,
+            llama_cli_sha256="b" * 64,
+        )
+
+    report = build_component_benchmark_report(
+        benchmark,
+        results,
+        failures={failed_case.case_id: "LlamaAdapterError: invalid token range"},
+    )
+
+    case_result = next(
+        item for item in report.case_results if item.case_id == failed_case.case_id
+    )
+    assert report.score.failed_case_count == 1
+    assert case_result.exact_match is False
+    assert case_result.inference_error == "LlamaAdapterError: invalid token range"
 
 
 def test_execution_report_rejects_mixed_runtime_hashes() -> None:
