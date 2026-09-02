@@ -70,8 +70,14 @@ def test_probe_validates_http_format_before_accepting_transport() -> None:
 def test_probe_retries_same_query_as_post_after_invalid_get_transport() -> None:
     text = _script_text()
 
-    assert '$response = ConvertFrom-SparqlWebResponse -WebResponse $webResponse -Method "GET"' in text
-    assert '$response = ConvertFrom-SparqlWebResponse -WebResponse $webResponse -Method "POST"' in text
+    assert (
+        '$response = ConvertFrom-SparqlWebResponse -WebResponse $webResponse -Method "GET"'
+        in text
+    )
+    assert (
+        '$response = ConvertFrom-SparqlWebResponse -WebResponse $webResponse -Method "POST"'
+        in text
+    )
     assert 'format = "application/sparql-results+json"' in text
     assert "$postParameters = @{" in text
     assert "query = $Query" in text
