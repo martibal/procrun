@@ -17,6 +17,20 @@ def test_probe_only_reads_html_and_same_origin_javascript() -> None:
     assert '"Accept" = "application/javascript,text/javascript;q=0.9,*/*;q=0.1"' in text
 
 
+def test_probe_honors_only_safe_same_origin_html_base_href() -> None:
+    text = _script_text()
+
+    assert "Resolve-SafeBaseUri" in text
+    assert "<base\\b" in text
+    assert "$baseMatches.Count -ne 1" in text
+    assert "multiple base href values" in text
+    assert "invalid base href" in text
+    assert "non-approved base origin" in text
+    assert "$assetBaseUri = Resolve-SafeBaseUri" in text
+    assert "Resolve-SafeAssetUri -BaseUri $assetBaseUri" in text
+    assert "asset_base_uri = $assetBaseUri.AbsoluteUri" in text
+
+
 def test_probe_never_calls_project_or_distribution_endpoints() -> None:
     text = _script_text()
     executable = "\n".join(
@@ -26,7 +40,7 @@ def test_probe_never_calls_project_or_distribution_endpoints() -> None:
     assert "invoke-restmethod" not in executable
     assert 'project_api_called = $false' in text
     assert 'distribution_body_fetched = $false' in text
-    assert 'probe_contract = "kohesio-frontend-route-metadata-v1"' in text
+    assert 'probe_contract = "kohesio-frontend-route-metadata-v2"' in text
 
     forbidden_invocations = (
         '-uri "https://kohesio.ec.europa.eu/api/projects',
