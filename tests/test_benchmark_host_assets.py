@@ -109,6 +109,20 @@ def test_provisioning_checks_compliance_before_billable_server_create() -> None:
     assert gate < create
 
 
+def test_provisioning_retries_only_transient_capacity_without_fallback() -> None:
+    provision = (REPO_ROOT / "scripts" / "provision_benchmark_server.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert '[int]$CreateAttempts = 6' in provision
+    assert '[int]$RetryDelaySeconds = 15' in provision
+    assert '$CreateMessage -notmatch "resource_unavailable"' in provision
+    assert "Retrying the same approved target" in provision
+    assert "No fallback server type or location is selected automatically" in provision
+    assert "Start-Sleep -Seconds $RetryDelaySeconds" in provision
+    assert "Refusing to retry or create a duplicate" in provision
+
+
 def test_e2e_runner_transfers_only_committed_code_and_preserves_failures() -> None:
     runner = (REPO_ROOT / "scripts" / "run_hetzner_benchmark_e2e.ps1").read_text(
         encoding="utf-8"
