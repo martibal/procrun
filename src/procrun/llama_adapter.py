@@ -25,7 +25,7 @@ from procrun.model_registry import (
     verify_local_model_artifact,
 )
 
-LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v3"
+LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v4"
 
 
 class LlamaAdapterError(RuntimeError):
@@ -237,12 +237,20 @@ def _prompt(request: LocalModelRequest) -> str:
     input_json = _canonical_json(request.model_dump(mode="json"))
     return (
         "Classify only the supplied unmatched project-scope spans into the supplied "
-        "allowed component categories. Do not infer procurement status, opportunity "
-        "state, buyer contacts, dates, values, or facts that are absent from the input. "
-        "Every proposal must use one allowed domain/category pair and must cite an exact "
-        "substring of one supplied span using absolute start/end offsets. Omit anything "
-        "that cannot be classified defensibly. Return only JSON matching the constrained "
-        "schema; do not emit reasoning or commentary. /no_think\nINPUT_JSON:\n"
+        "allowed component categories. Each proposal must represent a concrete "
+        "purchasable component, system, equipment item, or scoped works package that is "
+        "explicitly named in the text. Use exactly one allowed domain/category pair. "
+        "For source_text, return the shortest contiguous phrase that directly names the "
+        "proposed component; never copy the surrounding sentence merely as evidence. "
+        "start/end must be the absolute offsets of that exact shortest phrase. Prefer "
+        "the narrowest defensible category based on the named component, not broad project "
+        "context. Return an empty proposals array when the text only describes maintenance, "
+        "generic or undefined technical activities, or otherwise does not explicitly name "
+        "a concrete component or scoped works package. Do not infer procurement status, "
+        "opportunity state, buyer contacts, dates, values, or facts absent from the input. "
+        "If either the category or exact minimal span cannot be identified defensibly, omit "
+        "the proposal. Return only JSON matching the constrained schema; do not emit "
+        "reasoning or commentary. /no_think\nINPUT_JSON:\n"
         f"{input_json}"
     )
 
