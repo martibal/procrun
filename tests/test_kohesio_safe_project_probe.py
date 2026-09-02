@@ -53,6 +53,38 @@ def test_probe_uses_only_frozen_safe_properties() -> None:
     assert used == expected
 
 
+def test_probe_validates_http_format_before_accepting_transport() -> None:
+    text = _script_text()
+
+    assert "Invoke-WebRequest" in text
+    assert "Invoke-RestMethod" not in text
+    assert '"Accept" = "application/sparql-results+json"' in text
+    assert "ConvertFrom-SparqlWebResponse" in text
+    assert "non-SPARQL-JSON content type" in text
+    assert "JSON without the SPARQL head/results envelope" in text
+    assert "response body was not logged" in text
+    assert "response values were not logged" in text
+    assert 'response_content_type = $script:SuccessfulContentType' in text
+
+
+def test_probe_retries_same_query_as_post_after_invalid_get_transport() -> None:
+    text = _script_text()
+
+    assert (
+        '$response = ConvertFrom-SparqlWebResponse -WebResponse $webResponse -Method "GET"'
+        in text
+    )
+    assert (
+        '$response = ConvertFrom-SparqlWebResponse -WebResponse $webResponse -Method "POST"'
+        in text
+    )
+    assert 'format = "application/sparql-results+json"' in text
+    assert "$postParameters = @{" in text
+    assert "query = $Query" in text
+    assert '-ContentType "application/x-www-form-urlencoded"' in text
+    assert 'probe_contract = "kohesio-pt2030-safe-project-smoke-v3"' in text
+
+
 def test_probe_fails_closed_on_unknown_response_variables() -> None:
     text = _script_text()
 
@@ -76,7 +108,6 @@ def test_probe_tolerates_only_blank_header_metadata_not_blank_bindings() -> None
         "[string]::IsNullOrWhiteSpace($name) -or -not $allowed.ContainsKey($name)"
         in text
     )
-    assert 'probe_contract = "kohesio-pt2030-safe-project-smoke-v2"' in text
 
 
 def test_probe_never_calls_broad_project_surfaces() -> None:

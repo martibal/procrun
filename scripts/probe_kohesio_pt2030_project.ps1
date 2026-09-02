@@ -22,7 +22,7 @@ $AllowedVariables = @(
 )
 $Headers = @{
     "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
-    "Accept" = "application/sparql-results+json,application/json;q=0.9"
+    "Accept" = "application/sparql-results+json"
 }
 
 # Phase 2 is deliberately a single exact-code lookup. Every selected predicate is frozen in
@@ -94,16 +94,57 @@ function Format-RequestFailure {
     return "${Method}: $($ErrorRecord.Exception.Message)"
 }
 
-function Invoke-SafeSparqlRequest {
-    $parameters = @{
-        query = $Query
-        format = "application/sparql-results+json"
+function ConvertFrom-SparqlWebResponse {
+    param(
+        [Parameter(Mandatory = $true)]$WebResponse,
+        [Parameter(Mandatory = $true)][string]$Method
+    )
+
+    $contentType = [string]$WebResponse.Headers["Content-Type"]
+    if ($contentType -notmatch "(?i)^application/(sparql-results\+json|json)(?:\s*;|$)") {
+        $displayType = if ([string]::IsNullOrWhiteSpace($contentType)) { "<missing>" } else { $contentType }
+        throw "${Method} returned non-SPARQL-JSON content type '${displayType}'; response body was not logged."
     }
+
+    $raw = [string]$WebResponse.Content
+    try {
+        $parsed = $raw | ConvertFrom-Json
+    }
+    catch {
+        throw "${Method} returned '${contentType}' but the body was not valid JSON; response body was not logged."
+    }
+
+    if ($null -eq $parsed -or $null -eq $parsed.head -or $null -eq $parsed.results) {
+        $keys = @()
+        if ($null -ne $parsed) {
+            $keys = @($parsed.PSObject.Properties.Name)
+        }
+        $keyText = if ($keys.Count -gt 0) { $keys -join "," } else { "<none>" }
+        throw "${Method} returned JSON without the SPARQL head/results envelope (top-level keys: ${keyText}); response values were not logged."
+    }
+
+    $script:SuccessfulContentType = $contentType
+    return $parsed
+}
+
+function Invoke-SafeSparqlRequest {
     $attemptErrors = @()
 
+    # Try the documented public endpoint as GET first. A HTTP 200 is not accepted until the
+    # response is verified as SPARQL Results JSON with the required envelope.
     try {
-        $uri = New-QueryUri -BaseUri $Endpoint -Parameters $parameters
-        $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $Headers -TimeoutSec 45
+        $getParameters = @{
+            query = $Query
+            format = "application/sparql-results+json"
+        }
+        $uri = New-QueryUri -BaseUri $Endpoint -Parameters $getParameters
+        $webResponse = Invoke-WebRequest `
+            -Uri $uri `
+            -Method Get `
+            -Headers $Headers `
+            -UseBasicParsing `
+            -TimeoutSec 45
+        $response = ConvertFrom-SparqlWebResponse -WebResponse $webResponse -Method "GET"
         $script:SuccessfulTransport = "GET"
         return $response
     }
@@ -111,14 +152,21 @@ function Invoke-SafeSparqlRequest {
         $attemptErrors += Format-RequestFailure -Method "GET" -ErrorRecord $_
     }
 
+    # qEndpoint documents form-encoded POST with the Accept header controlling tuple-result
+    # serialization. Reuse the exact same allowlisted query; do not broaden the request.
     try {
-        $response = Invoke-RestMethod `
+        $postParameters = @{
+            query = $Query
+        }
+        $webResponse = Invoke-WebRequest `
             -Uri $Endpoint `
             -Method Post `
             -Headers $Headers `
             -ContentType "application/x-www-form-urlencoded" `
-            -Body $parameters `
+            -Body $postParameters `
+            -UseBasicParsing `
             -TimeoutSec 45
+        $response = ConvertFrom-SparqlWebResponse -WebResponse $webResponse -Method "POST"
         $script:SuccessfulTransport = "POST"
         return $response
     }
@@ -143,9 +191,6 @@ function Assert-AllowedVariables {
         $allowed[$name] = $true
     }
 
-    # Some EUKG responses expose an empty placeholder in head.vars. That field is response
-    # metadata, not a returned binding. Ignore only null/blank declarations; every non-empty
-    # declaration and every actual binding property remains fail-closed against the allowlist.
     foreach ($declared in @($Response.head.vars)) {
         $name = [string]$declared
         if ([string]::IsNullOrWhiteSpace($name)) {
@@ -175,9 +220,10 @@ Assert-AllowedVariables -Response $response
 $rows = @($response.results.bindings)
 
 [ordered]@{
-    probe_contract = "kohesio-pt2030-safe-project-smoke-v2"
+    probe_contract = "kohesio-pt2030-safe-project-smoke-v3"
     endpoint = $Endpoint
     transport = $script:SuccessfulTransport
+    response_content_type = $script:SuccessfulContentType
     target_operation_code = $TargetOperationCode
     selected_variables = $AllowedVariables
     row_count = $rows.Count
