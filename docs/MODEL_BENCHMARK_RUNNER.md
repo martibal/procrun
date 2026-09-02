@@ -1,8 +1,8 @@
 # Running the frozen local-model benchmark
 
 The benchmark runner is intentionally separate from the production pipeline. It verifies the pinned
-model bytes and local `llama-completion`, executes every frozen Portuguese case, scores exact evidence
-spans, and writes one provenance-bound JSON report.
+model bytes and local `llama-completion`, executes every frozen Portuguese case, scores both frozen
+category semantics and legacy minimal-phrase exactness, and writes one provenance-bound JSON report.
 
 No model is downloaded by this command.
 
@@ -21,8 +21,19 @@ The runner uses the registered `BENCHMARK_CANDIDATE` and the benchmark adapter's
 determinism settings. A model file with the wrong size or SHA-256 fails before inference. A different
 or non-executable local runtime fails before the corpus starts.
 
-The v3 output report records the exact corpus hash, model ID/hash, `llama-completion` hash, exact-match
-quality metrics, abstention behavior, failed-case counts and errors, cache counts, and measured
+The v4 output report records the exact corpus hash, model ID/hash and `llama-completion` hash together
+with two distinct quality views:
+
+- `semantic_*` metrics score exact frozen `domain + category` pairs. These are the product-aligned
+  model-quality diagnostics.
+- `exact_*` metrics retain the historical byte-for-byte minimal phrase comparison. They are stricter
+  than the canonical fallback evidence acceptance rule and are diagnostic only.
+
+Evidence integrity is still fail-closed outside those semantic metrics: accepted model evidence must be
+exact source text contained in a supplied unmatched scope span. Semantic credit cannot convert invalid
+or hallucinated evidence into an accepted proposal.
+
+The report also retains abstention behavior, failed-case counts/errors, cache counts and measured
 inference times. A fail-closed model-output error is retained for that case and the remaining synthetic
 cases continue; failed negative cases are not counted as correct abstentions. The report does not emit
 a production approval verdict.
