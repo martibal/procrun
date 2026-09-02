@@ -3,6 +3,7 @@ set -euo pipefail
 
 RUNTIME_ROOT="${PROCRUN_BENCHMARK_ROOT:-$HOME/.local/share/procrun-benchmark}"
 LLAMA_RUNTIME="$RUNTIME_ROOT/llama.cpp/build/bin/llama-completion"
+LLAMA_COMMIT_FILE="$RUNTIME_ROOT/llama.cpp/.procrun-llama-commit"
 MODEL="$RUNTIME_ROOT/models/Qwen3-4B-Q4_K_M.gguf"
 CORPUS="tests/fixtures/component_benchmark_v1.json"
 OUTPUT_DIR="$RUNTIME_ROOT/results"
@@ -28,12 +29,18 @@ fi
 
 mkdir -p "$OUTPUT_DIR" "$CACHE_DIR"
 
-for required in "$LLAMA_RUNTIME" "$MODEL" "$CORPUS" ".venv/bin/procrun-model-benchmark"; do
+for required in "$LLAMA_RUNTIME" "$LLAMA_COMMIT_FILE" "$MODEL" "$CORPUS" ".venv/bin/procrun-model-benchmark"; do
   if [[ ! -e "$required" ]]; then
     echo "missing benchmark prerequisite: $required" >&2
     exit 2
   fi
 done
+
+LLAMA_CPP_COMMIT="$(tr -d '\r\n' < "$LLAMA_COMMIT_FILE")"
+if [[ ! "$LLAMA_CPP_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "invalid llama.cpp source commit marker: $LLAMA_CPP_COMMIT" >&2
+  exit 2
+fi
 
 {
   printf 'utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -44,7 +51,7 @@ done
   printf 'llama_runtime_sha256=%s\n' "$(sha256sum "$LLAMA_RUNTIME" | awk '{print $1}')"
   printf 'model_sha256=%s\n' "$(sha256sum "$MODEL" | awk '{print $1}')"
   printf 'repo_commit=%s\n' "$REPO_COMMIT"
-  printf 'llama_cpp_commit=%s\n' "$(git -C "$RUNTIME_ROOT/llama.cpp" rev-parse HEAD)"
+  printf 'llama_cpp_commit=%s\n' "$LLAMA_CPP_COMMIT"
 } > "$HOST_REPORT"
 
 set +e
