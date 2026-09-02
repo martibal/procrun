@@ -157,11 +157,18 @@ def test_execution_report_binds_model_runtime_corpus_and_measurements() -> None:
 
     report = build_component_benchmark_report(benchmark, results)
 
+    assert report.schema_version == "component-benchmark-report-v2"
     assert report.corpus_sha256 == benchmark.sha256
     assert report.model_id == "fixture/model:Q4"
     assert report.model_artifact_sha256 == "a" * 64
     assert report.llama_cli_sha256 == "b" * 64
     assert report.score.exact_case_match_rate == 1.0
+    assert len(report.case_results) == 12
+    assert all(case_result.exact_match for case_result in report.case_results)
+    assert report.case_results[0].expected_proposals == benchmark.corpus.cases[0].expected_proposals
+    assert report.case_results[0].predicted_proposals == benchmark.corpus.cases[0].expected_proposals
+    assert report.case_results[0].cache_hit is True
+    assert report.case_results[0].elapsed_seconds is None
     assert report.cache_hit_count == 1
     assert report.inference_count == 11
     assert report.median_elapsed_seconds == 6.0
