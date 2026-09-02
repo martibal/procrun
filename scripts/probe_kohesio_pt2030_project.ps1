@@ -134,21 +134,36 @@ function Assert-AllowedVariables {
         [Parameter(Mandatory = $true)]$Response
     )
 
+    if ($null -eq $Response.head -or $null -eq $Response.results) {
+        throw "SPARQL response is missing the required head/results envelope; failing closed."
+    }
+
     $allowed = @{}
     foreach ($name in $AllowedVariables) {
         $allowed[$name] = $true
     }
 
-    foreach ($name in @($Response.head.vars)) {
-        if (-not $allowed.ContainsKey([string]$name)) {
+    # Some EUKG responses expose an empty placeholder in head.vars. That field is response
+    # metadata, not a returned binding. Ignore only null/blank declarations; every non-empty
+    # declaration and every actual binding property remains fail-closed against the allowlist.
+    foreach ($declared in @($Response.head.vars)) {
+        $name = [string]$declared
+        if ([string]::IsNullOrWhiteSpace($name)) {
+            continue
+        }
+        if (-not $allowed.ContainsKey($name)) {
             throw "SPARQL response declared unexpected variable '$name'; failing closed."
         }
     }
 
     foreach ($binding in @($Response.results.bindings)) {
+        if ($null -eq $binding) {
+            continue
+        }
         foreach ($property in $binding.PSObject.Properties) {
-            if (-not $allowed.ContainsKey([string]$property.Name)) {
-                throw "SPARQL response returned unexpected variable '$($property.Name)'; failing closed."
+            $name = [string]$property.Name
+            if ([string]::IsNullOrWhiteSpace($name) -or -not $allowed.ContainsKey($name)) {
+                throw "SPARQL response returned unexpected variable '$name'; failing closed."
             }
         }
     }
@@ -160,7 +175,7 @@ Assert-AllowedVariables -Response $response
 $rows = @($response.results.bindings)
 
 [ordered]@{
-    probe_contract = "kohesio-pt2030-safe-project-smoke-v1"
+    probe_contract = "kohesio-pt2030-safe-project-smoke-v2"
     endpoint = $Endpoint
     transport = $script:SuccessfulTransport
     target_operation_code = $TargetOperationCode
