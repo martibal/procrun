@@ -38,3 +38,21 @@ def test_eukg_probe_uses_only_property_ids_for_direct_entity_lookup() -> None:
     assert '"Q' not in block
     assert '"P20"' in block
     assert '"P836"' in block
+
+
+def test_eukg_probe_uses_only_public_current_endpoint() -> None:
+    text = _script_text()
+
+    assert 'https://linkedopendata.eu/w/api.php' in text
+    assert "dev.linkedopendata.eu" not in text
+    assert 'probe_contract = "eukg-property-metadata-only-v2"' in text
+
+
+def test_eukg_probe_retries_read_only_request_as_post() -> None:
+    text = _script_text()
+
+    assert "-Method Get" in text
+    assert "-Method Post" in text
+    assert 'ContentType "application/x-www-form-urlencoded"' in text
+    assert 'SuccessfulTransport = "GET"' in text
+    assert 'SuccessfulTransport = "POST"' in text
