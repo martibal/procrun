@@ -68,7 +68,8 @@ The lock is a reproducibility/compliance constraint, not a substitute for retain
 - Frozen file: `Qwen3-4B-Q4_K_M.gguf`
 - Frozen SHA-256: `7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5`
 - Historical use: local component benchmark candidate.
-- Registry status: `REJECTED` after the 2026-09-02 empirical quality runs; retained only for provenance.
+- Registry status: `INCONCLUSIVE`; the earlier product-level rejection was withdrawn after correcting a benchmark scoring criterion that was stricter than the canonical fallback evidence rule.
+- The artifact is not selected and is not approved for production.
 - No hosted Hugging Face inference is approved.
 - Model weights are not committed to this repository.
 
