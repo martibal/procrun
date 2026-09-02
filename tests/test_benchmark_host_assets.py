@@ -23,7 +23,6 @@ def test_target_benchmark_bootstrap_pins_llama_cpp_and_dependency_closure() -> N
     )
 
     assert "b95502ba9aa0eb73a2f4fc8878d7fbe6a847a0b9" in bootstrap
-    assert "git -C \"$LLAMA_SRC\" checkout --detach FETCH_HEAD" in bootstrap
     assert "--service github_development" in bootstrap
     assert "--dependencies" in bootstrap
     assert "-c requirements-runtime.lock -e ." in bootstrap
@@ -31,19 +30,17 @@ def test_target_benchmark_bootstrap_pins_llama_cpp_and_dependency_closure() -> N
     assert '--target llama-completion -j "$(nproc)"' in bootstrap
 
 
-def test_target_benchmark_bootstrap_avoids_partial_promisor_clone() -> None:
+def test_target_benchmark_bootstrap_uses_credential_free_commit_archive() -> None:
     bootstrap = (REPO_ROOT / "scripts" / "bootstrap_benchmark_host.sh").read_text(
         encoding="utf-8"
     )
 
-    assert "--filter=blob:none" not in bootstrap
-    assert 'git -C "$LLAMA_SRC" init -q' in bootstrap
-    assert "remote.origin.promisor" in bootstrap
-    assert "remote.origin.partialclonefilter" in bootstrap
-    assert (
-        'GIT_TERMINAL_PROMPT=0 git -C "$LLAMA_SRC" fetch '
-        '--depth=1 --no-tags origin "$LLAMA_CPP_COMMIT"'
-    ) in bootstrap
+    assert "git clone" not in bootstrap
+    assert 'git -C "$LLAMA_SRC" fetch' not in bootstrap
+    assert "codeload.github.com/ggml-org/llama.cpp/tar.gz/$LLAMA_CPP_COMMIT" in bootstrap
+    assert "--retry-all-errors" in bootstrap
+    assert 'tar -xzf "$LLAMA_ARCHIVE" --strip-components=1 -C "$LLAMA_SRC"' in bootstrap
+    assert 'printf \'%s\\n\' "$LLAMA_CPP_COMMIT" > "$LLAMA_COMMIT_FILE"' in bootstrap
 
 
 def test_target_benchmark_uses_non_interactive_completion_runtime() -> None:
@@ -54,6 +51,18 @@ def test_target_benchmark_uses_non_interactive_completion_runtime() -> None:
     assert 'LLAMA_RUNTIME="$RUNTIME_ROOT/llama.cpp/build/bin/llama-completion"' in run_script
     assert '--llama-cli "$LLAMA_RUNTIME"' in run_script
     assert "llama_runtime_sha256=" in run_script
+
+
+def test_target_benchmark_host_report_uses_pinned_llama_commit_marker() -> None:
+    run_script = (REPO_ROOT / "scripts" / "run_target_benchmark.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'LLAMA_COMMIT_FILE="$RUNTIME_ROOT/llama.cpp/.procrun-llama-commit"' in run_script
+    assert 'LLAMA_CPP_COMMIT="$(tr -d \'\\r\\n\' < "$LLAMA_COMMIT_FILE")"' in run_script
+    assert "invalid llama.cpp source commit marker" in run_script
+    assert "printf 'llama_cpp_commit=%s\\n' \"$LLAMA_CPP_COMMIT\"" in run_script
+    assert 'git -C "$RUNTIME_ROOT/llama.cpp" rev-parse HEAD' not in run_script
 
 
 def test_target_benchmark_runtime_stays_outside_repository() -> None:
