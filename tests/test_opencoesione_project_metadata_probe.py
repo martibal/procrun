@@ -23,6 +23,7 @@ def test_probe_fetches_only_frozen_metadata_workbook() -> None:
     assert '$AllowedHost = "opencoesione.gov.it"' in text
     assert "Invoke-WebRequest" in text
     assert "-Uri $MetadataUri" in text
+    assert "-MaximumRedirection 0" in text
     assert executable.count("invoke-webrequest") == 1
     assert "invoke-restmethod" not in executable
 
@@ -42,6 +43,7 @@ def test_probe_enforces_small_metadata_payload_and_safe_xlsx_parsing() -> None:
     assert "$MaxWorkbookBytes = 2MB" in text
     assert "$fileInfo.Length -gt $MaxWorkbookBytes" in text
     assert "$prefix[0] -ne 0x50 -or $prefix[1] -ne 0x4B" in text
+    assert "Add-Type -AssemblyName System.IO.Compression.FileSystem" in text
     assert "$archive.Entries.Count -gt 500" in text
     assert '"xl/workbook.xml"' in text
     assert '"xl/_rels/workbook.xml.rels"' in text
