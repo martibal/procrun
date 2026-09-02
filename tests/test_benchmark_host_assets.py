@@ -27,6 +27,18 @@ def test_target_benchmark_bootstrap_pins_llama_cpp_and_dependency_closure() -> N
     assert "--service github_development" in bootstrap
     assert "--dependencies" in bootstrap
     assert "-c requirements-runtime.lock -e ." in bootstrap
+    assert "-DLLAMA_BUILD_SERVER=OFF" in bootstrap
+    assert '--target llama-completion -j "$(nproc)"' in bootstrap
+
+
+def test_target_benchmark_uses_non_interactive_completion_runtime() -> None:
+    run_script = (REPO_ROOT / "scripts" / "run_target_benchmark.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'LLAMA_RUNTIME="$RUNTIME_ROOT/llama.cpp/build/bin/llama-completion"' in run_script
+    assert '--llama-cli "$LLAMA_RUNTIME"' in run_script
+    assert "llama_runtime_sha256=" in run_script
 
 
 def test_target_benchmark_runtime_stays_outside_repository() -> None:
