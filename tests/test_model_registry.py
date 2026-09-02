@@ -6,7 +6,9 @@ import pytest
 
 from procrun.model_fallback import LocalModelIdentity
 from procrun.model_registry import (
+    MINISTRAL3_3B_Q4_K_M,
     QWEN3_4B_Q4_K_M,
+    SELECTED_COMPONENT_MODEL,
     ModelApprovalStatus,
     ModelArtifactError,
     ModelArtifactSpec,
@@ -40,7 +42,7 @@ def fixture_spec(
     )
 
 
-def test_qwen_candidate_is_pinned_commercial_but_not_production_approved() -> None:
+def test_qwen_candidate_is_pinned_but_empirically_rejected() -> None:
     assert QWEN3_4B_Q4_K_M.repository == "Qwen/Qwen3-4B-GGUF"
     assert QWEN3_4B_Q4_K_M.filename == "Qwen3-4B-Q4_K_M.gguf"
     assert QWEN3_4B_Q4_K_M.size_bytes == 2_497_280_256
@@ -49,7 +51,27 @@ def test_qwen_candidate_is_pinned_commercial_but_not_production_approved() -> No
     assert QWEN3_4B_Q4_K_M.identity.artifact_sha256 == (
         "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
     )
-    assert QWEN3_4B_Q4_K_M.status is ModelApprovalStatus.BENCHMARK_CANDIDATE
+    assert QWEN3_4B_Q4_K_M.status is ModelApprovalStatus.REJECTED
+
+
+def test_ministral_candidate_is_exactly_pinned_and_selected() -> None:
+    assert MINISTRAL3_3B_Q4_K_M.repository == (
+        "mistralai/Ministral-3-3B-Instruct-2512-GGUF"
+    )
+    assert MINISTRAL3_3B_Q4_K_M.revision == (
+        "eb599d408350ea2bb60452cb86be7c7b2fc28227"
+    )
+    assert MINISTRAL3_3B_Q4_K_M.filename == (
+        "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf"
+    )
+    assert MINISTRAL3_3B_Q4_K_M.size_bytes == 2_147_023_008
+    assert MINISTRAL3_3B_Q4_K_M.license_id == "Apache-2.0"
+    assert MINISTRAL3_3B_Q4_K_M.commercial_use_allowed is True
+    assert MINISTRAL3_3B_Q4_K_M.identity.artifact_sha256 == (
+        "9ed150d4367e68df0ac8e1540f6ddc65b42d0ee26378329d1ecbca60f93fc5f8"
+    )
+    assert MINISTRAL3_3B_Q4_K_M.status is ModelApprovalStatus.BENCHMARK_CANDIDATE
+    assert SELECTED_COMPONENT_MODEL is MINISTRAL3_3B_Q4_K_M
 
 
 def test_model_compliance_review_expires_fail_closed() -> None:
