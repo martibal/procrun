@@ -40,7 +40,7 @@ def test_probe_never_calls_project_or_distribution_endpoints() -> None:
     assert "invoke-restmethod" not in executable
     assert 'project_api_called = $false' in text
     assert 'distribution_body_fetched = $false' in text
-    assert 'probe_contract = "kohesio-frontend-route-metadata-v2"' in text
+    assert 'probe_contract = "kohesio-frontend-route-metadata-v3"' in text
 
     forbidden_invocations = (
         '-uri "https://kohesio.ec.europa.eu/api/projects',
@@ -55,29 +55,50 @@ def test_probe_never_calls_project_or_distribution_endpoints() -> None:
         assert token not in executable
 
 
-def test_probe_only_reports_code_metadata_not_asset_bodies() -> None:
+def test_probe_only_reports_bounded_code_metadata_not_asset_bodies() -> None:
     text = _script_text()
 
     assert "api_literals" in text
     assert "parameter_keywords_present" in text
     assert "length_bytes" in text
     assert "sha256" in text
+    assert "bounded_code_contexts" in text
+    assert "$MaxContextCountAcrossAssets = 48" in text
+    assert "-MaxPerKeyword 2" in text
+    assert "-MaxTotal ([Math]::Min(24, $remainingContexts))" in text
+    assert "$snippet.Length -gt 420" in text
     assert "content = $text" not in text.lower()
     assert "body = $text" not in text.lower()
     assert "write-alltext" not in text.lower()
     assert "set-content" not in text.lower()
 
 
-def test_probe_scans_for_projection_and_filter_clues() -> None:
+def test_probe_scans_for_projection_route_and_safety_clues() -> None:
     text = _script_text()
 
     for keyword in (
+        '"/api/"',
+        '"projects"',
         '"fields"',
         '"select"',
         '"projection"',
         '"countryCode"',
         '"programmingPeriod"',
+        '"queryParams"',
+        '"beneficiary"',
+        '"uniqueIdentifier"',
         '"page"',
         '"size"',
     ):
         assert keyword in text
+
+
+def test_context_output_is_normalized_and_globally_bounded() -> None:
+    text = _script_text()
+
+    assert "ConvertTo-BoundedCodeSnippet" in text
+    assert "Get-BoundedKeywordContexts" in text
+    assert "[\\x00-\\x1F\\x7F]+" in text
+    assert "\\s+" in text
+    assert "bounded_context_count = $totalContextCount" in text
+    assert "bounded_context_limit = $MaxContextCountAcrossAssets" in text
