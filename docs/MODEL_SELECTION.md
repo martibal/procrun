@@ -4,16 +4,25 @@ Status date: 2026-09-02.
 
 ## Current decision
 
-`Qwen/Qwen3-4B-GGUF:Q4_K_M` is **rejected** as the Procurement Runway component-proposal fallback candidate.
-It fit the target CX33 resource envelope, but repeated empirical runs did not meet the frozen exact
-evidence contract. The product must not weaken that contract after observing a candidate's failures.
+`mistralai/Ministral-3-3B-Instruct-2512-GGUF:Q4_K_M` remains the selected **benchmark candidate**. It is
+not production-approved.
 
-`mistralai/Ministral-3-3B-Instruct-2512-GGUF:Q4_K_M` is now the selected **benchmark candidate**. It is
-not production-approved. Production activation remains blocked until the exact pinned artifact passes
-the target-host primary and holdout benchmark and an explicit governance decision changes its registry
-status.
+The completed 2026-09-02 target-host run exposed an error in the benchmark interpretation rather than
+a reason to weaken the product contract: the frozen corpus annotated minimal component phrases, while
+the canonical fallback contract accepts any exact source substring contained inside one supplied
+unmatched scope span. The deterministic rule engine itself stores sentence-level supporting evidence.
+Therefore minimal-phrase equality is stricter than the production evidence invariant.
 
-## Rejected candidate: Qwen3-4B Q4_K_M
+Benchmark report v4 keeps the old exact-span metrics as a strict diagnostic for historical continuity,
+but adds product-aligned semantic scoring on the frozen `domain + category` pair. Evidence integrity is
+still enforced separately by the adapter and canonical proposal validator; semantic scoring does not
+permit invented, rewritten or out-of-scope source text.
+
+No model is promoted based on the reinterpreted synthetic results. A fresh evaluation set is required
+before production approval because the scoring interpretation was corrected after the current primary
+and holdout outputs had been observed.
+
+## Historical candidate: Qwen3-4B Q4_K_M
 
 Pinned artifact retained for provenance:
 
@@ -23,22 +32,15 @@ Pinned artifact retained for provenance:
 - size: `2,497,280,256` bytes
 - SHA-256: `7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5`
 - licence: Apache-2.0
-- registry status: `REJECTED`
+- registry status: `INCONCLUSIVE`
 
-Measured evidence on the pinned CX33 / llama.cpp host:
+Qwen's earlier target-host measurements remain valid evidence about runtime behavior and generated
+outputs, including an out-of-range token reference on holdout. The prior `REJECTED` verdict is withdrawn
+because it relied materially on minimal-phrase exact-match scoring that was stricter than the actual
+canonical fallback acceptance rule. This does **not** make Qwen selected or approved; it only records
+that the previous product-level rejection was not supported by the correct scoring contract.
 
-1. The earlier v5 benchmark produced only 2 exact true-positive component proposals from 10 positive
-   cases and poor exact precision/recall.
-2. Taxonomy guidance improved apparent category choice, but the v6 primary run produced **0 exact true
-   positives from 10 positive cases** because every positive proposal still violated the frozen exact
-   category+evidence requirement. The two negative cases were correctly abstained.
-3. The v6 holdout then produced an out-of-range token reference, proving that constrained output can
-   still be malformed and must be scored as a model failure rather than trusted or guessed into range.
-4. Resource feasibility was not the blocker: observed peak RSS was about 4.9 GiB with zero swap on the
-   8 GiB CX33 class.
-
-The decision is therefore quality-driven, not resource-driven. No further paid tuning runs are planned
-for this exact Qwen artifact against the already-observed primary corpus.
+No additional paid Qwen run is planned at this stage.
 
 ## Selected benchmark candidate: Ministral 3 3B Instruct Q4_K_M
 
@@ -61,40 +63,63 @@ Exact official artifact page:
 
 `https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512-GGUF/blob/eb599d408350ea2bb60452cb86be7c7b2fc28227/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf`
 
-## Why this candidate
+## Completed diagnostic evidence
 
-The artifact is published by Mistral AI in GGUF form, is licensed Apache-2.0, explicitly lists
-Portuguese among its supported languages, and documents direct llama.cpp use. The Q4_K_M text-model
-artifact is smaller than the rejected Qwen3-4B artifact, so it is reasonable to test on the same CX33
-class without increasing the infrastructure envelope.
+The exact pinned Ministral artifact completed both 12-case corpora on the pinned target-host runtime
+without adapter failures.
 
-Those properties make it eligible for a benchmark, not approved for production. Its Portuguese
-component-extraction quality and malformed-output rate are still unknown until measured against the
-frozen primary and disjoint holdout corpora.
+Re-scoring the already-generated proposals on the product-relevant frozen `domain + category` pair
+produces the following **diagnostic-only** result:
 
-## Required benchmark before APPROVED
+| Corpus | Positive category TP | Category FP | Category FN | Semantic precision | Semantic recall | Correct negative abstention |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Primary | 5 | 1 | 5 | 83.3% | 50.0% | 2/2 |
+| Holdout | 7 | 1 | 3 | 87.5% | 70.0% | 2/2 |
 
-The exact pinned artifact must be tested on the intended production class while retaining:
+The corresponding legacy minimal-phrase exact scores were much lower because many semantically correct
+proposals cited a broader or narrower exact substring than the corpus annotation. That difference is
+now reported explicitly instead of being conflated with wrong taxonomy classification.
+
+Observed median per-case latency was about 41.8 seconds on primary and 42.8 seconds on holdout; maximum
+case latency was about 47.0 and 48.7 seconds respectively. The result bundle also contains the separate
+GNU `time -v` resource reports and host provenance.
+
+These numbers are not an approval gate. The current primary corpus informed earlier prompt/category
+guidance, and the semantic scoring interpretation was corrected after the completed holdout had been
+observed. They are useful diagnostics only.
+
+## Required evidence before APPROVED
+
+Production approval now requires a fresh, frozen evaluation whose scoring contract is fixed before the
+model sees it. At minimum retain:
 
 1. pinned llama.cpp source commit and runtime SHA-256;
-2. context size, thread count and deterministic inference settings;
-3. exact model artifact SHA-256 and corpus SHA-256;
-4. peak RSS and swap behavior;
-5. median/max latency per synthetic unmatched scope span;
+2. exact model artifact SHA-256 and evaluation-set SHA-256;
+3. deterministic inference settings and resource bounds;
+4. semantic precision/recall/F1 on frozen `domain + category` expectations;
+5. negative-case abstention and false-positive behavior;
 6. malformed-output / failed-case rate;
-7. exact category + exact evidence precision/recall on the primary corpus;
-8. the same exact metrics on the disjoint holdout corpus; and
-9. rerun stability/cached-output behavior where relevant.
+7. evidence-integrity validation proving every accepted proposal cites exact bytes inside a supplied
+   unmatched scope span;
+8. peak RSS, swap behavior and latency on the intended host; and
+9. an explicit registry/governance change.
 
-A malformed model response is a model failure. It must never be silently normalized into an invented
-valid proposal, and a failed negative case must not be counted as a correct abstention.
+The legacy minimal-phrase exact metric may remain in reports for diagnosis, but it is not a production
+quality gate unless the canonical product contract is separately changed to require minimal phrases.
 
-Promotion to `APPROVED` requires an explicit registry change with benchmark evidence. A model upgrade,
-new quantization or new artifact SHA-256 must repeat the gate.
+A malformed model response remains a hard model failure. It must never be silently normalized into an
+invented proposal, and a failed negative case must not count as a correct abstention.
+
+## Cost decision
+
+Do not provision another paid benchmark host merely to rerun the same synthetic primary/holdout under
+report v4. The existing outputs are sufficient to diagnose the scoring mismatch. The next paid run
+should occur only after a fresh evaluation set is frozen or after real PII-safe shadow-run scope text
+is available for a materially more representative gate.
 
 ## Download policy
 
 The application contains no production model downloader. Benchmark provisioning obtains only the exact
-pinned artifact and runs `verify_local_model_artifact()` before inference. Model weights remain outside
-Git. A file with the wrong size or SHA-256 is rejected before it can become the configured model
+pinned selected artifact and runs `verify_local_model_artifact()` before inference. Model weights remain
+outside Git. A file with the wrong size or SHA-256 is rejected before it can become the configured model
 identity.

@@ -163,7 +163,7 @@ This asymmetry is deliberate: withholding a real opportunity is less damaging th
 2. **Normalize** — map the source record to strict canonical schema; reject unexpected fields.
 3. **Temporal provenance** — record defensible public `first_seen_at`; never substitute project start date.
 4. **Component decomposition** — deterministic phrase/rule extraction first.
-5. **Local-model fallback** — only unmatched approved scope spans may be shown to a pinned local model; model proposes taxonomy labels + exact spans only.
+5. **Local-model fallback** — only unmatched approved scope spans may be shown to a pinned local model; model proposes taxonomy labels + exact source spans only.
 6. **Search backward** — query approved procurement sources at/before cutoff.
 7. **Candidate matching** — compare identifiers, dates, authority, geography, CPV/category and scope evidence.
 8. **Classify component** — `CLOSED`, `OPEN` or `UNRESOLVED`.
@@ -188,7 +188,7 @@ The executable registry is `src/procrun/source_contracts.py`. `require_live_sour
 Current status:
 
 | Route | Overall | Rights | Access | Data safety |
-| --- | --- | --- | --- |
+| --- | --- | --- | --- | --- |
 | TED Search API | APPROVED | APPROVED | APPROVED | APPROVED |
 | Mais Transparência project search | CONDITIONAL | CONDITIONAL | CONDITIONAL | CONDITIONAL |
 | Mais Transparência project detail | BLOCKED | CONDITIONAL | CONDITIONAL | BLOCKED |
@@ -294,7 +294,11 @@ Current benchmark candidate: **Ministral 3 3B Instruct Q4_K_M**.
 - every accepted proposal/cached result is revalidated against source spans/categories;
 - malformed per-case model output is retained as benchmark failure and is never repaired into a valid proposal.
 
-The previously measured **Qwen3-4B Q4_K_M** artifact is `REJECTED`: it fit the CX33 memory envelope but failed the frozen exact category+evidence quality/output-validity gate. Ministral remains `BENCHMARK_CANDIDATE`, not production-approved. Production promotion requires complete primary/holdout quality, RAM and latency evidence on the target host plus an explicit registry decision.
+The completed 2026-09-02 Ministral run showed that the earlier benchmark conflated two different questions: exact frozen `domain + category` selection and byte-for-byte equality with an annotated minimal source phrase. Report v4 separates those metrics. Semantic category scoring remains exact, while evidence integrity remains a separate fail-closed requirement that every accepted proposal cite exact text within a supplied unmatched span.
+
+On the already-observed synthetic corpora, Ministral's diagnostic semantic scores were 83.3% precision / 50.0% recall on primary and 87.5% precision / 70.0% recall on holdout, with 2/2 correct negative abstentions in both and zero adapter-failed cases. These results are **not** production-approval evidence because the scoring interpretation was corrected after the outputs were observed.
+
+The previously measured **Qwen3-4B Q4_K_M** artifact is now `INCONCLUSIVE`, not selected: its earlier `REJECTED` verdict relied materially on the same overly strict minimal-phrase interpretation. Ministral remains `BENCHMARK_CANDIDATE`, not production-approved. The next paid model evaluation must use a fresh evaluation set whose scoring contract and approval threshold are frozen before inference.
 
 ---
 
@@ -379,7 +383,7 @@ Key licences include:
 - Pydantic/Pydantic Core — MIT;
 - certifi — MPL-2.0;
 - Ministral-3-3B-Instruct-2512-GGUF — Apache-2.0;
-- Qwen3-4B-GGUF — Apache-2.0 (rejected benchmark artifact retained for provenance);
+- Qwen3-4B-GGUF — Apache-2.0 (historical benchmark artifact; `INCONCLUSIVE`, not selected);
 - llama.cpp — MIT;
 - PostgreSQL — PostgreSQL License.
 
@@ -454,8 +458,9 @@ Implemented and regression-tested before this compliance hardening round:
 - conservative matching engine;
 - five-domain deterministic component engine + exact spans;
 - local-model request/response safety contract;
-- rejected Qwen3-4B benchmark evidence plus an exactly pinned Ministral 3 3B benchmark candidate and llama.cpp runtime;
+- historical Qwen3-4B benchmark evidence plus an exactly pinned Ministral 3 3B benchmark candidate and llama.cpp runtime;
 - synthetic pt-PT primary and disjoint holdout benchmark corpora;
+- benchmark report v4 with separate semantic category and legacy minimal-phrase exact diagnostics;
 - one-command benchmark runner with fail-closed per-case model-output failure reporting;
 - ephemeral Hetzner benchmark provisioning/cleanup automation;
 - CI with shell/PowerShell syntax, Ruff, strict mypy, pytest and PostgreSQL integration.
@@ -476,7 +481,7 @@ Still intentionally blocked/open:
 1. **Portugal 2030 production discovery route** — must be legally cleared, automation-safe, field-bounded, zero-PII and temporally defensible.
 2. **PT2030 source-specific licence clarification** for the currently "licence unspecified" bulk dataset (which remains data-safety blocked regardless).
 3. **Portal BASE** — current API response surface remains blocked; future use also requires IMPIC authorization/terms.
-4. **Local-model production approval** — selected candidate must complete target-host primary/holdout evaluation before any promotion decision.
+4. **Local-model production approval** — requires a fresh evaluation set with scoring contract and numeric approval threshold frozen before inference; current synthetic Ministral results are diagnostic only.
 5. **Shadow run** — continuous Portugal outcomes must accumulate before strong performance claims.
 6. **Customer website/control plane** — privacy, terms, attribution, organisation entitlement and payments are release gates.
 
@@ -533,8 +538,11 @@ The benchmark is separate from production approval. The Windows end-to-end runne
 5. download and verify the exact selected Ministral GGUF;
 6. run the frozen synthetic primary and disjoint holdout corpora on the same model/runtime;
 7. retain malformed individual model outputs as failed cases while continuing the remaining corpus cases;
-8. retrieve the result bundle locally;
-9. delete the server only after results are safely copied.
+8. report exact frozen category semantics separately from legacy minimal-phrase span diagnostics;
+9. retrieve the result bundle locally;
+10. delete the server only after results are safely copied.
+
+The completed 2026-09-02 run already produced the current synthetic diagnostic bundle and deleted its host successfully. Do not pay for another run of the same corpora merely to emit report v4. The next paid run should use a fresh frozen evaluation set or representative PII-safe shadow-run scope text.
 
 If an infrastructure/programming failure prevents a completed result bundle, the server is intentionally retained for diagnostics and must be explicitly deleted to stop billing. Per-case fail-closed model-output errors are instead reported inside the completed benchmark. Model files/results stay outside Git.
 

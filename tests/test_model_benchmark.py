@@ -71,11 +71,47 @@ def test_exact_oracle_scores_perfectly_without_inventing_thresholds() -> None:
     assert score.exact_recall == 1.0
     assert score.exact_f1 == 1.0
     assert score.exact_case_match_rate == 1.0
+    assert score.semantic_true_positive_count == 10
+    assert score.semantic_false_positive_count == 0
+    assert score.semantic_false_negative_count == 0
+    assert score.semantic_precision == 1.0
+    assert score.semantic_recall == 1.0
+    assert score.semantic_f1 == 1.0
+    assert score.semantic_case_match_rate == 1.0
     assert score.abstention_case_count == 2
     assert score.correct_abstention_count == 2
     assert score.correct_abstention_rate == 1.0
     assert score.failed_case_count == 0
     assert score.failed_abstention_case_count == 0
+
+
+def test_correct_category_with_different_exact_span_gets_semantic_not_exact_credit() -> None:
+    benchmark = loaded()
+    predictions = {
+        case.case_id: case.expected_proposals for case in benchmark.corpus.cases
+    }
+    positive = next(case for case in benchmark.corpus.cases if case.expected_proposals)
+    expected = positive.expected_proposals[0]
+    predictions[positive.case_id] = (
+        ModelComponentProposal(
+            domain=expected.domain,
+            category=expected.category,
+            start=0,
+            end=len(positive.scope_text),
+            source_text=positive.scope_text,
+        ),
+    )
+
+    score = score_component_benchmark(benchmark.corpus, predictions)
+
+    assert score.true_positive_count == 9
+    assert score.false_positive_count == 1
+    assert score.false_negative_count == 1
+    assert score.exact_case_match_count == 11
+    assert score.semantic_true_positive_count == 10
+    assert score.semantic_false_positive_count == 0
+    assert score.semantic_false_negative_count == 0
+    assert score.semantic_case_match_count == 12
 
 
 def test_false_positive_on_abstention_case_is_measured_explicitly() -> None:
@@ -99,9 +135,11 @@ def test_false_positive_on_abstention_case_is_measured_explicitly() -> None:
     score = score_component_benchmark(benchmark.corpus, predictions)
 
     assert score.false_positive_count == 1
+    assert score.semantic_false_positive_count == 1
     assert score.false_positive_abstention_case_count == 1
     assert score.correct_abstention_count == 1
     assert score.exact_case_match_count == 11
+    assert score.semantic_case_match_count == 11
 
 
 def test_failed_negative_case_is_not_misreported_as_correct_abstention() -> None:
@@ -125,6 +163,7 @@ def test_failed_negative_case_is_not_misreported_as_correct_abstention() -> None
     assert score.correct_abstention_count == 1
     assert score.correct_abstention_rate == 0.5
     assert score.exact_case_match_count == 11
+    assert score.semantic_case_match_count == 11
 
 
 def test_failed_positive_case_counts_as_unresolved_false_negative() -> None:
@@ -143,7 +182,9 @@ def test_failed_positive_case_counts_as_unresolved_false_negative() -> None:
 
     assert score.failed_case_count == 1
     assert score.false_negative_count == 1
+    assert score.semantic_false_negative_count == 1
     assert score.exact_case_match_count == 11
+    assert score.semantic_case_match_count == 11
 
 
 def test_missing_case_predictions_fail_instead_of_silently_improving_score() -> None:
@@ -201,15 +242,17 @@ def test_execution_report_binds_model_runtime_corpus_and_measurements() -> None:
 
     report = build_component_benchmark_report(benchmark, results)
 
-    assert report.schema_version == "component-benchmark-report-v3"
+    assert report.schema_version == "component-benchmark-report-v4"
     assert report.corpus_sha256 == benchmark.sha256
     assert report.model_id == "fixture/model:Q4"
     assert report.model_artifact_sha256 == "a" * 64
     assert report.llama_cli_sha256 == "b" * 64
     assert report.score.exact_case_match_rate == 1.0
+    assert report.score.semantic_case_match_rate == 1.0
     assert report.score.failed_case_count == 0
     assert len(report.case_results) == 12
     assert all(case_result.exact_match for case_result in report.case_results)
+    assert all(case_result.semantic_match for case_result in report.case_results)
     assert all(case_result.inference_error is None for case_result in report.case_results)
     assert (
         report.case_results[0].expected_proposals
@@ -227,7 +270,7 @@ def test_execution_report_binds_model_runtime_corpus_and_measurements() -> None:
     assert report.max_elapsed_seconds == 11.0
 
 
-def test_execution_report_marks_failure_non_exact_and_retains_error() -> None:
+def test_execution_report_marks_failure_non_matching_and_retains_error() -> None:
     benchmark = loaded()
     identity = LocalModelIdentity(
         model_id="fixture/model:Q4",
@@ -263,6 +306,7 @@ def test_execution_report_marks_failure_non_exact_and_retains_error() -> None:
     )
     assert report.score.failed_case_count == 1
     assert case_result.exact_match is False
+    assert case_result.semantic_match is False
     assert case_result.inference_error == "LlamaAdapterError: invalid token range"
 
 

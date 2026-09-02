@@ -11,7 +11,7 @@ and it is not a production dependency.
 is `BENCHMARK_CANDIDATE`; an `APPROVED` artifact requires a separate production path and explicit
 governance change.
 
-Current candidate:
+Current selected candidate:
 
 - `mistralai/Ministral-3-3B-Instruct-2512-GGUF:Q4_K_M`
 - artifact SHA-256:
@@ -19,10 +19,11 @@ Current candidate:
 - artifact size: `2,147,023,008` bytes
 - weights remain outside Git.
 
-Rejected measured candidate retained for provenance:
+Historical Qwen candidate:
 
 - `Qwen/Qwen3-4B-GGUF:Q4_K_M`
-- status: `REJECTED` after the 2026-09-02 target-host quality runs.
+- registry status: `INCONCLUSIVE` after correcting the benchmark/product-contract mismatch described
+  below.
 
 ## Input boundary
 
@@ -83,7 +84,7 @@ Current deterministic generation settings are:
 On POSIX/Linux, the benchmark child process also receives a hard address-space limit. The default is
 6144 MiB. On the 8 GiB CX33 target this deliberately leaves operating-system headroom.
 
-## Generated output contract
+## Generated output contract and evidence integrity
 
 Generation is constrained to one JSON object containing only `proposals`. Every model-generated
 proposal contains exactly:
@@ -98,40 +99,55 @@ The model does **not** generate source text and does not calculate character off
 a contiguous range of token identifiers that Python supplied with the original source span.
 
 Python validates the domain/category pair, span index and token range. It then reconstructs the
-canonical evidence deterministically from the original request text:
+canonical evidence deterministically from the original request text and revalidates that evidence
+against the supplied unmatched span. The model therefore cannot paraphrase, translate, normalize or
+invent evidence text.
 
-- absolute start offset = unmatched-span absolute start + first selected token start;
-- absolute end offset = unmatched-span absolute start + last selected token end;
-- `source_text` = the exact original substring between those two character positions.
-
-The reconstructed `ModelComponentProposal` is then passed through exact request-span validation again.
-The model therefore cannot paraphrase, translate, normalize or invent evidence text, and it does not
-calculate Unicode character offsets. An invalid token range or disallowed category fails closed.
+The canonical production-side fallback validator accepts any exact source substring contained inside
+one deterministic unmatched scope span. It does **not** require the model to reproduce a separately
+annotated minimal noun phrase. The deterministic rule engine also stores sentence-level supporting
+scope evidence. This distinction matters for benchmark interpretation.
 
 An empty proposal list is valid. It means the fallback did not resolve that scope. It never means that
 no component exists.
 
+## Two separate quality questions
+
+Report schema v4 deliberately separates two questions that earlier reports conflated:
+
+1. **Semantic quality** — did the model select the frozen `domain + category` expected for the
+   component, and did it abstain on negative cases?
+2. **Legacy minimal-phrase exactness** — did the generated exact source substring happen to equal the
+   corpus's annotated minimal phrase byte-for-byte?
+
+The first question matches the model's product role. The second remains useful diagnostic information,
+but it is stricter than the canonical fallback acceptance rule and is not a production quality gate.
+
+Semantic scoring is not fuzzy matching. A semantic true positive still requires the exact frozen
+`domain + category` pair. Wrong category, extra category, missing category, malformed output and false
+positive abstention behavior remain explicit failures.
+
+Evidence safety is not scored loosely either: the adapter/canonical validator must still prove that
+every accepted source substring is exact source text within a supplied unmatched span. Semantic credit
+cannot rescue invalid or hallucinated evidence.
+
 ## Per-case failure scoring
 
 A malformed model response is benchmark evidence, not a reason to discard the rest of a paid corpus
-run. The v3 benchmark report therefore records adapter/model-output failures per synthetic case and
-continues with the remaining cases.
+run. Report v4 retains the v3 fail-closed behavior: adapter/model-output failures are recorded per
+synthetic case and the runner continues with remaining cases.
 
 For a failed case:
 
 - the accepted proposal set is empty;
 - `inference_error` records the fail-closed adapter reason;
-- the case can never count as an exact match;
-- expected positive proposals count as false negatives; and
-- a failed negative case can never count as a correct abstention.
+- the case cannot count as either an exact or semantic match;
+- expected positive categories count as semantic false negatives; and
+- a failed negative case cannot count as a correct abstention.
 
 Only `LlamaAdapterError` is converted into a scored case failure. Programming errors, corpus invariant
 violations and report/provenance failures still abort the run rather than being hidden as model
 quality.
-
-This distinction exists so malformed token indices, invalid constrained JSON, runtime non-zero exits
-and similar model/adapter failures remain visible while one failure no longer destroys all remaining
-primary/holdout measurements.
 
 ## Deterministic bounded cache
 
@@ -154,45 +170,52 @@ is disposable runtime state and remains outside Git.
 
 ## Primary and holdout evaluation
 
-The target-host run executes both:
+The 2026-09-02 target-host session completed both:
 
-- `component_benchmark_v1.json` as the primary diagnostic/regression corpus; and
-- `component_benchmark_holdout_v1.json` as a disjoint holdout corpus.
+- `component_benchmark_v1.json` — primary diagnostic/regression corpus; and
+- `component_benchmark_holdout_v1.json` — disjoint holdout corpus.
 
-Both are run in one ephemeral CX33 session against the same verified model/runtime. Separate corpus
-SHA-256 values, quality reports and GNU `time -v` resource reports are retained.
+Both used the same verified Ministral artifact and llama.cpp runtime. There were zero adapter-failed
+cases in either corpus.
 
-The scoring contract remains strict: one true positive requires the exact frozen category and exact
-frozen evidence span. No fuzzy credit is introduced after observing model behavior.
+Re-scoring those already-generated proposals by frozen `domain + category` gives:
 
-## Qwen3-4B empirical rejection
+| Corpus | Semantic TP | Semantic FP | Semantic FN | Precision | Recall | Negative abstention |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Primary | 5 | 1 | 5 | 83.3% | 50.0% | 2/2 |
+| Holdout | 7 | 1 | 3 | 87.5% | 70.0% | 2/2 |
 
-The exact pinned Qwen3-4B Q4_K_M artifact is no longer a candidate.
+Median per-case inference latency was about 41.8 seconds on primary and 42.8 seconds on holdout;
+maximum latency was about 47.0 and 48.7 seconds respectively.
 
-Observed evidence included:
+These numbers are **diagnostic only**. The semantic scoring interpretation was corrected after the
+current outputs had been observed, so the current holdout cannot be reused as independent production
+approval evidence under the new interpretation.
 
-- v5: only 2 exact positive hits from the 10 positive primary cases;
-- v6 primary after taxonomy guidance/token evidence: 0 exact true positives from 10 positive cases,
-  with 10 false positives and 10 false negatives under the frozen exact scoring contract;
-- both v6 negative primary cases correctly abstained;
-- v6 primary median inference latency about 42.0 seconds and maximum about 44.5 seconds per case;
-- v6 holdout produced an out-of-range token reference before the old runner could complete the corpus;
-- partial holdout peak RSS about 4.91 million KiB with zero swap on CX33.
+## Qwen status correction
 
-The resource envelope was feasible, but the quality/output-validity evidence was not. The artifact is
-therefore `REJECTED`; the primary benchmark will not be weakened to make it pass.
+The earlier Qwen runs remain valid historical measurements, including resource behavior, category
+choices and malformed token output. What changes is the governance conclusion.
+
+The previous `REJECTED` decision relied materially on minimal-phrase exact-match counts, even though
+the canonical fallback contract accepts broader/narrower exact source substrings inside the supplied
+unmatched span. Qwen is therefore changed to `INCONCLUSIVE`, not restored as the selected candidate and
+not approved.
+
+No additional paid Qwen run is planned now.
 
 ## Production approval remains closed
 
-The selected Ministral artifact stays `BENCHMARK_CANDIDATE` until a later explicit decision. Before
-production approval, at minimum the following evidence is still required:
+The selected Ministral artifact stays `BENCHMARK_CANDIDATE`. Before production approval, at minimum a
+fresh evaluation must be frozen **before** new model outputs are inspected and must measure:
 
-1. complete primary and disjoint holdout results from the exact pinned artifact;
-2. error analysis including malformed/failed cases, false proposals and unresolved behavior;
-3. completed RAM and latency measurements on the actual target server;
-4. exact llama.cpp runtime/model/corpus provenance; and
-5. an explicit registry and governance change.
+1. exact frozen `domain + category` semantic precision/recall/F1;
+2. false-positive and negative-abstention behavior;
+3. malformed/failed cases;
+4. adapter/canonical evidence-integrity failures;
+5. target-host RAM, swap and latency;
+6. exact llama.cpp/model/evaluation provenance; and
+7. an explicit registry/governance decision.
 
-No numeric production threshold is invented here because the governing requirements have not frozen
-one. A passing-looking small benchmark is evidence for a later decision, not automatic production
-approval.
+The existing synthetic results are sufficient to diagnose the scoring issue. Do not spend another
+Hetzner run merely to regenerate the same primary/holdout under report v4.

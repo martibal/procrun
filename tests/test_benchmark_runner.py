@@ -80,8 +80,10 @@ def test_one_command_runner_writes_complete_hash_bound_report(tmp_path: Path) ->
         output_path.read_text(encoding="utf-8")
     )
     assert written == report
+    assert report.schema_version == "component-benchmark-report-v4"
     assert report.corpus_sha256 == loaded.sha256
     assert report.score.exact_case_match_rate == 1.0
+    assert report.score.semantic_case_match_rate == 1.0
     assert report.score.failed_case_count == 0
     assert report.inference_count == 12
     assert report.cache_hit_count == 0
@@ -132,10 +134,12 @@ def test_runner_scores_adapter_failure_and_continues_remaining_cases(
     assert len(calls) == len(loaded.corpus.cases)
     assert report.score.failed_case_count == 1
     assert report.score.false_negative_count == 1
+    assert report.score.semantic_false_negative_count == 1
     failed_result = next(
         item for item in report.case_results if item.case_id == failed_case.case_id
     )
     assert failed_result.exact_match is False
+    assert failed_result.semantic_match is False
     assert failed_result.predicted_proposals == ()
     assert failed_result.inference_error is not None
     assert "token range is outside" in failed_result.inference_error
