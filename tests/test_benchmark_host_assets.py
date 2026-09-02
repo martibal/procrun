@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from procrun.model_registry import QWEN3_4B_Q4_K_M
+from procrun.model_registry import SELECTED_COMPONENT_MODEL
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -9,11 +9,15 @@ def test_target_benchmark_scripts_pin_registered_model() -> None:
     download = (REPO_ROOT / "scripts" / "download_benchmark_model.sh").read_text(
         encoding="utf-8"
     )
+    run_script = (REPO_ROOT / "scripts" / "run_target_benchmark.sh").read_text(
+        encoding="utf-8"
+    )
 
-    assert QWEN3_4B_Q4_K_M.revision in download
-    assert QWEN3_4B_Q4_K_M.filename in download
-    assert QWEN3_4B_Q4_K_M.identity.artifact_sha256 in download
-    assert str(QWEN3_4B_Q4_K_M.size_bytes) in download
+    assert SELECTED_COMPONENT_MODEL.revision in download
+    assert SELECTED_COMPONENT_MODEL.filename in download
+    assert SELECTED_COMPONENT_MODEL.identity.artifact_sha256 in download
+    assert str(SELECTED_COMPONENT_MODEL.size_bytes) in download
+    assert SELECTED_COMPONENT_MODEL.filename in run_script
     assert "--service huggingface_model_download" in download
 
 
