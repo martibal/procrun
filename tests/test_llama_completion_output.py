@@ -87,9 +87,9 @@ def _valid_output() -> bytes:
                 {
                     "domain": "rail_transport",
                     "category": "electrification_catenary",
-                    "start": SPAN_START,
-                    "end": SPAN_END,
-                    "source_text": SPAN_TEXT,
+                    "span_index": 0,
+                    "start_token": 0,
+                    "end_token": 1,
                 }
             ]
         },
@@ -120,6 +120,8 @@ def test_llama_completion_eog_marker_is_accepted(tmp_path: Path) -> None:
         invoker=fake_invoker,
     )
 
+    assert result.batch.proposals[0].start == SPAN_START
+    assert result.batch.proposals[0].end == SPAN_END
     assert result.batch.proposals[0].source_text == SPAN_TEXT
 
 

@@ -109,9 +109,9 @@ def valid_output() -> bytes:
                 {
                     "domain": "rail_transport",
                     "category": "electrification_catenary",
-                    "start": SPAN_START,
-                    "end": SPAN_END,
-                    "source_text": SPAN_TEXT,
+                    "span_index": 0,
+                    "start_token": 0,
+                    "end_token": 1,
                 }
             ]
         },
@@ -157,9 +157,20 @@ def test_adapter_uses_offline_deterministic_resource_bounds(
 
         prompt_path = Path(argv[argv.index("--file") + 1])
         schema_path = Path(argv[argv.index("--json-schema-file") + 1])
-        assert SPAN_TEXT in prompt_path.read_text(encoding="utf-8")
+        prompt = prompt_path.read_text(encoding="utf-8")
+        assert SPAN_TEXT in prompt
+        assert '"token_index":0' in prompt
+        assert '"token_index":1' in prompt
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         assert schema["additionalProperties"] is False
+        properties = schema["properties"]["proposals"]["items"]["properties"]
+        assert set(properties) == {
+            "domain",
+            "category",
+            "span_index",
+            "start_token",
+            "end_token",
+        }
 
         return ProcessResult(
             returncode=0,
@@ -200,6 +211,8 @@ def test_adapter_uses_offline_deterministic_resource_bounds(
     assert captured["memory"] == 6144
     assert result.cache_hit is False
     assert result.elapsed_seconds == 1.25
+    assert result.batch.proposals[0].start == SPAN_START
+    assert result.batch.proposals[0].end == SPAN_END
     assert result.batch.proposals[0].source_text == SPAN_TEXT
 
 
@@ -228,7 +241,7 @@ def test_extra_or_non_json_model_output_is_rejected(tmp_path: Path) -> None:
         )
 
 
-def test_proposal_outside_unmatched_scope_is_rejected(tmp_path: Path) -> None:
+def test_token_range_outside_unmatched_scope_is_rejected(tmp_path: Path) -> None:
     prepared = runtime(tmp_path)
     bad = json.dumps(
         {
@@ -236,9 +249,9 @@ def test_proposal_outside_unmatched_scope_is_rejected(tmp_path: Path) -> None:
                 {
                     "domain": "rail_transport",
                     "category": "electrification_catenary",
-                    "start": 0,
-                    "end": 4,
-                    "source_text": "fake",
+                    "span_index": 0,
+                    "start_token": 0,
+                    "end_token": 99,
                 }
             ]
         }
@@ -258,7 +271,7 @@ def test_proposal_outside_unmatched_scope_is_rejected(tmp_path: Path) -> None:
             elapsed_seconds=0.1,
         )
 
-    with pytest.raises(LlamaAdapterError, match="outside the supplied unmatched"):
+    with pytest.raises(LlamaAdapterError, match="token range is outside"):
         run_llama_component_benchmark(
             request(),
             prepared,
@@ -274,9 +287,9 @@ def test_disallowed_domain_category_pair_is_rejected(tmp_path: Path) -> None:
                 {
                     "domain": "rail_transport",
                     "category": "track",
-                    "start": SPAN_START,
-                    "end": SPAN_END,
-                    "source_text": SPAN_TEXT,
+                    "span_index": 0,
+                    "start_token": 0,
+                    "end_token": 1,
                 }
             ]
         },

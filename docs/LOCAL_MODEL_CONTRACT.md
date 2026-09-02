@@ -1,17 +1,17 @@
 # Phase C local-model fallback contract
 
-Status date: 2026-09-01.
+Status date: 2026-09-02.
 
 ## Purpose
 
-The local model is a bounded component-proposal fallback. It is not a classifier, procurement search
-engine or source parser. Deterministic extraction runs first; the model is invoked only for exact
-allowlisted scope spans left unmatched by the frozen rule taxonomy.
+The local model is a bounded component-proposal fallback. It is not a procurement-state classifier,
+procurement search engine or source parser. Deterministic extraction runs first; the model is invoked
+only for exact allowlisted scope spans left unmatched by the frozen rule taxonomy.
 
 Contract version: `local-component-proposal-v1`.
 
-No model implementation or model weights are selected by this contract. The repository already ignores
-`models/`, `*.gguf`, `*.safetensors`, `*.bin` and `*.onnx`; production weights must remain outside Git.
+The accepted analytical contract remains independent of a particular model artifact. Model weights
+remain outside Git; the repository ignores `models/`, `*.gguf`, `*.safetensors`, `*.bin` and `*.onnx`.
 
 ## Model identity
 
@@ -30,30 +30,46 @@ be reproduced against the exact model binary used.
 
 ## Minimal request surface
 
-The model request contains only:
+The canonical `LocalModelRequest` contains only:
 
 - operation code;
 - scope-text SHA-256;
 - explicitly selected infrastructure domains;
-- the exact unmatched scope spans with source offsets; and
+- exact unmatched scope spans with source offsets; and
 - allowed categories/labels from the frozen component taxonomy for those domains.
 
-It does not contain funding beneficiary data, procurement evidence, procurement state, contacts, raw
-HTTP bodies or source pages. The input is constructed only after the project record has passed the
-existing allowlist boundary.
+The benchmark adapter may derive deterministic token identifiers from those already allowlisted spans
+before local inference. It does not introduce any additional source fields.
 
-## Allowed output
+The request does not contain funding beneficiary data, procurement evidence, procurement state,
+contacts, raw HTTP bodies or source pages. The input is constructed only after the project record has
+passed the existing allowlist boundary.
 
-A proposal has exactly five analytical fields:
+## Local inference transport output
+
+The benchmark adapter's v6 model-facing JSON transport is deliberately narrower than the canonical
+proposal object. A generated proposal contains exactly:
 
 - domain;
 - frozen category;
-- start offset;
-- end offset; and
-- exact source text.
+- `span_index`;
+- inclusive `start_token`; and
+- inclusive `end_token`.
 
-Pydantic `extra=forbid` applies recursively. A model response that tries to add fields such as
-`state=OPEN`, confidence, supplier, contact data or free-form evidence is schema-invalid.
+The model does not generate evidence text or character offsets. The adapter supplies indexed tokens
+for each unmatched source span, and the model can only select one contiguous token range.
+
+Python resolves those token references back to the original span and constructs the canonical
+`ModelComponentProposal` with exactly five analytical fields:
+
+- domain;
+- frozen category;
+- absolute start offset;
+- absolute end offset; and
+- exact source text copied from the original request span.
+
+This separation is intentional: semantic selection is model work; evidence copying and Unicode
+character-offset calculation are deterministic adapter work.
 
 ## Validation gates
 
@@ -62,13 +78,18 @@ Before a proposal can become component evidence, all of the following must hold:
 1. batch operation code matches the funding project;
 2. batch source hash matches the current allowlisted scope text;
 3. model ID, runtime and artifact SHA-256 match configured identity;
-4. proposal domain was explicitly selected for the deterministic extraction;
+4. proposal domain was explicitly selected for deterministic extraction;
 5. proposal category exists in the frozen taxonomy for that domain;
-6. offsets are valid and source text equals the exact substring at those offsets; and
-7. the cited span lies inside a scope span that deterministic rules left unmatched.
+6. generated `span_index` and token range refer to a valid contiguous range in one supplied unmatched
+   span;
+7. Python reconstructs `source_text` and absolute offsets directly from that original span; and
+8. the reconstructed canonical proposal passes exact source-substring and unmatched-span validation.
 
-Any failure rejects the batch/proposal before persistence. A proposal cannot rewrite a span already
-covered by deterministic rules.
+Pydantic `extra=forbid` applies recursively. A generated response that tries to add fields such as
+`state=OPEN`, confidence, supplier, contact data or free-form evidence is schema-invalid. Invalid token
+indices, inverted ranges, disallowed categories or tampered cached source text fail closed.
+
+A proposal cannot rewrite a span already covered by deterministic rules.
 
 ## Canonicalisation
 
@@ -91,7 +112,10 @@ never turn missing scope understanding into an OPEN component.
 
 ## Runtime boundary
 
-This contract contains no HTTP client, external inference API or automatic model download. A later
-llama.cpp adapter must operate on a local file whose SHA-256 is checked before inference. Model choice,
-license, GGUF availability, Portuguese quality and memory footprint are a separate evidence gate and
-must be frozen before production inference is enabled.
+This contract contains no HTTP client or external inference API. The llama.cpp adapter operates on a
+local model file whose exact size and SHA-256 are checked before inference, removes remote-model and
+proxy configuration from the child environment, and runs with explicit offline/resource bounds.
+
+Model approval remains a separate evidence gate. License, Portuguese quality, completed benchmark
+results, target-host memory/latency and exact runtime provenance must all be evaluated before production
+inference is enabled.

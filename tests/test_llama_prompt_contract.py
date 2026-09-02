@@ -27,11 +27,14 @@ def test_prompt_requires_minimal_exact_evidence_and_explicit_abstention() -> Non
 
     prompt = _prompt(request)
 
-    assert LLAMA_ADAPTER_VERSION == "llama-component-benchmark-v5"
-    assert "shortest contiguous phrase" in prompt
-    assert "never copy the surrounding sentence" in prompt
-    assert "absolute offsets" in prompt
+    assert LLAMA_ADAPTER_VERSION == "llama-component-benchmark-v6"
+    assert "inclusive start_token/end_token" in prompt
+    assert "shortest contiguous token sequence" in prompt
+    assert "Do not reproduce, translate, normalize" in prompt
+    assert "do not calculate character offsets" in prompt
+    assert "Python will reconstruct exact source_text" in prompt
     assert "empty proposals array" in prompt
     assert "maintenance" in prompt
     assert "generic or undefined technical activities" in prompt
+    assert '"token_index":0' in prompt
     assert text in prompt
