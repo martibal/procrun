@@ -1,6 +1,6 @@
 # Phase A/B source status
 
-Status date: 2026-09-01. Terms/compliance re-review due: 2026-11-30.
+Status date: 2026-09-02. Terms/compliance re-review due: 2026-11-30.
 
 ## Production rule
 
@@ -14,6 +14,8 @@ A route is usable only when all three gates are approved:
 
 Anything else fails closed. Public availability is not sufficient.
 
+Research candidates that have not yet established the complete transport, coverage and rights contract are deliberately kept out of `SOURCE_CONTRACTS`; an unregistered route therefore also fails closed if production code attempts to use it.
+
 ## Current registry
 
 | Source | Overall | Rights | Access | Data safety | Production implication |
@@ -24,7 +26,15 @@ Anything else fails closed. Public availability is not sufficient.
 | AD&C/dados.gov.pt PT2030 operations bulk file | BLOCKED | CONDITIONAL | APPROVED | BLOCKED | Must not be downloaded and filtered after receipt |
 | Portal BASE / IMPIC APIBase2 | BLOCKED | CONDITIONAL | CONDITIONAL | BLOCKED | No production calls |
 
-See `docs/COMPLIANCE.md` for rights/access reasoning and external legal references.
+### Research candidate outside the live registry
+
+| Candidate | Overall | Rights | Access | Data safety | Remaining gate |
+| --- | --- | --- | --- | --- | --- |
+| European Commission Kohesio / EU Knowledge Graph SPARQL | RESEARCH ONLY | UNRESOLVED | PROMISING | PROMISING | Prove current Portugal 2030 2021-2027 coverage, exact safe property projection, scope availability and source-specific reuse basis |
+
+`RESEARCH ONLY`, `UNRESOLVED` and `PROMISING` in the candidate table are documentation labels, not `SourceStatus` enum values. The route is intentionally absent from the executable production registry and therefore cannot be retrieved through `require_live_source()`.
+
+See `docs/PT2030_DISCOVERY_ROUTE.md` for the evidence and frozen verification gate.
 
 ## Portugal 2030 project discovery
 
@@ -37,9 +47,21 @@ The Mais Transparência search surface exposes useful human-visible project card
 
 The portal terms are not treated as an open-data licence for automated commercial HTML scraping. Production ingestion should use a separately approved underlying official/open-data route.
 
-The full project-detail page is hard blocked because beneficiary content appears in the same response.
+The full project-detail page is hard blocked because beneficiary content appears in the same response. A current project example confirms that the same page which exposes the required `Sumário`/scope also contains a beneficiary section; a corporate beneficiary in one example is not evidence that the route is natural-person-free across all projects.
 
 The PT2030 bulk operations resource is also hard blocked by the zero-PII pre-receipt rule. Its dados.gov.pt metadata currently states `Licença não especificada`; ProcRun therefore keeps source-specific rights `CONDITIONAL` even though dados.gov.pt terms state CC BY 4.0 as the default for State datasets unless otherwise specified.
+
+### Kohesio / EU Knowledge Graph research result
+
+A 2026-09-02 review found the first technically plausible alternative to the Portuguese broad-response routes.
+
+European Commission documentation exposes a public SPARQL query mechanism for an EU Knowledge Graph that contains Kohesio projects. A SPARQL `SELECT` is structurally capable of server-side field projection, which is the transport property ProcRun needs to exclude beneficiary/person variables before receipt.
+
+The Commission's current Kohesio validation specification includes the project fields ProcRun needs: operation identifier/name, operation summary in the programme language, programming period, programme/fund/objective, start/end dates, eligible expenditure, geography and `Date_Of_Last_Update`. It also defines beneficiary name/unique-identifier fields, so any future ProcRun query must explicitly omit those fields rather than retrieve a whole project record.
+
+This is not enough for approval. Current Commission material still gives mixed coverage signals: the CORDIS federated-query guide describes Kohesio data in the EU Knowledge Graph as 2014-2020, while current Kohesio/ESF+ material says 2021-2027 projects are not yet available for every country. The schema supports `2021-2027`, but current Portugal 2030 coverage has not been proven. Public indexing also did not establish that known operation `PACS-FC-01781200` is present; absence from a search index is not treated as proof of endpoint absence.
+
+The route therefore remains research-only until the exact property identifiers, current Portugal 2030 coverage and source-specific commercial reuse basis are frozen. No generic graph walk, `SELECT *`, `DESCRIBE` or broad project download is allowed as a discovery shortcut because it could receive beneficiary data.
 
 ### Portugal production gate
 
@@ -52,6 +74,8 @@ A Portugal 2030 route may change to `APPROVED` only when all of the following ar
 5. a defensible `first_seen_at` can be recorded without using project start date as proxy;
 6. schema drift is detectable before persistence;
 7. retrieval method, allowlist, attribution and terms references are frozen in code/tests.
+
+For the Kohesio candidate, the pre-production probe must additionally prove that known 2021-2027 Portugal 2030 operation codes resolve and that the Portuguese operation summary is available through documented properties while beneficiary/person properties remain unselected.
 
 For newly observed projects, local observation time may serve as first-seen provenance after a safe discovery route is approved. Historical backfills without defensible snapshot dates remain `temporal_provenance=UNRESOLVED` and cannot support historical lead-time claims.
 
