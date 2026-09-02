@@ -213,7 +213,7 @@ Operational/compliance rules include:
 
 The portal is useful for human research but is **not** an approved production HTML-scraping contract. Full detail contains beneficiary content and is blocked.
 
-The dados.gov.pt PT2030 operations workbook is also blocked: download-then-filter violates the pre-receipt zero-PII rule. Its current dataset metadata says `Licença não spesifisert`; the repository therefore does not promote source-specific rights to unconditional APPROVED merely from dados.gov.pt's portal-wide default CC BY 4.0 rule.
+The dados.gov.pt PT2030 operations workbook is also blocked: download-then-filter violates the pre-receipt zero-PII rule. Its current dataset metadata says `Licença não especificada`; the repository therefore does not promote source-specific rights to unconditional APPROVED merely from dados.gov.pt's portal-wide default CC BY 4.0 rule.
 
 The remaining core blocker for Portugal is a field-bounded official/open-data transport that simultaneously provides required scope, excludes prohibited fields before receipt, has defensible rights/access, and supports temporal first-seen provenance.
 
