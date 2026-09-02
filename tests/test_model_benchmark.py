@@ -165,8 +165,14 @@ def test_execution_report_binds_model_runtime_corpus_and_measurements() -> None:
     assert report.score.exact_case_match_rate == 1.0
     assert len(report.case_results) == 12
     assert all(case_result.exact_match for case_result in report.case_results)
-    assert report.case_results[0].expected_proposals == benchmark.corpus.cases[0].expected_proposals
-    assert report.case_results[0].predicted_proposals == benchmark.corpus.cases[0].expected_proposals
+    assert (
+        report.case_results[0].expected_proposals
+        == benchmark.corpus.cases[0].expected_proposals
+    )
+    assert (
+        report.case_results[0].predicted_proposals
+        == benchmark.corpus.cases[0].expected_proposals
+    )
     assert report.case_results[0].cache_hit is True
     assert report.case_results[0].elapsed_seconds is None
     assert report.cache_hit_count == 1
