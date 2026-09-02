@@ -29,85 +29,119 @@ production code attempts to use it.
 | AD&C/dados.gov.pt PT2030 operations bulk file | BLOCKED | CONDITIONAL | APPROVED | BLOCKED | Must not be downloaded and filtered after receipt |
 | Portal BASE / IMPIC APIBase2 | BLOCKED | CONDITIONAL | CONDITIONAL | BLOCKED | No production calls |
 
-### Research candidates outside the live registry
+### Research outcomes outside the live registry
 
-| Candidate | Overall | Rights | Access | Data safety | Remaining gate / result |
+| Candidate | Outcome | Rights | Access | Data safety | Result |
 | --- | --- | --- | --- | --- | --- |
-| European Commission Kohesio / EU Knowledge Graph SPARQL | RESEARCH ONLY | UNRESOLVED | VERIFIED FOR NARROW QUERY | VERIFIED FOR FROZEN PROJECTION | Known PT2030 operation `PACS-FC-01781200` returned zero rows; do not broaden the graph query. Not a current PT2030 discovery route unless Portugal 2021-2027 graph coverage later changes. |
-| European Commission Kohesio 2021-2027 project-download catalogue | RESEARCH ONLY | PROMISING | UNVERIFIED | UNRESOLVED | Inspect catalogue metadata only. Prove a Portugal-specific pre-receipt-safe distribution/projection before any CSV/XLSX/RDF body is downloaded. |
+| European Commission Kohesio / EU Knowledge Graph SPARQL | RETIRED FOR CURRENT PT2030 | UNRESOLVED | VERIFIED FOR NARROW QUERY | VERIFIED FOR FROZEN PROJECTION | Known current operation `PACS-FC-01781200` returned zero rows. Do not broaden the graph query. |
+| European Commission Kohesio 2021-2027 country project download | BLOCKED | PROMISING | UNVERIFIED | BLOCKED | Portugal-specific project export can contain beneficiary identifiers; download-then-filter is forbidden. |
+| European Commission Kohesio `/projects` REST service | BLOCKED | PROMISING | UNVERIFIED | BLOCKED | Current frontend uses project filters + offset/limit/language but exposes no server-side output-field projection. |
+| Mais Transparência project-search-card fallback | RESEARCH ONLY | CONDITIONAL | CONDITIONAL | PROMISING / UNVERIFIED | Card surface appears project-only, but exact-route automation/reuse and title-only scope sufficiency are unresolved. |
 
-`RESEARCH ONLY`, `UNRESOLVED`, `PROMISING`, `VERIFIED FOR NARROW QUERY` and
-`VERIFIED FOR FROZEN PROJECTION` are documentation labels, not `SourceStatus` enum values. Both research
-routes are intentionally absent from the executable production registry.
+The research labels above are documentation labels, not `SourceStatus` enum values. None of these routes
+is registered as a live production source.
 
-See `docs/PT2030_DISCOVERY_ROUTE.md` for the evidence and frozen verification gate.
+See:
+
+- `docs/PT2030_DISCOVERY_ROUTE.md`;
+- `docs/KOHESIO_2021_DOWNLOAD_FINDINGS.md`;
+- `docs/PT2030_NATIONAL_FALLBACK_GATE.md`.
 
 ## Portugal 2030 project discovery
 
-The Mais Transparência search surface exposes useful human-visible project cards, but it does not
-establish a complete, production-approved transport contract. It does not expose the required project
-`Sumário` / scope and its presentation-site terms are not treated as an open-data licence for automated
-commercial HTML scraping.
+No Portugal 2030 project-discovery route is production-approved.
 
-The full project-detail page is hard blocked because beneficiary content appears in the same response as
-the required scope. A corporate beneficiary in one fixture is not evidence that the route is
-natural-person-free across all projects.
+### Mais Transparência project search
 
-The PT2030 bulk operations resource is also hard blocked by the zero-PII pre-receipt rule. Its broad file
-contains beneficiary fields/identifiers, and its dados.gov.pt metadata currently states
-`Licença não especificada`; ProcRun therefore does not download and filter it after receipt.
+The project-search surface exposes useful human-visible cards with project title, operation code,
+completion date and financing amount. The observed card surface does not require the full project-detail
+response and is materially safer than the detail page.
 
-### EU Knowledge Graph SPARQL result
+It remains `CONDITIONAL` because:
 
-The EUKG experiment resolved its transport and data-safety questions for the frozen smoke query.
+- the exact automated/machine-access contract for the presentation-site route is not frozen;
+- the presentation-site terms are not treated as an explicit commercial scraping/reuse grant;
+- the cards do not expose the project `Sumário` / scope text used by the component engine.
+
+A title-only discovery mode is research-only. It may not infer components beyond exact title spans and
+must leave ambiguous scope `UNRESOLVED`. It requires a preregistered PII-safe end-to-end replay before it
+can alter the production discovery contract.
+
+### Mais Transparência project detail
+
+The detail page contains the scope text ProcRun needs, but beneficiary content appears in the same HTTP
+response. ProcRun's zero-PII boundary is pre-receipt; a broad response may not be downloaded and filtered
+afterwards.
+
+Decision: `BLOCKED` for intelligence ingestion.
+
+### AD&C / dados.gov.pt PT2030 operations workbook
+
+The official operations workbook contains useful operation identity/scope fields but also beneficiary
+fields and identifiers. The only identified operation-level distribution is broad and does not expose
+server-side output-column projection.
+
+Current dados.gov.pt terms provide a stronger general reuse signal than previously recorded: state-body
+data is published under CC BY 4.0 by default unless specified otherwise, and open data may be reused
+commercially. The PT2030 dataset page itself currently displays `Licença não especificada`, so ProcRun
+still treats exact-source rights as `CONDITIONAL` pending a frozen source-specific interpretation.
+
+Regardless of rights, data safety remains `BLOCKED`: ProcRun must not download the workbook and remove
+beneficiary columns locally.
+
+## EU Knowledge Graph SPARQL result
 
 ProcRun froze a narrow property allowlist and excluded beneficiary/contact properties, including `P841`.
-The local Phase 2 probe queried exactly `PACS-FC-01781200`. The public endpoint returned valid
+A local Phase 2 probe queried exactly `PACS-FC-01781200`. The endpoint returned standards-compliant
 SPARQL Results XML over GET. ProcRun parsed it with DTD processing prohibited and external entity
 resolution disabled, then validated every declared/returned variable against the frozen allowlist.
 
 The response contained zero rows (`coverage_found=false`). The same operation code is current on
-Portugal's official Mais Transparência/PT2030 portal. Therefore the miss is a real coverage miss for the
-queried EUKG layer, not a malformed fixture or parser artefact.
+Portugal's official PT2030 portal. Therefore this is a real coverage miss for the tested EUKG layer, not
+a parser artefact.
 
-ProcRun will not respond by broadening the graph query, walking arbitrary properties, querying
-beneficiary records, using `SELECT *`, `DESCRIBE`, or generic `CONSTRUCT`. The EUKG route is not the
-current PT2030 production candidate unless later evidence shows that Portugal 2021-2027 graph coverage
-has changed.
+Decision: the EUKG route is retired for current PT2030 discovery. Do not broaden the graph query, walk
+arbitrary properties, query beneficiary records, use `SELECT *`, `DESCRIBE` or generic `CONSTRUCT`.
 
-### Kohesio 2021-2027 download catalogue
+## Kohesio 2021-2027 final result
 
-A 2026 European Parliament study cites a current-period Kohesio project data surface at:
+The current Kohesio 2021-2027 layer was investigated without retrieving a project response.
 
-`https://kohesio.ec.europa.eu/en/data/projects-2021-2027/latest`
+A Portugal-specific project export exists, but the project schema/export can contain beneficiary
+identifiers. Country isolation is therefore insufficient for the pre-receipt rule.
 
-Commission/data.europa.eu documentation states that Kohesio datasets are made available for download and
-free reuse in machine-readable forms including CSV/XLSX and RDF. This improves the rights/reuse signal,
-but does not solve data safety.
+Frontend-only probes then established the current project-list service shape:
 
-The broad Kohesio schema includes beneficiary name and beneficiary identifier fields. Therefore ProcRun
-must not download a combined project file and filter those columns locally. The next probe is limited to
-the HTML download catalogue itself and may return only catalogue-link metadata and a content hash. It
-must not follow a CSV/XLSX/RDF distribution link.
+- route: `api + "/projects"`;
+- request parameters: `getProjectsFilters()` plus `offset`, `limit` and `language`;
+- country/programming-period and other search filters are supported;
+- the complete response object is received before `response.list` is mapped through the project
+  deserializer;
+- no `fields`, `select`, projection or equivalent output-field parameter was found in the actual
+  `getProjects()` request path.
 
-If catalogue metadata proves a Portugal-specific distribution that still contains beneficiary/person
-columns, the route is `DATA SAFETY=BLOCKED`. A safe route requires either a separately published
-projects-only field-safe distribution or server-side field projection before receipt.
+Earlier keyword hits for `fields`, `select` and `projection` were UI, form, Angular or map-projection
+code, not response projection controls.
 
-### Portugal production gate
+Decision: both the current project download and `/projects` REST path are `DATA SAFETY=BLOCKED` for
+ProcRun. No more Kohesio project/data probes are authorised unless the Commission later publishes a
+documented field-projection contract or separately field-safe Portugal distribution.
+
+## Portugal production gate
 
 A Portugal 2030 route may change to `APPROVED` only when all of the following are frozen and tested:
 
 1. commercial reuse rights for the exact source/route;
 2. automated-access rights/conditions for the exact route;
 3. prohibited fields cannot enter the received response;
-4. required identity, funding, dates and project-scope fields are available;
+4. required identity, funding, dates and project-scope fields are available, or a deliberately reduced
+   discovery mode has independently passed its preregistered sufficiency gate;
 5. a defensible `first_seen_at` can be recorded without using project start date as proxy;
 6. schema drift is detectable before persistence;
 7. retrieval method, allowlist, attribution and terms references are frozen in code/tests;
 8. known PT2030 operation codes resolve across a small frozen cross-programme sample.
 
-For newly observed projects, local observation time may serve as first-seen provenance after a safe
+For newly observed projects, local observation time may serve as first-seen provenance only after a safe
 discovery route is approved. Historical backfills without defensible snapshot dates remain
 `temporal_provenance=UNRESOLVED` and cannot support historical lead-time claims.
 
