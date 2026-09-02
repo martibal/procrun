@@ -1,0 +1,83 @@
+name: kohesio-api-metadata-probe
+
+on:
+  push:
+    branches:
+      - research/kohesio-api-metadata-probe
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe transport metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://kohesio.ec.europa.eu'
+
+          echo '=== HEAD /api/projects (no response body) ==='
+          curl --fail-with-body --silent --show-error --location \
+            --connect-timeout 10 --max-time 20 \
+            --head "$base/api/projects" || true
+
+          echo '=== OPTIONS /api/projects (discard response body) ==='
+          curl --silent --show-error --location \
+            --connect-timeout 10 --max-time 20 \
+            --request OPTIONS --dump-header - --output /dev/null \
+            "$base/api/projects" || true
+
+          echo '=== Documentation candidates ==='
+          for path in \
+            /v3/api-docs \
+            /api-docs \
+            /swagger.json \
+            /openapi.json \
+            /swagger-ui/index.html
+          do
+            tmp="$(mktemp)"
+            headers="$(mktemp)"
+            status="$(curl --silent --show-error --location \
+              --connect-timeout 10 --max-time 20 --max-filesize 1048576 \
+              --dump-header "$headers" --output "$tmp" \
+              --write-out '%{http_code}' "$base$path" || true)"
+            content_type="$(awk 'BEGIN{IGNORECASE=1} /^content-type:/ {gsub(/\r/,""); print substr($0,index($0,":")+2)}' "$headers" | tail -n1)"
+            bytes="$(wc -c < "$tmp" | tr -d ' ')"
+            echo "$path status=$status content_type=${content_type:-unknown} bytes=$bytes"
+
+            # Print only schema metadata when the response is recognisably OpenAPI/Swagger.
+            python3 - "$tmp" "$path" <<'PY'
+import json
+import sys
+
+filename, path = sys.argv[1:]
+try:
+    with open(filename, encoding="utf-8") as handle:
+        payload = json.load(handle)
+except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+    raise SystemExit(0)
+
+if not isinstance(payload, dict):
+    raise SystemExit(0)
+if "openapi" not in payload and "swagger" not in payload:
+    raise SystemExit(0)
+
+paths = payload.get("paths")
+path_keys = sorted(paths) if isinstance(paths, dict) else []
+print(
+    "OPENAPI_METADATA",
+    f"source={path}",
+    f"openapi={payload.get('openapi')}",
+    f"swagger={payload.get('swagger')}",
+    f"path_count={len(path_keys)}",
+)
+for key in path_keys:
+    print("OPENAPI_PATH", key)
+PY
+            rm -f "$tmp" "$headers"
+          done
+
+          echo 'Safety assertion: this workflow performs no GET request to /api/projects and no project query.'
