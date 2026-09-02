@@ -34,9 +34,14 @@ Each allowed category is serialized with its human label and a computed model-fa
 They define category boundaries rather than benchmark-case answers. Import fails if the guidance set
 and frozen taxonomy diverge.
 
-The complete request, including these selection rules, is part of the deterministic cache key. A
-change to category guidance therefore invalidates old cached model outputs without weakening runtime
-validation.
+Before the request is written to the temporary prompt, Python deterministically tokenizes each
+unmatched scope span. The prompt includes the original span text plus an indexed token list. Token
+indices are adapter-local evidence references; they do not replace the canonical character offsets in
+the accepted `ModelComponentProposal` contract.
+
+The complete request, including category selection rules, is part of the deterministic cache key. The
+adapter version is also bound into the key, so the v6 token-reference contract cannot reuse v5 cached
+outputs.
 
 The model does not receive raw HTTP bodies, HTML, PDFs, procurement state, contact records,
 beneficiary contact data, or arbitrary source fields.
@@ -74,24 +79,31 @@ Current deterministic generation settings are:
 On POSIX/Linux, the benchmark child process also receives a hard address-space limit. The default is
 6144 MiB. On the 8 GiB CX33 target this deliberately leaves operating-system headroom.
 
-## Output contract
+## Generated output contract
 
-Generation is constrained to one JSON object containing only `proposals`. Every proposal must contain:
+Generation is constrained to one JSON object containing only `proposals`. Every model-generated
+proposal contains exactly:
 
 - frozen domain;
 - frozen category;
-- absolute start offset;
-- absolute end offset; and
-- exact `source_text`.
+- `span_index` identifying one supplied unmatched scope span;
+- inclusive `start_token`; and
+- inclusive `end_token`.
 
-Python then validates the output again. A proposal fails closed if its domain/category pair was not
-allowed, its cited text is outside an unmatched request span, its source text does not exist as the
-cited request evidence, extra fields are present, output is invalid UTF-8/JSON, configured byte limits
-are exceeded, or the process fails.
+The model does **not** generate source text and does not calculate character offsets. It selects only
+a contiguous range of token identifiers that Python supplied with the original source span.
 
-When generated `source_text` occurs exactly once in the supplied unmatched spans, the adapter may
-normalize incorrect model-provided absolute offsets to the uniquely determined exact source range.
-Ambiguous repeated text is rejected rather than guessed.
+Python validates the domain/category pair, span index and token range. It then reconstructs the
+canonical evidence deterministically from the original request bytes represented as text:
+
+- absolute start offset = unmatched-span absolute start + first selected token start;
+- absolute end offset = unmatched-span absolute start + last selected token end;
+- `source_text` = the exact original substring between those two character positions.
+
+The reconstructed `ModelComponentProposal` is then passed through the existing exact request-span
+validation again. The model therefore cannot paraphrase, translate, normalize or invent evidence text,
+and it no longer needs to count Unicode character offsets. An invalid token range or disallowed
+category fails closed.
 
 An empty proposal list is valid. It means the fallback did not resolve that scope. It never means that
 no component exists.
@@ -104,18 +116,20 @@ The optional cache key binds:
 - complete `LocalModelRequest`, including category selection rules;
 - model ID and artifact SHA-256;
 - `llama-cli` executable SHA-256;
-- deterministic inference settings; and
+- deterministic inference settings;
+- evidence-reference mode (`inclusive_token_indices`); and
 - the benchmark memory bound.
 
-Every cache hit is revalidated against the current request spans before it can be returned. Editing a
-cache file therefore cannot bypass the source-span or taxonomy checks.
+The cache stores only canonical `ModelProposalBatch` records after Python has reconstructed exact
+source evidence. Every cache hit is revalidated against the current request spans before it can be
+returned. Editing a cache file therefore cannot bypass the source-span or taxonomy checks.
 
 Cache records are size-limited and the directory is capped at 256 JSON entries by default. Cache data
 is disposable runtime state and remains outside Git.
 
 ## Primary and holdout evaluation
 
-The target-host run now executes both:
+The target-host run executes both:
 
 - `component_benchmark_v1.json` as the primary diagnostic/regression corpus; and
 - `component_benchmark_holdout_v1.json` as a disjoint holdout corpus.
@@ -127,6 +141,13 @@ Improvement on the primary corpus alone is not independent evidence because that
 error analysis that led to the taxonomy-guidance change. The holdout result must therefore be
 inspected separately.
 
+## Empirical host evidence so far
+
+The 2026-09-02 v5 primary run reached real inference on the pinned CX33/model/runtime and recorded a
+maximum resident-set size of 4,967,728 KiB with zero swaps before an evidence-format validation error
+stopped the run. That observation supports memory feasibility for the candidate on the measured host,
+but it is not a completed quality benchmark and does not approve the model.
+
 ## Production approval remains closed
 
 The candidate stays `BENCHMARK_CANDIDATE` until a later explicit decision. Before production approval,
@@ -136,7 +157,7 @@ at minimum the following evidence is still required:
    components and exact evidence spans;
 2. accuracy/error analysis across primary and holdout data, including false proposals and unresolved
    behavior;
-3. RAM and latency measurements on the actual target server;
+3. completed RAM and latency measurements on the actual target server;
 4. exact llama.cpp runtime/model/corpus provenance; and
 5. an explicit registry and governance change.
 
