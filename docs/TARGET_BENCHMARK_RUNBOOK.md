@@ -23,27 +23,49 @@ the model registry.
   `9ed150d4367e68df0ac8e1540f6ddc65b42d0ee26378329d1ecbca60f93fc5f8`.
 - Registry status: `BENCHMARK_CANDIDATE`.
 
-The previously measured Qwen3-4B Q4_K_M artifact is `REJECTED` and must not be substituted back into
-this runbook without a new explicit governance decision.
+The previously measured Qwen3-4B Q4_K_M artifact is `INCONCLUSIVE`, not selected. The earlier
+`REJECTED` conclusion was withdrawn because it depended materially on a minimal-phrase exact scoring
+criterion that was stricter than the canonical fallback evidence acceptance rule. Qwen must still not
+be substituted into this runbook without a new explicit governance decision.
 
 The llama.cpp revision is pinned to an exact upstream commit. The model download script uses the exact
 Hugging Face revision and independently verifies size and SHA-256 before the file becomes usable.
 
 ## Evaluation inputs
 
-One target-host session runs two independently hashed corpora:
+The 2026-09-02 target-host session ran two independently hashed corpora:
 
 1. `tests/fixtures/component_benchmark_v1.json` — primary diagnostic/regression corpus.
 2. `tests/fixtures/component_benchmark_holdout_v1.json` — disjoint holdout corpus.
 
-Both use the same verified model and llama.cpp runtime. Category semantics are supplied through the
+Both used the same verified model and llama.cpp runtime. Category semantics are supplied through the
 frozen model-facing `selection_rule` attached to each allowed taxonomy category.
 
-The holdout is not a source of benchmark-specific prompt answers. If its expected answers are changed
-after model output has been inspected, it must become a new holdout version.
+The existing holdout is no longer eligible as independent production-approval evidence under report
+v4 because the scoring interpretation was corrected after its outputs were observed. It remains valid
+diagnostic evidence and must not be edited to improve the model's score.
 
-The exact scoring contract is frozen: category and evidence span must both match exactly. Do not add
-fuzzy span credit or candidate-specific post-processing after seeing model outputs.
+## Scoring contract
+
+The benchmark report schema is `component-benchmark-report-v4`.
+
+Report v4 separates:
+
+- **semantic scoring** — exact frozen `domain + category` equality, which measures the model's actual
+  component-classification role; and
+- **legacy exact scoring** — exact category plus byte-for-byte equality with the corpus's annotated
+  minimal source phrase.
+
+Legacy minimal-phrase exactness remains a strict diagnostic. It is not a product approval gate because
+the canonical fallback validator accepts any exact source substring contained within a supplied
+unmatched scope span, and the deterministic rule engine itself uses sentence-level supporting evidence.
+
+This is not fuzzy matching. Semantic credit still requires the exact frozen category. Wrong, extra or
+missing categories remain false positives/false negatives.
+
+Evidence integrity remains a separate hard gate: the adapter must reconstruct exact source text from
+valid token references inside the supplied unmatched scope span. Invalid token ranges, invented source
+text, disallowed categories or out-of-scope evidence fail closed and cannot receive semantic credit.
 
 ## Local Windows provisioning
 
@@ -81,12 +103,10 @@ intentionally remain.
 
 ## Per-case model failures
 
-The benchmark report schema is `component-benchmark-report-v3`.
-
 A fail-closed `LlamaAdapterError` from one synthetic case is recorded in that case's `inference_error`
 and the corpus continues. The case is scored as failed, not silently repaired:
 
-- a failed positive case contributes its missing expected proposal(s) as false negatives;
+- a failed positive case contributes its missing expected category/proposal as a false negative;
 - a failed negative case is not a correct abstention;
 - the model-selected invalid token range is never clamped or guessed into range; and
 - failed outputs are not cached as valid model batches.
@@ -117,34 +137,50 @@ installs the pinned ProcRun dependency closure.
 
 `~/.local/share/procrun-benchmark/results/`
 
-1. `component-benchmark-*.json` — primary exact quality/latency/failure report.
+1. `component-benchmark-*.json` — primary semantic/exact quality, latency and failure report.
 2. `component-benchmark-*.time.txt` — primary GNU `time -v` resource report.
-3. `component-benchmark-holdout-*.json` — holdout exact quality/latency/failure report.
+3. `component-benchmark-holdout-*.json` — holdout semantic/exact quality, latency and failure report.
 4. `component-benchmark-holdout-*.time.txt` — holdout GNU `time -v` resource report.
 5. `component-benchmark-*.host.txt` — shared host, repository, llama.cpp and artifact provenance.
 
 The adapter enforces the 6 GiB Linux address-space ceiling. A model that needs more than that fails
 closed rather than consuming the full 8 GB host.
 
-## Interpretation gate
+## Completed Ministral diagnostic run
 
-Do not change the registry status from `BENCHMARK_CANDIDATE` based on one headline metric or on an
-improvement confined to the primary diagnostic corpus.
+The 2026-09-02 Ministral run completed all 12 primary and all 12 holdout cases with zero adapter-failed
+cases. Re-scoring the already-generated proposals on the frozen semantic category key gives:
 
-The next decision must inspect at least:
+| Corpus | Semantic TP | Semantic FP | Semantic FN | Precision | Recall | Negative abstention |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Primary | 5 | 1 | 5 | 83.3% | 50.0% | 2/2 |
+| Holdout | 7 | 1 | 3 | 87.5% | 70.0% | 2/2 |
 
-- every false-positive proposal in both corpora;
+Median case latency was about 41.8 seconds on primary and 42.8 seconds on holdout; maximum case latency
+was about 47.0 and 48.7 seconds respectively.
+
+These results are diagnostic only. Do not spend another paid host run simply to regenerate the same
+synthetic corpora under report v4.
+
+## Interpretation gate for the next paid run
+
+The next paid benchmark should occur only after a **fresh evaluation set** is frozen before inference,
+or after representative PII-safe shadow-run scope text is available.
+
+The production decision must inspect at least:
+
+- semantic precision, recall, F1 and whole-case match rate;
+- every semantic false-positive proposal;
 - every failed/malformed case and its `inference_error`;
-- every negative/abstention case in both corpora;
-- exact precision, recall, F1 and whole-case match rate for both corpora;
-- whether category errors remain concentrated at taxonomy boundaries;
+- every negative/abstention case;
+- evidence-integrity failures from adapter/canonical validation;
 - unresolved/empty-proposal behavior;
-- median and worst measured case latency for both runs;
-- peak resident-set size and remaining host headroom from both resource reports; and
-- repository, model, corpus and llama.cpp provenance/hashes.
+- median and worst measured case latency;
+- peak resident-set size and remaining host headroom from resource reports; and
+- repository, model, evaluation-set and llama.cpp provenance/hashes.
 
-No numeric production threshold is invented in this runbook. A threshold must be frozen explicitly
-before it can be used as a production approval rule.
+A numeric production threshold must be frozen before that fresh evaluation is run. Do not choose the
+threshold after seeing the new results.
 
 ## Cost cleanup
 
