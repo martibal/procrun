@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -13,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from procrun.component_engine import ComponentDomain
 from procrun.domain import StrictModel
 from procrun.model_fallback import (
     LocalModelRequest,
@@ -25,7 +27,8 @@ from procrun.model_registry import (
     verify_local_model_artifact,
 )
 
-LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v5"
+LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v6"
+_TOKEN_PATTERN = re.compile(r"\w+(?:[-’']\w+)*|[^\w\s]", flags=re.UNICODE)
 
 
 class LlamaAdapterError(RuntimeError):
@@ -33,9 +36,31 @@ class LlamaAdapterError(RuntimeError):
 
 
 class GeneratedProposalEnvelope(StrictModel):
-    """The only structure the model itself is allowed to generate."""
+    """Validated exact evidence reconstructed by Python after model generation."""
 
     proposals: tuple[ModelComponentProposal, ...] = ()
+
+
+class _GeneratedTokenProposal(StrictModel):
+    """The only per-component structure the model itself is allowed to generate."""
+
+    domain: ComponentDomain
+    category: str
+    span_index: int
+    start_token: int
+    end_token: int
+
+
+class _GeneratedTokenEnvelope(StrictModel):
+    proposals: tuple[_GeneratedTokenProposal, ...] = ()
+
+
+@dataclass(frozen=True)
+class _EvidenceToken:
+    index: int
+    start: int
+    end: int
+    text: str
 
 
 @dataclass(frozen=True)
@@ -190,9 +215,50 @@ def benchmark_cache_key(
             "top_p": 1,
             "min_p": 0,
             "offline": True,
+            "evidence_reference": "inclusive_token_indices",
         },
     }
     return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def _tokenize_span(text: str) -> tuple[_EvidenceToken, ...]:
+    return tuple(
+        _EvidenceToken(
+            index=index,
+            start=match.start(),
+            end=match.end(),
+            text=match.group(0),
+        )
+        for index, match in enumerate(_TOKEN_PATTERN.finditer(text))
+    )
+
+
+def _prompt_payload(request: LocalModelRequest) -> dict[str, Any]:
+    spans: list[dict[str, Any]] = []
+    for span_index, span in enumerate(request.unmatched_scope_spans):
+        tokens = _tokenize_span(span.text)
+        spans.append(
+            {
+                "span_index": span_index,
+                "absolute_start": span.start,
+                "absolute_end": span.end,
+                "text": span.text,
+                "tokens": [
+                    {"token_index": token.index, "text": token.text}
+                    for token in tokens
+                ],
+            }
+        )
+    return {
+        "contract_version": request.contract_version,
+        "operation_code": request.operation_code,
+        "source_sha256": request.source_sha256,
+        "domains": [domain.value for domain in request.domains],
+        "unmatched_scope_spans": spans,
+        "allowed_categories": [
+            item.model_dump(mode="json") for item in request.allowed_categories
+        ],
+    }
 
 
 def _output_schema(
@@ -201,6 +267,7 @@ def _output_schema(
 ) -> str:
     domains = sorted({domain.value for domain in request.domains})
     categories = sorted({item.category for item in request.allowed_categories})
+    span_indices = list(range(len(request.unmatched_scope_spans)))
     schema = {
         "type": "object",
         "additionalProperties": False,
@@ -214,16 +281,16 @@ def _output_schema(
                     "properties": {
                         "domain": {"type": "string", "enum": domains},
                         "category": {"type": "string", "enum": categories},
-                        "start": {"type": "integer", "minimum": 0},
-                        "end": {"type": "integer", "minimum": 0},
-                        "source_text": {"type": "string", "minLength": 1},
+                        "span_index": {"type": "integer", "enum": span_indices},
+                        "start_token": {"type": "integer", "minimum": 0},
+                        "end_token": {"type": "integer", "minimum": 0},
                     },
                     "required": [
                         "domain",
                         "category",
-                        "start",
-                        "end",
-                        "source_text",
+                        "span_index",
+                        "start_token",
+                        "end_token",
                     ],
                 },
             }
@@ -234,23 +301,25 @@ def _output_schema(
 
 
 def _prompt(request: LocalModelRequest) -> str:
-    input_json = _canonical_json(request.model_dump(mode="json"))
+    input_json = _canonical_json(_prompt_payload(request))
     return (
         "Classify only the supplied unmatched project-scope spans into the supplied "
         "allowed component categories. Each proposal must represent a concrete "
         "purchasable component, system, equipment item, or scoped works package that is "
         "explicitly named in the text. Use exactly one allowed domain/category pair. "
-        "For source_text, return the shortest contiguous phrase that directly names the "
-        "proposed component; never copy the surrounding sentence merely as evidence. "
-        "start/end must be the absolute offsets of that exact shortest phrase. Prefer "
-        "the narrowest defensible category based on the named component, not broad project "
-        "context. Return an empty proposals array when the text only describes maintenance, "
-        "generic or undefined technical activities, or otherwise does not explicitly name "
-        "a concrete component or scoped works package. Do not infer procurement status, "
-        "opportunity state, buyer contacts, dates, values, or facts absent from the input. "
-        "If either the category or exact minimal span cannot be identified defensibly, omit "
-        "the proposal. Return only JSON matching the constrained schema; do not emit "
-        "reasoning or commentary. /no_think\nINPUT_JSON:\n"
+        "Evidence is selected only by the supplied token identifiers: return span_index and "
+        "the inclusive start_token/end_token indices for the shortest contiguous token "
+        "sequence that directly names the component. Do not reproduce, translate, normalize, "
+        "rewrite, or invent evidence text, and do not calculate character offsets. Python "
+        "will reconstruct exact source_text and absolute offsets from the selected tokens. "
+        "Prefer the narrowest defensible category based on the named component, not broad "
+        "project context. Return an empty proposals array when the text only describes "
+        "maintenance, generic or undefined technical activities, or otherwise does not "
+        "explicitly name a concrete component or scoped works package. Do not infer "
+        "procurement status, opportunity state, buyer contacts, dates, values, or facts absent "
+        "from the input. If either the category or minimal token sequence cannot be identified "
+        "defensibly, omit the proposal. Return only JSON matching the constrained schema; do "
+        "not emit reasoning or commentary. /no_think\nINPUT_JSON:\n"
         f"{input_json}"
     )
 
@@ -382,6 +451,71 @@ def _invoke_llama(
         )
 
 
+def _resolve_token_proposals(
+    request: LocalModelRequest,
+    envelope: _GeneratedTokenEnvelope,
+) -> GeneratedProposalEnvelope:
+    allowed_pairs = {
+        (item.domain, item.category)
+        for item in request.allowed_categories
+    }
+    allowed_domains = frozenset(request.domains)
+    tokenized_spans = tuple(
+        _tokenize_span(span.text) for span in request.unmatched_scope_spans
+    )
+    unique: dict[
+        tuple[str, str, int, int, str],
+        ModelComponentProposal,
+    ] = {}
+
+    for proposal in envelope.proposals:
+        if proposal.domain not in allowed_domains:
+            raise LlamaAdapterError("model proposal domain is outside the request")
+        if (proposal.domain, proposal.category) not in allowed_pairs:
+            raise LlamaAdapterError(
+                "model proposal domain/category pair is outside the request"
+            )
+        if proposal.span_index < 0 or proposal.span_index >= len(tokenized_spans):
+            raise LlamaAdapterError("model proposal span_index is outside the request")
+        if proposal.start_token < 0 or proposal.end_token < proposal.start_token:
+            raise LlamaAdapterError("model proposal token range is invalid")
+
+        tokens = tokenized_spans[proposal.span_index]
+        if proposal.end_token >= len(tokens):
+            raise LlamaAdapterError("model proposal token range is outside the request span")
+
+        span = request.unmatched_scope_spans[proposal.span_index]
+        first = tokens[proposal.start_token]
+        last = tokens[proposal.end_token]
+        start = span.start + first.start
+        end = span.start + last.end
+        source_text = span.text[first.start : last.end]
+        normalized = ModelComponentProposal(
+            domain=proposal.domain,
+            category=proposal.category,
+            start=start,
+            end=end,
+            source_text=source_text,
+        )
+        key = (
+            normalized.domain.value,
+            normalized.category,
+            normalized.start,
+            normalized.end,
+            normalized.source_text,
+        )
+        unique[key] = normalized
+
+    proposals = tuple(
+        unique[key]
+        for key in sorted(
+            unique,
+            key=lambda item: (item[2], item[3], item[0], item[1], item[4]),
+        )
+    )
+    return GeneratedProposalEnvelope(proposals=proposals)
+
+
 def _parse_generated_output(
     request: LocalModelRequest,
     runtime: PreparedLlamaRuntime,
@@ -411,15 +545,16 @@ def _parse_generated_output(
 
     try:
         payload = json.loads(decoded)
-        envelope = GeneratedProposalEnvelope.model_validate(payload)
+        token_envelope = _GeneratedTokenEnvelope.model_validate(payload)
     except ValueError as exc:
         raise LlamaAdapterError(
             "llama-cli response is not the strict proposal JSON contract"
         ) from exc
 
-    if len(envelope.proposals) > runtime.config.max_proposals:
+    if len(token_envelope.proposals) > runtime.config.max_proposals:
         raise LlamaAdapterError("llama-cli returned too many component proposals")
-    return _validate_against_request(request, envelope)
+    resolved = _resolve_token_proposals(request, token_envelope)
+    return _validate_against_request(request, resolved)
 
 
 def _source_text_occurrences(
