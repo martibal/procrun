@@ -66,13 +66,25 @@ class ComponentBenchmarkScore(StrictModel):
     false_positive_abstention_case_count: int
 
 
+class ComponentBenchmarkCaseResult(StrictModel):
+    """Synthetic per-case evidence retained so aggregate failures can be diagnosed."""
+
+    case_id: str
+    expected_proposals: tuple[ModelComponentProposal, ...]
+    predicted_proposals: tuple[ModelComponentProposal, ...]
+    exact_match: bool
+    cache_hit: bool
+    elapsed_seconds: float | None
+
+
 class ComponentBenchmarkReport(StrictModel):
-    schema_version: Literal["component-benchmark-report-v1"] = "component-benchmark-report-v1"
+    schema_version: Literal["component-benchmark-report-v2"] = "component-benchmark-report-v2"
     corpus_sha256: str
     model_id: str
     model_artifact_sha256: str
     llama_cli_sha256: str
     score: ComponentBenchmarkScore
+    case_results: tuple[ComponentBenchmarkCaseResult, ...]
     cache_hit_count: int
     inference_count: int
     measured_elapsed_seconds: tuple[float, ...]
@@ -265,6 +277,7 @@ def build_component_benchmark_report(
     model_hashes: set[str] = set()
     cli_hashes: set[str] = set()
     predictions: dict[str, tuple[ModelComponentProposal, ...]] = {}
+    case_results: list[ComponentBenchmarkCaseResult] = []
     elapsed: list[float] = []
     cache_hits = 0
 
@@ -280,6 +293,18 @@ def build_component_benchmark_report(
         model_hashes.add(batch.model_identity.artifact_sha256)
         cli_hashes.add(result.llama_cli_sha256)
         predictions[case.case_id] = batch.proposals
+        expected_keys = {_proposal_key(item) for item in case.expected_proposals}
+        predicted_keys = {_proposal_key(item) for item in batch.proposals}
+        case_results.append(
+            ComponentBenchmarkCaseResult(
+                case_id=case.case_id,
+                expected_proposals=case.expected_proposals,
+                predicted_proposals=batch.proposals,
+                exact_match=predicted_keys == expected_keys,
+                cache_hit=result.cache_hit,
+                elapsed_seconds=result.elapsed_seconds,
+            )
+        )
         cache_hits += int(result.cache_hit)
         if result.elapsed_seconds is not None:
             elapsed.append(result.elapsed_seconds)
@@ -297,6 +322,7 @@ def build_component_benchmark_report(
         model_artifact_sha256=next(iter(model_hashes)),
         llama_cli_sha256=next(iter(cli_hashes)),
         score=score,
+        case_results=tuple(case_results),
         cache_hit_count=cache_hits,
         inference_count=len(loaded.corpus.cases) - cache_hits,
         measured_elapsed_seconds=measured,
