@@ -56,11 +56,11 @@ set +e
     --output "$REPORT" \
     --cache-dir "$CACHE_DIR" \
   2> "$TIME_REPORT"
-BENCHMARK_EXIT=$?
+BENCHMARK_STATUS=$?
 set -e
 
-if [[ "$BENCHMARK_EXIT" -ne 0 ]]; then
-  echo "benchmark command failed with exit code $BENCHMARK_EXIT" >&2
+if [[ "$BENCHMARK_STATUS" -ne 0 ]]; then
+  echo "benchmark command failed with exit code $BENCHMARK_STATUS" >&2
   if [[ -f "$TIME_REPORT" ]]; then
     echo "---- benchmark stderr/resource report ----" >&2
     cat "$TIME_REPORT" >&2
@@ -71,7 +71,7 @@ if [[ "$BENCHMARK_EXIT" -ne 0 ]]; then
     cat "$HOST_REPORT" >&2
     echo "---- end benchmark host report ----" >&2
   fi
-  exit "$BENCHMARK_EXIT"
+  exit "$BENCHMARK_STATUS"
 fi
 
 printf '%s\n' "benchmark report: $REPORT"
