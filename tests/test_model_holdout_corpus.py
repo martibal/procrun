@@ -30,3 +30,16 @@ def test_holdout_requests_include_frozen_category_selection_rules() -> None:
         request = benchmark_request(case)
         assert request.allowed_categories
         assert all(item.selection_rule.strip() for item in request.allowed_categories)
+
+
+def test_target_host_runner_executes_primary_and_holdout_in_one_session() -> None:
+    run_script = (REPO_ROOT / "scripts" / "run_target_benchmark.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'PRIMARY_CORPUS="tests/fixtures/component_benchmark_v1.json"' in run_script
+    assert (
+        'HOLDOUT_CORPUS="tests/fixtures/component_benchmark_holdout_v1.json"' in run_script
+    )
+    assert 'run_benchmark "primary"' in run_script
+    assert 'run_benchmark "holdout"' in run_script
