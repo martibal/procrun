@@ -25,7 +25,7 @@ from procrun.model_registry import (
     verify_local_model_artifact,
 )
 
-LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v2"
+LLAMA_ADAPTER_VERSION = "llama-component-benchmark-v3"
 
 
 class LlamaAdapterError(RuntimeError):
@@ -395,6 +395,10 @@ def _parse_generated_output(
         decoded = process.stdout.decode("utf-8", errors="strict").strip()
     except UnicodeDecodeError as exc:
         raise LlamaAdapterError("llama-cli stdout is not valid UTF-8") from exc
+
+    completion_eog_suffix = " [end of text]"
+    if decoded.endswith(completion_eog_suffix):
+        decoded = decoded[: -len(completion_eog_suffix)].rstrip()
     if not decoded:
         raise LlamaAdapterError("llama-cli returned an empty response")
 
