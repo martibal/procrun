@@ -22,6 +22,39 @@ function Get-Sha256Hex {
     }
 }
 
+function Resolve-SafeBaseUri {
+    param(
+        [Parameter(Mandatory = $true)][System.Uri]$DocumentUri,
+        [Parameter(Mandatory = $true)][string]$Html
+    )
+
+    $baseMatches = [System.Text.RegularExpressions.Regex]::Matches(
+        $Html,
+        '(?is)<base\b[^>]*\bhref\s*=\s*["''](?<href>[^"'']+)["'']'
+    )
+    if ($baseMatches.Count -eq 0) {
+        return $DocumentUri
+    }
+    if ($baseMatches.Count -ne 1) {
+        throw "Kohesio HTML shell declared multiple base href values; failing closed."
+    }
+
+    $href = [System.Net.WebUtility]::HtmlDecode(
+        [string]$baseMatches[0].Groups["href"].Value
+    ).Trim()
+    try {
+        $resolved = [System.Uri]::new($DocumentUri, $href)
+    }
+    catch {
+        throw "Kohesio HTML shell declared an invalid base href; failing closed."
+    }
+
+    if ($resolved.Scheme -ne "https" -or $resolved.Host -ne $AllowedHost) {
+        throw "Kohesio HTML shell declared a non-approved base origin; failing closed."
+    }
+    return $resolved
+}
+
 function Resolve-SafeAssetUri {
     param(
         [Parameter(Mandatory = $true)][System.Uri]$BaseUri,
@@ -59,7 +92,8 @@ if ($indexType -notmatch "(?i)^text/html(?:\s*;|$)") {
 }
 
 $html = [string]$indexResponse.Content
-$baseUri = [System.Uri]$IndexUri
+$documentUri = [System.Uri]$IndexUri
+$assetBaseUri = Resolve-SafeBaseUri -DocumentUri $documentUri -Html $html
 $assetUris = @()
 $seen = @{}
 
@@ -70,7 +104,7 @@ $patterns = @(
 
 foreach ($pattern in $patterns) {
     foreach ($match in [System.Text.RegularExpressions.Regex]::Matches($html, $pattern)) {
-        $uri = Resolve-SafeAssetUri -BaseUri $baseUri -Href ([string]$match.Groups["href"].Value)
+        $uri = Resolve-SafeAssetUri -BaseUri $assetBaseUri -Href ([string]$match.Groups["href"].Value)
         if ($null -eq $uri) {
             continue
         }
@@ -151,8 +185,9 @@ foreach ($assetUri in $assetUris) {
 }
 
 [ordered]@{
-    probe_contract = "kohesio-frontend-route-metadata-v1"
+    probe_contract = "kohesio-frontend-route-metadata-v2"
     index_uri = $IndexUri
+    asset_base_uri = $assetBaseUri.AbsoluteUri
     index_sha256 = Get-Sha256Hex -Bytes ([System.Text.Encoding]::UTF8.GetBytes($html))
     project_api_called = $false
     distribution_body_fetched = $false
