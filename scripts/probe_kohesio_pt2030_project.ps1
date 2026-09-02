@@ -22,7 +22,7 @@ $AllowedVariables = @(
 )
 $Headers = @{
     "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
-    "Accept" = "application/sparql-results+json"
+    "Accept" = "application/sparql-results+xml,application/sparql-results+json;q=0.9"
 }
 
 # Phase 2 is deliberately a single exact-code lookup. Every selected predicate is frozen in
@@ -94,6 +94,90 @@ function Format-RequestFailure {
     return "${Method}: $($ErrorRecord.Exception.Message)"
 }
 
+function ConvertFrom-SparqlXml {
+    param(
+        [Parameter(Mandatory = $true)][string]$Raw,
+        [Parameter(Mandatory = $true)][string]$Method,
+        [Parameter(Mandatory = $true)][string]$ContentType
+    )
+
+    $settings = New-Object System.Xml.XmlReaderSettings
+    $settings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
+    $settings.XmlResolver = $null
+
+    $stringReader = New-Object System.IO.StringReader($Raw)
+    $xmlReader = $null
+    try {
+        $xmlReader = [System.Xml.XmlReader]::Create($stringReader, $settings)
+        $document = New-Object System.Xml.XmlDocument
+        $document.XmlResolver = $null
+        $document.Load($xmlReader)
+    }
+    catch {
+        throw "${Method} returned '${ContentType}' but the body was not valid SPARQL Results XML; response body was not logged."
+    }
+    finally {
+        if ($null -ne $xmlReader) {
+            $xmlReader.Dispose()
+        }
+        $stringReader.Dispose()
+    }
+
+    $namespace = New-Object System.Xml.XmlNamespaceManager($document.NameTable)
+    $namespace.AddNamespace("sr", "http://www.w3.org/2005/sparql-results#")
+
+    $root = $document.SelectSingleNode("/sr:sparql", $namespace)
+    $head = $document.SelectSingleNode("/sr:sparql/sr:head", $namespace)
+    $results = $document.SelectSingleNode("/sr:sparql/sr:results", $namespace)
+    if ($null -eq $root -or $null -eq $head -or $null -eq $results) {
+        throw "${Method} returned XML without the SPARQL Results envelope; response values were not logged."
+    }
+
+    $variables = @()
+    foreach ($variableNode in @($document.SelectNodes("/sr:sparql/sr:head/sr:variable", $namespace))) {
+        $variables += [string]$variableNode.GetAttribute("name")
+    }
+
+    $bindings = @()
+    foreach ($resultNode in @($document.SelectNodes("/sr:sparql/sr:results/sr:result", $namespace))) {
+        $row = [ordered]@{}
+        foreach ($bindingNode in @($resultNode.SelectNodes("sr:binding", $namespace))) {
+            $name = [string]$bindingNode.GetAttribute("name")
+            if ([string]::IsNullOrWhiteSpace($name)) {
+                throw "${Method} returned a SPARQL XML binding without a variable name; failing closed."
+            }
+
+            $valueNode = $bindingNode.FirstChild
+            while ($null -ne $valueNode -and $valueNode.NodeType -ne [System.Xml.XmlNodeType]::Element) {
+                $valueNode = $valueNode.NextSibling
+            }
+            if ($null -eq $valueNode) {
+                throw "${Method} returned a SPARQL XML binding without a value node; failing closed."
+            }
+
+            $value = [ordered]@{
+                type = [string]$valueNode.LocalName
+                value = [string]$valueNode.InnerText
+            }
+            $language = [string]$valueNode.GetAttribute("lang", "http://www.w3.org/XML/1998/namespace")
+            if (-not [string]::IsNullOrWhiteSpace($language)) {
+                $value["xml:lang"] = $language
+            }
+            $datatype = [string]$valueNode.GetAttribute("datatype")
+            if (-not [string]::IsNullOrWhiteSpace($datatype)) {
+                $value["datatype"] = $datatype
+            }
+            $row[$name] = [pscustomobject]$value
+        }
+        $bindings += [pscustomobject]$row
+    }
+
+    return [pscustomobject]@{
+        head = [pscustomobject]@{ vars = $variables }
+        results = [pscustomobject]@{ bindings = $bindings }
+    }
+}
+
 function ConvertFrom-SparqlWebResponse {
     param(
         [Parameter(Mandatory = $true)]$WebResponse,
@@ -101,41 +185,48 @@ function ConvertFrom-SparqlWebResponse {
     )
 
     $contentType = [string]$WebResponse.Headers["Content-Type"]
-    if ($contentType -notmatch "(?i)^application/(sparql-results\+json|json)(?:\s*;|$)") {
-        $displayType = if ([string]::IsNullOrWhiteSpace($contentType)) { "<missing>" } else { $contentType }
-        throw "${Method} returned non-SPARQL-JSON content type '${displayType}'; response body was not logged."
-    }
-
     $raw = [string]$WebResponse.Content
-    try {
-        $parsed = $raw | ConvertFrom-Json
-    }
-    catch {
-        throw "${Method} returned '${contentType}' but the body was not valid JSON; response body was not logged."
+
+    if ($contentType -match "(?i)^application/sparql-results\+xml(?:\s*;|$)") {
+        $parsed = ConvertFrom-SparqlXml -Raw $raw -Method $Method -ContentType $contentType
+        $script:SuccessfulContentType = $contentType
+        return $parsed
     }
 
-    if ($null -eq $parsed -or $null -eq $parsed.head -or $null -eq $parsed.results) {
-        $keys = @()
-        if ($null -ne $parsed) {
-            $keys = @($parsed.PSObject.Properties.Name)
+    if ($contentType -match "(?i)^application/(sparql-results\+json|json)(?:\s*;|$)") {
+        try {
+            $parsed = $raw | ConvertFrom-Json
         }
-        $keyText = if ($keys.Count -gt 0) { $keys -join "," } else { "<none>" }
-        throw "${Method} returned JSON without the SPARQL head/results envelope (top-level keys: ${keyText}); response values were not logged."
+        catch {
+            throw "${Method} returned '${contentType}' but the body was not valid JSON; response body was not logged."
+        }
+
+        if ($null -eq $parsed -or $null -eq $parsed.head -or $null -eq $parsed.results) {
+            $keys = @()
+            if ($null -ne $parsed) {
+                $keys = @($parsed.PSObject.Properties.Name)
+            }
+            $keyText = if ($keys.Count -gt 0) { $keys -join "," } else { "<none>" }
+            throw "${Method} returned JSON without the SPARQL head/results envelope (top-level keys: ${keyText}); response values were not logged."
+        }
+
+        $script:SuccessfulContentType = $contentType
+        return $parsed
     }
 
-    $script:SuccessfulContentType = $contentType
-    return $parsed
+    $displayType = if ([string]::IsNullOrWhiteSpace($contentType)) { "<missing>" } else { $contentType }
+    throw "${Method} returned unsupported SPARQL result content type '${displayType}'; response body was not logged."
 }
 
 function Invoke-SafeSparqlRequest {
     $attemptErrors = @()
 
-    # Try the documented public endpoint as GET first. A HTTP 200 is not accepted until the
-    # response is verified as SPARQL Results JSON with the required envelope.
+    # EUKG currently returns standards-compliant SPARQL Results XML for GET even when JSON is
+    # requested. Accept either standard tuple-result serialization, but only after strict parsing.
     try {
         $getParameters = @{
             query = $Query
-            format = "application/sparql-results+json"
+            format = "application/sparql-results+xml"
         }
         $uri = New-QueryUri -BaseUri $Endpoint -Parameters $getParameters
         $webResponse = Invoke-WebRequest `
@@ -152,8 +243,8 @@ function Invoke-SafeSparqlRequest {
         $attemptErrors += Format-RequestFailure -Method "GET" -ErrorRecord $_
     }
 
-    # qEndpoint documents form-encoded POST with the Accept header controlling tuple-result
-    # serialization. Reuse the exact same allowlisted query; do not broaden the request.
+    # qEndpoint documents form-encoded POST. Reuse the exact same allowlisted query; do not
+    # broaden the request. JSON or XML is accepted only if it parses as SPARQL Results.
     try {
         $postParameters = @{
             query = $Query
@@ -220,7 +311,7 @@ Assert-AllowedVariables -Response $response
 $rows = @($response.results.bindings)
 
 [ordered]@{
-    probe_contract = "kohesio-pt2030-safe-project-smoke-v3"
+    probe_contract = "kohesio-pt2030-safe-project-smoke-v4"
     endpoint = $Endpoint
     transport = $script:SuccessfulTransport
     response_content_type = $script:SuccessfulContentType
