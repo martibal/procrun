@@ -45,9 +45,9 @@ unmatched scope span. The prompt includes the original span text plus an indexed
 indices are adapter-local evidence references; they do not replace the canonical character offsets in
 the accepted `ModelComponentProposal` contract.
 
-The complete request, including category selection rules, is part of the deterministic cache key. The
-adapter version is also bound into the key, so the v6 token-reference contract cannot reuse v5 cached
-outputs.
+The complete request, including category selection rules, is part of the deterministic cache key.
+Adapter v7 is separately bound into that key, so the model-neutral v7 prompt/cache contract cannot
+reuse v6 outputs.
 
 The model does not receive raw HTTP bodies, HTML, PDFs, procurement state, contact records,
 beneficiary contact data, or arbitrary source fields.
