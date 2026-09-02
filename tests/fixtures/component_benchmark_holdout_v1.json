@@ -1,0 +1,170 @@
+{
+  "schema_version": "component-benchmark-v1",
+  "language": "pt-PT",
+  "cases": [
+    {
+      "case_id": "holdout_water_plc",
+      "operation_code": "BENCH-H001",
+      "domains": ["water_wastewater"],
+      "scope_text": "A estação receberá um controlador lógico programável para comandar as bombas.",
+      "expected_proposals": [
+        {
+          "domain": "water_wastewater",
+          "category": "automation_control",
+          "start": 22,
+          "end": 52,
+          "source_text": "controlador lógico programável"
+        }
+      ]
+    },
+    {
+      "case_id": "holdout_water_turbidity",
+      "operation_code": "BENCH-H002",
+      "domains": ["water_wastewater"],
+      "scope_text": "Será instalado um analisador de turvação em linha no efluente final.",
+      "expected_proposals": [
+        {
+          "domain": "water_wastewater",
+          "category": "monitoring",
+          "start": 18,
+          "end": 49,
+          "source_text": "analisador de turvação em linha"
+        }
+      ]
+    },
+    {
+      "case_id": "holdout_rail_axle_counter",
+      "operation_code": "BENCH-H003",
+      "domains": ["rail_transport"],
+      "scope_text": "A modernização inclui contadores de eixos para deteção de ocupação da via.",
+      "expected_proposals": [
+        {
+          "domain": "rail_transport",
+          "category": "signalling",
+          "start": 22,
+          "end": 41,
+          "source_text": "contadores de eixos"
+        }
+      ]
+    },
+    {
+      "case_id": "holdout_rail_traction_transformer",
+      "operation_code": "BENCH-H004",
+      "domains": ["rail_transport"],
+      "scope_text": "Será montado um transformador de tração dedicado à alimentação elétrica ferroviária.",
+      "expected_proposals": [
+        {
+          "domain": "rail_transport",
+          "category": "electrification_catenary",
+          "start": 16,
+          "end": 39,
+          "source_text": "transformador de tração"
+        }
+      ]
+    },
+    {
+      "case_id": "holdout_port_fender",
+      "operation_code": "BENCH-H005",
+      "domains": ["ports_coastal"],
+      "scope_text": "O cais receberá defensas de atracação de alta energia para proteção das manobras.",
+      "expected_proposals": [
+        {
+          "domain": "ports_coastal",
+          "category": "equipment",
+          "start": 16,
+          "end": 53,
+          "source_text": "defensas de atracação de alta energia"
+        }
+      ]
+    },
+    {
+      "case_id": "holdout_port_revetment",
+      "operation_code": "BENCH-H006",
+      "domains": ["ports_coastal"],
+      "scope_text": "A intervenção prevê reconstrução do enrocamento do molhe norte.",
+      "expected_proposals": [
+        {
+          "domain": "ports_coastal",
+          "category": "marine_works",
+          "start": 20,
+          "end": 62,
+          "source_text": "reconstrução do enrocamento do molhe norte"
+        }
+      ]
+    },
+    {
+      "case_id": "holdout_energy_heat_recovery",
+      "operation_code": "BENCH-H007",
+      "domains": ["energy_efficiency"],
+      "scope_text": "Será instalada uma unidade de recuperação de calor no sistema de ventilação.",
+      "expected_proposals": [
+        {
+          "domain": "energy_efficiency",
+          "category": "hvac",
+          "start": 19,
+          "end": 50,
+          "source_text": "unidade de recuperação de calor"
+        }
+      ]
+    },
+    {
+      "case_id": "holdout_energy_glazing",
+      "operation_code": "BENCH-H008",
+      "domains": ["energy_efficiency"],
+      "scope_text": "O edifício receberá vidros duplos de baixa emissividade nas fachadas.",
+      "expected_proposals": [
+        {
+          "domain": "energy_efficiency",
+          "category": "insulation_envelope",
+          "start": 20,
+          "end": 55,
+          "source_text": "vidros duplos de baixa emissividade"
+        }
+      ]
+    },
+    {
+      "case_id": "holdout_fire_incident_software",
+      "operation_code": "BENCH-H009",
+      "domains": ["resilience_fire"],
+      "scope_text": "A central operacional terá software de gestão de ocorrências e mobilização de meios.",
+      "expected_proposals": [
+        {
+          "domain": "resilience_fire",
+          "category": "command_control",
+          "start": 27,
+          "end": 83,
+          "source_text": "software de gestão de ocorrências e mobilização de meios"
+        }
+      ]
+    },
+    {
+      "case_id": "holdout_fire_thermal_binocular",
+      "operation_code": "BENCH-H010",
+      "domains": ["resilience_fire"],
+      "scope_text": "As equipas serão dotadas de binóculos térmicos portáteis para deteção remota.",
+      "expected_proposals": [
+        {
+          "domain": "resilience_fire",
+          "category": "sensors_cameras",
+          "start": 28,
+          "end": 56,
+          "source_text": "binóculos térmicos portáteis"
+        }
+      ]
+    },
+    {
+      "case_id": "holdout_negative_undefined",
+      "operation_code": "BENCH-H011",
+      "domains": ["water_wastewater"],
+      "scope_text": "O projeto prevê análise interna de alternativas, sem equipamentos ou obras definidos.",
+      "expected_proposals": []
+    },
+    {
+      "case_id": "holdout_negative_training",
+      "operation_code": "BENCH-H012",
+      "domains": ["resilience_fire"],
+      "scope_text": "A operação cobre formação das equipas e revisão de procedimentos existentes.",
+      "expected_proposals": []
+    }
+  ]
+}
