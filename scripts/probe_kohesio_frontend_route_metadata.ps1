@@ -77,8 +77,61 @@ function Resolve-SafeAssetUri {
     return $resolved
 }
 
+function ConvertTo-BoundedCodeSnippet {
+    param(
+        [Parameter(Mandatory = $true)][string]$Text,
+        [Parameter(Mandatory = $true)][int]$Index,
+        [Parameter(Mandatory = $true)][int]$TokenLength,
+        [int]$Radius = 180
+    )
+
+    $start = [Math]::Max(0, $Index - $Radius)
+    $endExclusive = [Math]::Min($Text.Length, $Index + $TokenLength + $Radius)
+    $length = $endExclusive - $start
+    $snippet = $Text.Substring($start, $length)
+    $snippet = [System.Text.RegularExpressions.Regex]::Replace($snippet, '[\x00-\x1F\x7F]+', ' ')
+    $snippet = [System.Text.RegularExpressions.Regex]::Replace($snippet, '\s+', ' ').Trim()
+    if ($snippet.Length -gt 420) {
+        $snippet = $snippet.Substring(0, 420)
+    }
+    return $snippet
+}
+
+function Get-BoundedKeywordContexts {
+    param(
+        [Parameter(Mandatory = $true)][string]$Text,
+        [Parameter(Mandatory = $true)][string[]]$Keywords,
+        [int]$MaxPerKeyword = 3,
+        [int]$MaxTotal = 36
+    )
+
+    $contexts = @()
+    foreach ($keyword in $Keywords) {
+        $searchFrom = 0
+        $countForKeyword = 0
+        while ($searchFrom -lt $Text.Length -and $countForKeyword -lt $MaxPerKeyword) {
+            $index = $Text.IndexOf($keyword, $searchFrom, [System.StringComparison]::OrdinalIgnoreCase)
+            if ($index -lt 0) {
+                break
+            }
+
+            $contexts += [ordered]@{
+                keyword = $keyword
+                snippet = ConvertTo-BoundedCodeSnippet -Text $Text -Index $index -TokenLength $keyword.Length
+            }
+            $countForKeyword += 1
+            if ($contexts.Count -ge $MaxTotal) {
+                return $contexts
+            }
+            $searchFrom = $index + [Math]::Max(1, $keyword.Length)
+        }
+    }
+    return $contexts
+}
+
 # This probe retrieves only Kohesio frontend HTML and same-origin JavaScript assets referenced by it.
 # It never calls /api/projects, /api/data/object, SPARQL, CSV/XLSX/RDF distributions, or any project API.
+# Bounded snippets come only from frontend JavaScript source code and are capped in count and length.
 $indexResponse = Invoke-WebRequest `
     -Uri $IndexUri `
     -Method Get `
@@ -135,8 +188,26 @@ $parameterKeywords = @(
     "page",
     "size"
 )
+$contextKeywords = @(
+    "/api/",
+    "projects",
+    "project",
+    "countryCode",
+    "programmingPeriod",
+    "programming_period",
+    "fields",
+    "select",
+    "projection",
+    "queryParams",
+    "beneficiary",
+    "beneficiaries",
+    "beneficiaryIdentifier",
+    "uniqueIdentifier"
+)
 $assetResults = @()
 $allApiLiterals = @{}
+$totalContextCount = 0
+$MaxContextCountAcrossAssets = 48
 
 foreach ($assetUri in $assetUris) {
     $assetHeaders = @{
@@ -174,6 +245,17 @@ foreach ($assetUri in $assetUris) {
         }
     }
 
+    $remainingContexts = [Math]::Max(0, $MaxContextCountAcrossAssets - $totalContextCount)
+    $contexts = @()
+    if ($remainingContexts -gt 0) {
+        $contexts = @(Get-BoundedKeywordContexts `
+            -Text $text `
+            -Keywords $contextKeywords `
+            -MaxPerKeyword 2 `
+            -MaxTotal ([Math]::Min(24, $remainingContexts)))
+        $totalContextCount += $contexts.Count
+    }
+
     $assetResults += [ordered]@{
         path = $assetUri.AbsolutePath
         content_type = $contentType
@@ -181,17 +263,20 @@ foreach ($assetUri in $assetUris) {
         sha256 = Get-Sha256Hex -Bytes $bytes
         api_literals = @($literals.Keys | Sort-Object)
         parameter_keywords_present = $keywords
+        bounded_code_contexts = $contexts
     }
 }
 
 [ordered]@{
-    probe_contract = "kohesio-frontend-route-metadata-v2"
+    probe_contract = "kohesio-frontend-route-metadata-v3"
     index_uri = $IndexUri
     asset_base_uri = $assetBaseUri.AbsoluteUri
     index_sha256 = Get-Sha256Hex -Bytes ([System.Text.Encoding]::UTF8.GetBytes($html))
     project_api_called = $false
     distribution_body_fetched = $false
     javascript_asset_count = $assetResults.Count
+    bounded_context_count = $totalContextCount
+    bounded_context_limit = $MaxContextCountAcrossAssets
     api_literals = @($allApiLiterals.Keys | Sort-Object)
     assets = $assetResults
-} | ConvertTo-Json -Depth 10
+} | ConvertTo-Json -Depth 12
