@@ -357,7 +357,6 @@ def _invoke_llama(
             "0",
             "--single-turn",
             "--no-display-prompt",
-            "--no-show-timings",
             "--log-verbosity",
             "1",
             "--color",
