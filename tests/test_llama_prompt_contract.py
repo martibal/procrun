@@ -27,7 +27,7 @@ def test_prompt_requires_minimal_exact_evidence_and_explicit_abstention() -> Non
 
     prompt = _prompt(request)
 
-    assert LLAMA_ADAPTER_VERSION == "llama-component-benchmark-v6"
+    assert LLAMA_ADAPTER_VERSION == "llama-component-benchmark-v7"
     assert "inclusive start_token/end_token" in prompt
     assert "shortest contiguous token sequence" in prompt
     assert "Do not reproduce, translate, normalize" in prompt
@@ -37,4 +37,5 @@ def test_prompt_requires_minimal_exact_evidence_and_explicit_abstention() -> Non
     assert "maintenance" in prompt
     assert "generic or undefined technical activities" in prompt
     assert '"token_index":0' in prompt
+    assert "/no_think" not in prompt
     assert text in prompt
