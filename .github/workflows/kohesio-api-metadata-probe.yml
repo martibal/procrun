@@ -50,33 +50,33 @@ jobs:
 
             # Print only schema metadata when the response is recognisably OpenAPI/Swagger.
             python3 - "$tmp" "$path" <<'PY'
-import json
-import sys
+          import json
+          import sys
 
-filename, path = sys.argv[1:]
-try:
-    with open(filename, encoding="utf-8") as handle:
-        payload = json.load(handle)
-except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-    raise SystemExit(0)
+          filename, path = sys.argv[1:]
+          try:
+              with open(filename, encoding="utf-8") as handle:
+                  payload = json.load(handle)
+          except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+              raise SystemExit(0)
 
-if not isinstance(payload, dict):
-    raise SystemExit(0)
-if "openapi" not in payload and "swagger" not in payload:
-    raise SystemExit(0)
+          if not isinstance(payload, dict):
+              raise SystemExit(0)
+          if "openapi" not in payload and "swagger" not in payload:
+              raise SystemExit(0)
 
-paths = payload.get("paths")
-path_keys = sorted(paths) if isinstance(paths, dict) else []
-print(
-    "OPENAPI_METADATA",
-    f"source={path}",
-    f"openapi={payload.get('openapi')}",
-    f"swagger={payload.get('swagger')}",
-    f"path_count={len(path_keys)}",
-)
-for key in path_keys:
-    print("OPENAPI_PATH", key)
-PY
+          paths = payload.get("paths")
+          path_keys = sorted(paths) if isinstance(paths, dict) else []
+          print(
+              "OPENAPI_METADATA",
+              f"source={path}",
+              f"openapi={payload.get('openapi')}",
+              f"swagger={payload.get('swagger')}",
+              f"path_count={len(path_keys)}",
+          )
+          for key in path_keys:
+              print("OPENAPI_PATH", key)
+          PY
             rm -f "$tmp" "$headers"
           done
 
