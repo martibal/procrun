@@ -1,6 +1,6 @@
 # Local component-model benchmark adapter
 
-Status date: 2026-09-01.
+Status date: 2026-09-02.
 
 ## Purpose
 
@@ -28,8 +28,18 @@ The model receives only the already constructed `LocalModelRequest`:
 - unmatched allowlisted project-scope spans; and
 - allowed frozen component categories.
 
-It does not receive raw HTTP bodies, HTML, PDFs, procurement state, contact records, beneficiary
-contact data, or arbitrary source fields.
+Each allowed category is serialized with its human label and a computed model-facing
+`selection_rule`. The rules are frozen as
+`MODEL_CATEGORY_GUIDANCE_VERSION = "component-model-guidance-v1"` and cover the exact taxonomy.
+They define category boundaries rather than benchmark-case answers. Import fails if the guidance set
+and frozen taxonomy diverge.
+
+The complete request, including these selection rules, is part of the deterministic cache key. A
+change to category guidance therefore invalidates old cached model outputs without weakening runtime
+validation.
+
+The model does not receive raw HTTP bodies, HTML, PDFs, procurement state, contact records,
+beneficiary contact data, or arbitrary source fields.
 
 The prompt and JSON schema are temporary local files and are removed after each invocation.
 
@@ -62,8 +72,7 @@ Current deterministic generation settings are:
 - maximum proposals: 32.
 
 On POSIX/Linux, the benchmark child process also receives a hard address-space limit. The default is
-6144 MiB. On the 8 GiB CX33 target this deliberately leaves operating-system headroom. Passing this
-limit is part of the benchmark; it is not evidence that the current candidate already fits.
+6144 MiB. On the 8 GiB CX33 target this deliberately leaves operating-system headroom.
 
 ## Output contract
 
@@ -76,9 +85,13 @@ Generation is constrained to one JSON object containing only `proposals`. Every 
 - exact `source_text`.
 
 Python then validates the output again. A proposal fails closed if its domain/category pair was not
-allowed, its offsets are outside an unmatched request span, its source text is not the exact cited
-substring, extra fields are present, output is invalid UTF-8/JSON, configured byte limits are exceeded,
-or the process fails.
+allowed, its cited text is outside an unmatched request span, its source text does not exist as the
+cited request evidence, extra fields are present, output is invalid UTF-8/JSON, configured byte limits
+are exceeded, or the process fails.
+
+When generated `source_text` occurs exactly once in the supplied unmatched spans, the adapter may
+normalize incorrect model-provided absolute offsets to the uniquely determined exact source range.
+Ambiguous repeated text is rejected rather than guessed.
 
 An empty proposal list is valid. It means the fallback did not resolve that scope. It never means that
 no component exists.
@@ -88,7 +101,7 @@ no component exists.
 The optional cache key binds:
 
 - adapter version;
-- complete `LocalModelRequest`;
+- complete `LocalModelRequest`, including category selection rules;
 - model ID and artifact SHA-256;
 - `llama-cli` executable SHA-256;
 - deterministic inference settings; and
@@ -100,16 +113,31 @@ cache file therefore cannot bypass the source-span or taxonomy checks.
 Cache records are size-limited and the directory is capped at 256 JSON entries by default. Cache data
 is disposable runtime state and remains outside Git.
 
+## Primary and holdout evaluation
+
+The target-host run now executes both:
+
+- `component_benchmark_v1.json` as the primary diagnostic/regression corpus; and
+- `component_benchmark_holdout_v1.json` as a disjoint holdout corpus.
+
+Both are run in one ephemeral CX33 session against the same verified model/runtime. Separate corpus
+SHA-256 values, quality reports and GNU `time -v` resource reports are retained.
+
+Improvement on the primary corpus alone is not independent evidence because that corpus informed the
+error analysis that led to the taxonomy-guidance change. The holdout result must therefore be
+inspected separately.
+
 ## Production approval remains closed
 
 The candidate stays `BENCHMARK_CANDIDATE` until a later explicit decision. Before production approval,
 at minimum the following evidence is still required:
 
-1. a curated PII-safe Portuguese component-extraction benchmark with frozen expected components and
-   exact evidence spans;
-2. accuracy/error analysis, including false proposals and unresolved-rate behavior;
+1. a larger curated PII-safe Portuguese component-extraction evaluation set with frozen expected
+   components and exact evidence spans;
+2. accuracy/error analysis across primary and holdout data, including false proposals and unresolved
+   behavior;
 3. RAM and latency measurements on the actual target server;
-4. exact llama.cpp runtime/container provenance; and
+4. exact llama.cpp runtime/model/corpus provenance; and
 5. an explicit registry and governance change.
 
 No numeric quality threshold is invented here because the governing requirements have not frozen one.
