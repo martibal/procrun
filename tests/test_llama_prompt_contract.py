@@ -27,7 +27,7 @@ def test_prompt_requires_minimal_exact_evidence_and_explicit_abstention() -> Non
 
     prompt = _prompt(request)
 
-    assert LLAMA_ADAPTER_VERSION == "llama-component-benchmark-v4"
+    assert LLAMA_ADAPTER_VERSION == "llama-component-benchmark-v5"
     assert "shortest contiguous phrase" in prompt
     assert "never copy the surrounding sentence" in prompt
     assert "absolute offsets" in prompt
