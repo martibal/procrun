@@ -1,18 +1,15 @@
-# Phase C component engine
+# ProcRun component engine
 
-Status date: 2026-09-01.
+Status date: 2026-09-03
+Status: **CANONICAL FOR FUNDED-PROJECT RUNWAY**
 
 ## Governing rule
 
-Product Requirements v1.0 makes component decomposition a core product requirement. The MVP must
-run deterministic phrase/rule extraction first. A local model may later propose additional components
-and supporting source spans, but it may never assign OPEN, CLOSED or PARTIAL.
+The component engine converts only approved funded-project scope text into evidence-backed purchasable component categories. It is not a generic LLM decomposition layer and it is not a TED-only demand extractor.
 
 Current deterministic rule version: `component-taxonomy-v1`.
 
 ## Frozen initial domains
-
-The initial taxonomy mirrors the five infrastructure domains in Product Requirements v1.0:
 
 - `water_wastewater`
 - `rail_transport`
@@ -20,67 +17,54 @@ The initial taxonomy mirrors the five infrastructure domains in Product Requirem
 - `energy_efficiency`
 - `resilience_fire`
 
-Each domain has explicit component families, Portuguese/English phrase rules and optional CPV-prefix
-hints. Domain selection is an explicit input to the extractor. The rule engine does not infer a domain
-from arbitrary free text because an incorrect domain guess could silently omit purchasable scope.
+Each domain has explicit Portuguese/English phrase rules and optional CPV hints. Domain selection is explicit input; the engine does not silently guess a domain from arbitrary text.
 
-## Evidence spans
+## Evidence contract
 
-A deterministic match retains the exact contiguous source-text sentence that justified the component,
-including source offsets. The persisted `PurchaseComponent.scope_evidence` is the first exact span;
-the extraction result retains every matching span for canonicalisation and later evidence-ledger use.
+Every accepted deterministic component retains the exact contiguous source-text sentence that justified it, including source offsets. Multiple matches for the same domain/category canonicalise to one component while preserving all evidence spans.
 
 Component IDs are deterministic SHA-256-derived identifiers over:
 
 `rule_version | operation_code | domain | category`
 
-This keeps IDs stable across reruns when source content and rules are unchanged.
+A component label is a ProcRun transformation, not a verbatim source fact. Customer-facing trust language must therefore say that the component is **source-evidenced**, not that the source itself published the canonical ProcRun category.
 
-## Canonicalisation
+## Zero-invented-demand invariant
 
-Multiple phrase hits for the same domain/category produce one component. Evidence spans are deduplicated
-and sorted by source position. Different domains remain namespaced so a multi-domain project can retain,
-for example, both port and building photovoltaic scope without collapsing unrelated component context.
+A component may exist only when:
+
+1. a deterministic frozen rule matches accepted project scope; or
+2. an approved local-model fallback proposes a frozen category and an exact verbatim source span, and deterministic validation accepts both.
+
+No evidence span means no accepted component. Unsupported model text is rejected.
+
+## Unmatched scope
+
+The deterministic dictionary is not assumed complete. Every non-empty source sentence without a deterministic match is retained as `unmatched_scope_span` and sets `model_fallback_required=True`.
+
+No deterministic match never means `no components` or `no demand`.
 
 ## Local-model handoff
 
-The deterministic engine does not claim that a phrase dictionary is complete. Every non-empty source
-sentence that has no deterministic component match is returned as an exact `unmatched_scope_span` and
-sets `model_fallback_required=True`.
+A production-approved model may only:
 
-The later local-model stage may only:
+- inspect already allowlisted project scope text;
+- propose a category from the frozen taxonomy;
+- return the exact supporting source span;
+- submit the proposal to deterministic canonicalisation.
 
-1. inspect already allowlisted scope text;
-2. propose a component label/category;
-3. return the exact supporting source span; and
-4. submit the proposal to deterministic canonicalisation.
-
-It may not create procurement evidence or set OPEN/CLOSED/PARTIAL. If a component boundary remains
-ambiguous after fallback, downstream classification must remain `UNRESOLVED`.
+It may not create source text, assign procurement evidence, set component state, set project state or override matching/coverage gates. Ambiguous output remains unresolved.
 
 ## CPV use
 
-CPV prefixes are category hints, not standalone closure evidence. Product Requirements v1.0 requires
-CPV/category agreement only as one element of the Tier B/C matching hierarchy; a CPV match by itself
-must never set a component to CLOSED.
-
-The CPV hierarchy follows the official EU Common Procurement Vocabulary. The regulation defines the
-first two digits as divisions, then progressively more specific groups/classes/categories. Initial
-precise mappings used here include, among others, pumps (`42122`), valves (`42131`), water-treatment
-equipment (`429123`), railway signalling (`34942` / `45234115`), track works (`45234116`), level
-crossings (`45234140`), catenary (`45234160`), photovoltaic modules (`093312`), HVAC (`45331`),
-insulation (`4532`), lighting (`315`), energy-efficiency consultancy (`713143`), surveillance sensors
-(`35125`) and emergency-service vehicles (`341442`).
-
-Official reference:
-
-`https://eur-lex.europa.eu/eli/reg/2008/213/oj/eng`
+CPV prefixes are category hints, never standalone evidence that a funded-project component has entered procurement. The current precise mappings include pumps, valves, water-treatment equipment, railway signalling/track/catenary, photovoltaic systems, HVAC, insulation, lighting, energy-efficiency consultancy, surveillance sensors and emergency-service vehicles.
 
 ## Fail-closed invariants
 
-- An empty domain list is rejected rather than guessed.
-- No deterministic matches means local fallback is required; it never means “no components”.
-- Unmatched source sentences are retained for fallback rather than discarded.
-- Rule extraction never assigns procurement state.
-- CPV prefix agreement never establishes CLOSED by itself.
-- Model output, when implemented, cannot bypass evidence-span or classification rules.
+- Empty domain input is rejected rather than guessed.
+- No deterministic match triggers unresolved/fallback handling, never absence-of-demand.
+- Exact source spans are retained and hash/version bound.
+- Component extraction never assigns OPEN/CLOSED.
+- CPV agreement never establishes CLOSED by itself.
+- Model output cannot bypass exact-span/category validation.
+- Taxonomy changes require explicit versioning and regression tests.

@@ -1,383 +1,245 @@
 # ProcRun — final product foundation
 
-Status: **READY FOR WEBSITE BUILD**
+Status: **READY FOR PRODUCT BUILD; LIVE RUNWAY INGEST SUBJECT TO A1**
 Date: 2026-09-03
 
-This document is the canonical product definition for the first customer-facing ProcRun web application.
+This document is the canonical product definition. It supersedes the TED-only v2/v2.1 product promise wherever they conflict. Phase 0B and Phase 0C remain valid failed tests of that retired TED-only mechanism.
 
-It supersedes earlier funded-project-first and TED-v2 product promises wherever they conflict with this document. Failed Phase 0B and Phase 0C results remain valid historical evidence and are not relabelled as PASS.
+## 1. Product definition
 
-## 1. Product decision
-
-ProcRun will be built as a **vertical infrastructure procurement intelligence product for suppliers**, using the production-safe TED Search API as the source foundation.
-
-The product promise is deliberately narrower than the failed v2 hypothesis:
-
-> **ProcRun turns public infrastructure procurement into a focused supplier intelligence feed: active opportunities, evidence-backed demand tags where they can be proven, and market context from the same procurement universe.**
-
-ProcRun does not promise complete component decomposition of every notice. It does not promise hidden requirements, pre-tender runway, or comprehensive EU-funded-project discovery.
+ProcRun is a supplier-side infrastructure procurement runway product.
 
 Canonical pipeline:
 
-`TED notice -> infrastructure opportunity -> structured procurement fields -> evidence-backed demand tags where present -> supplier relevance -> market context -> customer feed`
+`approved funded project -> source-evidenced purchasable components -> approved procurement evidence -> conservative matching -> component OPEN/CLOSED/UNRESOLVED -> project OPEN/PARTIAL/CLOSED/UNRESOLVED -> customer runway`
 
-## 2. Why this product is buildable now
+Primary customer promise:
 
-The website is built only on capabilities already established by the source and validation work:
+> **See what an approved infrastructure project is expected to buy, what ProcRun can prove has already entered procurement, and what remains without a verified procurement match as of the stated date.**
 
-- TED is a production-usable source under ProcRun's field-bounded, pre-receipt zero-PII rules;
-- Portugal has a substantial active infrastructure notice population;
-- active infrastructure notice feed is supported;
-- procurement market-intelligence dataset is supported;
-- title and description are available in the approved source projection;
-- structured CPV, geography, procedure/stage and estimated value are available with known completeness;
-- the deterministic text layer repeatedly found evidence-backed normalized requirements in a material subset of notices;
-- the CPV-blind signal reproduced across two disjoint 300-notice samples, but taxonomy breadth did not satisfy the stricter v2 gate.
+ProcRun is not a general tender portal, CRM, bid writer, buyer-intelligence suite or AI GO/NO-GO scorer.
 
-Therefore demand tags are a **bounded enrichment**, not the sole commercial mechanism and not a completeness claim.
+## 2. Core commercial differentiation
 
-## 3. Commercial positioning
+The product is differentiated by a combination that ordinary tender monitoring does not provide:
 
-ProcRun is not positioned as a general tender portal, CRM or bid-writing suite.
+1. **Project-before-procurement unit of analysis.** The commercial object starts with the funded infrastructure project, not the tender.
+2. **Component-level runway.** ProcRun decomposes explicit funded-project scope into separately purchasable product/system categories and tests each one against procurement evidence.
+3. **Evidence-first positive claims.** Every accepted component and every accepted procurement match retains exact supporting source evidence, source identity, observation cutoff, method/version and immutable hash reference.
+4. **Conservative abstention.** Ambiguous component boundaries, review-band matches or incomplete required source coverage produce `UNRESOLVED`, not a lead.
+5. **Historical reproducibility.** A customer-visible state can be reconstructed for the exact historical cutoff and rule/model version.
+6. **Narrow initial scope.** Portugal infrastructure is a deliberate evidence-quality boundary, not a claim that breadth is unimportant.
 
-The category is:
+This is not positioned as "better AI tender matching". Competitors may cover more countries, buyer intelligence, qualification and bid workflows. ProcRun's contract is different: **remaining procurement runway with auditable evidence and explicit abstention**.
 
-> **Infrastructure procurement intelligence for suppliers.**
+## 3. Trust / zero-unsupported-inference contract
 
-Primary sales line:
+Marketing may say:
 
-> **From tenders to infrastructure demand.**
+> **No invented demand. Source evidence for every positive component and procurement match.**
 
-Supporting explanation:
+The stronger phrase `100% source-verified` is allowed only when attached to a positive evidence object that satisfies the evidence contract. It must not be used as a blanket claim that every state is a source fact.
 
-> ProcRun gives suppliers one focused view of Portugal's public infrastructure procurement: what is active, which product or system categories are explicitly evidenced in the notice, and how that activity sits inside the wider market.
+`OPEN` is a bounded negative-search conclusion. Customer wording is frozen as:
 
-The strategic differentiation is the combination of four choices:
+> **No relevant procurement found in approved indexed sources as of DATE.**
 
-1. **Infrastructure-only focus.** ProcRun is not a universal public-sector tender inbox.
-2. **Supplier-side view.** The product is designed for manufacturers, OEMs, distributors, technical wholesalers, systems suppliers and specialist subcontractors, including firms that may never be the prime bidder.
-3. **Evidence-backed demand enrichment.** Product/system tags appear only when the source text supports them; every tag can be traced back to evidence.
-4. **Opportunity + market context in one workflow.** The same approved procurement universe powers both the active feed and historical market-intelligence views.
+An OPEN component is permitted only when required source coverage is complete at that cutoff. If coverage is incomplete, the component is `UNRESOLVED`.
 
-This is the differentiation strategy to use in sales. Do not claim that no competitor can perform any of these individual functions. The product advantage is the narrow supplier workflow and infrastructure-specific combination.
+No probabilistic fit score, win probability or AI confidence score is part of the product contract.
 
-## 4. Target customer
+## 4. State ontology
 
-Primary ICP:
+### Component states
 
-- manufacturers and OEMs supplying infrastructure equipment;
-- distributors and technical wholesalers;
-- systems and integration suppliers;
-- specialist infrastructure subcontractors;
-- commercial teams responsible for Portugal public-infrastructure demand.
+- **CLOSED** — accepted Tier A/B procurement evidence shows that the specific component has entered procurement at/before cutoff.
+- **OPEN** — no relevant procurement was found for the component in approved indexed sources as of cutoff and required source coverage is complete.
+- **UNRESOLVED** — ambiguity, review-band evidence, source incompleteness or insufficient evidence prevents a safe OPEN/CLOSED decision.
 
-The product is especially relevant when the customer's commercial opportunity exists inside a larger public contract and the customer may not be the entity bidding for the prime contract.
+### Project states
 
-The MVP is not designed primarily for procurement lawyers, public buyers, generalist tender consultants, or bid-writing agencies.
+- **CLOSED** — all assessed components are CLOSED.
+- **OPEN** — all assessed components are OPEN.
+- **PARTIAL** — assessed component states differ, including OPEN/CLOSED or CLOSED/UNRESOLVED mixtures.
+- **UNRESOLVED** — no components exist or all assessed components remain unresolved.
 
-## 5. Customer jobs
+False OPEN is the highest-cost classification error. The system therefore sacrifices recall before it sacrifices this invariant.
 
-A customer should be able to answer these questions quickly:
+## 5. Initial domains
 
-- What relevant public infrastructure procurements are active now?
-- Which of them fit the categories, CPVs, regions and value ranges I care about?
-- Which product/system demand tags are explicitly evidenced in the notice?
-- What exact source text supports that interpretation?
-- Is current activity high or low relative to recent history?
-- Which infrastructure domains, categories, regions and value bands are generating the most procurement activity?
-- Which opportunities should I save, review or export for my own sales workflow?
+The initial supported infrastructure domains remain:
 
-## 6. MVP product surfaces
+- water and wastewater;
+- rail/transport;
+- ports/coastal;
+- energy efficiency/electrical systems;
+- resilience/fire.
 
-### 6.1 Public website
+The frozen component taxonomy and deterministic extraction rules are defined in `COMPONENT_ENGINE.md` and code. Expansion requires explicit versioning, evidence and regression tests.
 
-Routes:
+## 6. Sources
 
-- `/` — landing page;
-- `/product` — product explanation;
-- `/methodology` — source, evidence and limitations;
-- `/pricing` — package and included features;
-- `/login` — authentication entry point.
+### 6.1 Funded-project source
 
-### 6.2 Authenticated application
+A funded-project source must satisfy A1 before live use: RIGHTS, ACCESS and DATA SAFETY all approved, including the absolute pre-receipt natural-person boundary for every retained structured/free-text field.
 
-Routes:
+Current PRR/dados.gov.pt evidence is strong enough to keep the route as the preferred production candidate: official national open-data publisher, daily PRR project dataset, separate Projects and Entities resources, portal rule that datasets may not contain personal data, and default CC BY 4.0 for State datasets unless otherwise specified. ProcRun's stricter rule still requires exact source-specific machine-route/free-text safety proof before activation. Until that is frozen, the collector stays disabled.
 
-- `/app` — opportunity feed;
-- `/app/opportunities/[id]` — opportunity detail;
-- `/app/market` — market intelligence;
-- `/app/profile` — supplier profile/preferences;
-- `/app/saved` — saved opportunities;
-- `/app/account` — account/billing shell.
+The product definition does not change if the finally approved funded-project transport is PRR Projects or another authoritative route; the source must implement the same canonical `FundingProject` contract.
 
-## 7. Opportunity feed
+### 6.2 Procurement evidence
 
-Default feed:
+TED Search API remains APPROVED for field-bounded procurement evidence and market context. Its Phase 0 qualification supports active infrastructure procurement and historical market analysis; it does not independently support early-runway discovery or comprehensive EU-funding linkage.
 
-- country: Portugal;
-- active/current procurement stages only;
-- infrastructure universe only;
-- newest first;
-- supplier relevance applied where profile exists;
-- result/award notices excluded from the default active view;
-- last-refresh and data-through timestamps visible.
+Additional procurement sources may be activated only through the same source-contract registry and pre-receipt safety gates.
 
-Filters:
+## 7. Canonical customer objects
 
-- infrastructure domain;
-- demand tag/category where present;
-- CPV;
-- region/NUTS subdivision;
-- estimated-value band where available;
-- publication date;
-- procedure/notice stage;
-- saved/not saved.
+### FundingProject
 
-Each feed card shows only fields supported by the customer-safe read model:
+Required fields: stable source ID/operation code, project title, approved scope text, start/end dates where available, approved funding/value fields, programme/component/investment classification where available, source observation timestamp and immutable version/hash.
 
-- notice title;
-- publication date;
-- stage;
-- infrastructure domain;
-- region where available;
-- estimated value/currency where available;
-- relevant CPV family;
-- supplier relevance band/reason;
-- evidence-backed demand tags where present;
-- source/evidence link.
+No beneficiary/contact/person identity is part of the analytical contract.
 
-The absence of demand tags must be shown as neutral, not as evidence that no component demand exists.
+### PurchaseComponent
 
-## 8. Demand tags
+Required fields: deterministic component ID, domain, canonical category, display label, exact project-scope evidence span, extraction method/version, source cutoff and immutable version/hash.
 
-Demand tags are a bounded enrichment layer.
+### ProcurementEvidence
 
-Rules:
+Required fields: approved source/publication identifier, publication date, accepted procurement scope evidence, approved CPV/category context, match tier/reasons, observation timestamp and immutable version/hash.
 
-- a tag may be shown only when supported by accepted source text;
-- exact evidence span is retained;
-- extraction method/version is retained;
-- no tag may be invented from unsupported inference;
-- no customer-facing claim of complete component coverage;
-- no claim that the tag was hidden from the notice title;
-- no claim that every relevant supplier requirement has been identified;
-- unmatched notices remain valid opportunities and remain in the feed.
+### ComponentAssessment
 
-Customer wording:
+Required fields: component ID, historical cutoff, `OPEN|CLOSED|UNRESOLVED`, exact evidence references, required-source coverage status, rationale, rule/model versions and deterministic classification hash where implemented.
 
-- use **"Demand identified"**, **"Product/system tags"** or **"Evidence-backed demand"**;
-- do not use **"complete bill of materials"**, **"all components"**, **"hidden demand"** or equivalent completeness language.
+### ProjectAssessment
 
-## 9. Supplier relevance
+Required fields: operation code, historical cutoff, `OPEN|PARTIAL|CLOSED|UNRESOLVED`, component assessments and immutable version/hash where implemented.
 
-Supplier profile is intentionally lightweight.
+## 8. Matching contract
 
-Customer selects:
+The hierarchy in `MATCHING_RULES.md` is canonical.
 
-- infrastructure domains;
-- product/system categories from the supported taxonomy;
-- optional CPV families;
-- preferred Portuguese regions;
-- optional value range.
+- Tier A/B may close a component only with explicit evidence and required corroboration.
+- Tier C is review-only and yields `UNRESOLVED`.
+- semantic similarity alone never closes a component.
+- a shared project identifier alone never closes every component of a multi-component project.
+- post-cutoff procurement cannot rewrite an earlier historical state.
 
-Relevance bands:
+## 9. Model boundary
 
-- High;
-- Medium;
-- Low;
-- Not relevant.
+Deterministic extraction is primary. A local model may only inspect already-approved source text and propose a frozen category plus an exact source span. Deterministic validation must confirm that the returned span exists verbatim in the source input and that the label is permitted.
 
-Relevance is explainable. A customer can see which selected domain/category/CPV/geography rule produced the match.
+The model may not create source text, assign procurement state, manufacture a match, convert ambiguity to OPEN or bypass ledger/evidence validation. Production model activation remains benchmark-gated.
 
-Demand tags strengthen relevance where present, but supplier relevance must not require a demand tag. CPV/domain/geography matches remain valid because the active-feed value proposition is broader than the failed complete-decomposition hypothesis.
+## 10. Customer workflow
 
-Do not expose fake probabilistic scores.
+The authenticated product centers on:
 
-## 10. Opportunity detail
+- `/app` — runway feed;
+- `/app/projects/[id]` — funded-project and project-state detail;
+- `/app/components/[id]` — component evidence/history;
+- `/app/market` — procurement/funding market context;
+- `/app/profile` — supplier category/domain profile;
+- `/app/saved` — saved projects/components;
+- `/app/account` — control-plane account/billing.
 
-The detail page contains:
+Public routes remain `/`, `/product`, `/methodology`, `/pricing`, `/login`, with `/terms` and `/privacy` required before paid release.
 
-- title and publication date;
-- customer-readable stage;
-- notice/procedure identifiers allowed by the safe source contract;
-- CPV classification;
-- infrastructure domain;
-- geography where available;
-- estimated value and currency where available;
-- procedure type/contract nature where available;
-- evidence-backed demand tags where present;
-- exact supporting evidence for each tag;
-- why this matched the supplier profile;
-- source provenance and observation timestamp;
-- save/export actions.
+## 11. Runway feed
 
-The page must clearly distinguish source facts from ProcRun classifications/enrichments.
+The default feed shows only customer-safe assessments. Each item communicates:
 
-## 11. Market intelligence
+- funded project;
+- project dates/value where approved;
+- component/category;
+- component state and historical cutoff;
+- project state;
+- exact project-scope evidence;
+- accepted procurement evidence when CLOSED;
+- bounded OPEN wording when OPEN;
+- source coverage status;
+- last observation and immutable version/hash.
 
-The market view is a first-class product surface, not a later add-on.
+`UNRESOLVED` components are visible in project detail/diagnostics but may be hidden from the commercial default feed.
 
-Initial views:
+## 12. Supplier relevance
 
-- notice count over time;
-- estimated procurement value over time with completeness disclosure;
-- activity by infrastructure domain;
-- activity by CPV family;
-- activity by region;
-- activity by procedure/stage;
-- activity by demand tag where evidence-backed tags exist;
-- active vs historical/result activity.
+Supplier relevance is deterministic and profile-based. It may use selected domains/categories, approved CPV families and geography/value preferences. Relevance is not a probability and cannot override component/project evidence state.
 
-All charts derive from the same approved TED infrastructure universe as the opportunity feed.
+The product may prioritize source-evidenced OPEN components for a supplier, but every reason must be inspectable.
 
-Missing estimated values are never treated as zero. Every value-based view exposes populated-record count/share.
+## 13. Market context
 
-## 12. Evidence contract
+TED can power procurement activity/time/value/category views with missingness disclosures. Funded-project aggregates may be added only after the funded-project source is A1-approved. Market context is secondary to runway and must not become a substitute TED-only product.
 
-Every customer-visible ProcRun enrichment must be auditable.
+## 14. Website claims
 
-Minimum evidence fields:
+Allowed after A1 source activation:
 
-- TED publication identifier;
-- publication date;
-- observation/as-of timestamp;
-- source field;
-- exact source text/span for demand tags;
-- extraction/classification method and version;
-- immutable hash/version reference where implemented.
-
-The UI should make evidence accessible without forcing the customer to read the entire raw notice.
-
-## 13. Data and privacy boundary
-
-Absolute rule:
-
-> **No natural-person data may be collected, stored or processed in the ProcRun intelligence plane.**
-
-This remains a pre-receipt requirement.
-
-The customer intelligence plane excludes buyer contact people, supplier/winner people, personal email, phone, personal addresses, signatures and equivalent identifiers.
-
-Account, authentication, billing and support data belong to a separate control plane and must not enter the intelligence ledger/model context.
-
-The browser never receives raw TED responses.
-
-## 14. Claims allowed on the website
-
-Allowed:
-
-- focused Portugal public-infrastructure procurement feed;
-- infrastructure-specific supplier intelligence;
-- evidence-backed demand tags where identified;
-- filters by supported structured procurement fields;
-- historical procurement market intelligence from the same source universe;
-- evidence/provenance for ProcRun enrichments;
-- supplier relevance based on explicit profile criteria.
+- approved funded-project scope translated into source-evidenced purchasable components;
+- exact evidence for every accepted component and positive procurement match;
+- conservative component OPEN/CLOSED/UNRESOLVED semantics;
+- conservative project OPEN/PARTIAL/CLOSED/UNRESOLVED semantics;
+- historical cutoff/version reproducibility;
+- supplier-side view of remaining procurement runway;
+- Portugal infrastructure focus.
 
 Not allowed:
 
-- complete component decomposition;
-- guaranteed discovery of every commercial requirement;
-- reliable months-before-tender lead discovery;
-- comprehensive EU-funded-project coverage;
-- complete coverage of all Portuguese public procurement outside the implemented TED source universe;
-- contact-person intelligence;
-- supplier/winner intelligence;
-- win probability;
-- bid eligibility guarantee;
-- TED/EU endorsement;
-- real-time claims unless scheduler latency actually supports them.
+- "we know no procurement exists";
+- blanket `100% accurate` or `trust blindly` language;
+- complete bill of materials;
+- guaranteed discovery of every future purchase;
+- probabilistic GO/NO-GO or win probability;
+- unsupported months-ahead lead-time claims;
+- person/contact intelligence;
+- source/EU endorsement.
 
-## 15. Landing-page message hierarchy
+## 15. Landing-page hierarchy
 
-The first screen should communicate:
+Eyebrow: `Infrastructure procurement runway for suppliers`
 
-**Eyebrow:** `Infrastructure procurement intelligence for suppliers`
+Headline: `See what funded projects still have left to buy.`
 
-**Headline:** `From tenders to infrastructure demand.`
+Subheadline: `ProcRun turns explicit project scope into source-evidenced components, checks them against indexed procurement, and shows the remaining runway with the evidence beside every positive claim.`
 
-**Subheadline:** `See active public infrastructure procurement in Portugal, the product and system demand ProcRun can prove from the notice, and the market context behind it.`
+Trust strip: `No invented demand · Exact source evidence · Ambiguity stays unresolved`
 
-Primary CTA before paid launch: `View sample` or `Join early access`.
+The product demonstration must show three layers together: project-scope span, procurement evidence where present, and the bounded component/project state that follows.
 
-After payment activation: `Start ProcRun Portugal`.
+## 16. Packaging
 
-Second message:
+Launch package remains **ProcRun Portugal — €149/month** unless later commercial evidence changes it.
 
-> `Not another general tender inbox. ProcRun is built for companies that sell into infrastructure projects — including suppliers that may never bid for the prime contract themselves.`
+MVP includes one workspace/profile, runway feed, project/component detail, evidence history, saved items, market context and customer-safe CSV export. No permanent free tier.
 
-Third message should demonstrate one opportunity card and one evidence-backed demand tag with the source evidence beside it.
-
-Market-intelligence proof follows after the opportunity example.
-
-## 16. Commercial package
-
-Launch package:
-
-> **ProcRun Portugal — €149/month**
-
-Includes:
-
-- one supplier workspace/profile;
-- active Portugal infrastructure opportunity feed;
-- evidence-backed demand tags where available;
-- supplier relevance and filters;
-- opportunity detail/evidence;
-- saved opportunities;
-- market-intelligence dashboard;
-- customer-safe CSV export.
-
-No permanent free tier.
-
-Before checkout is activated, sample/demo content must be synthetic or explicitly approved for customer publication.
+Checkout stays disabled until A19 and live source A1 are both green.
 
 ## 17. What not to build
 
-Do not spend MVP time on:
+Do not build generic all-sector tender aggregation, AI bid writing, CRM, buyer/contact-person databases, generic buyer intelligence, win probability, broad-EU expansion or a TED-only demand feed as the core product.
 
-- generic all-sector tender aggregation;
-- CRM;
-- bid writing;
-- contact database;
-- buyer-person discovery;
-- supplier/winner database;
-- procurement submission workflow;
-- AI proposal generation;
-- win probability;
-- broad EU expansion;
-- resurrecting funded-project source discovery;
-- trying to force every notice through a complete component taxonomy.
+## 18. Phase 0B/0C treatment
 
-## 18. Website implementation order
+Phase 0B and Phase 0C remain FAIL for the TED-only demand-extraction product hypothesis. Their reproducible CPV-blind signal may be used as bounded procurement-text enrichment, never as evidence that the failed TED-only product passed.
 
-1. web application shell and design system;
-2. customer-safe opportunity read model/API;
-3. landing, product, methodology and pricing pages;
-4. supplier profile/preferences;
-5. active opportunity feed and filters;
-6. opportunity detail and evidence view;
-7. market-intelligence dashboard;
-8. saved opportunities and CSV export;
-9. account/billing shell;
-10. paid-release hardening.
+## 19. Production implementation order
 
-## 19. Definition of build-ready
+1. lock this product/source contract and regression tests;
+2. build the `FundingProject` ingress interface with fail-closed source activation;
+3. wire the existing component engine and immutable ledger to the canonical project object;
+4. wire approved TED procurement evidence and the conservative matching hierarchy;
+5. expose the customer-safe runway read model/API;
+6. build public pages and authenticated feed/detail/evidence UX;
+7. add market context, saved/export and account shell;
+8. activate a funded-project collector only after A1 is approved;
+9. complete A19 paid-release controls;
+10. enable checkout.
 
-The product-definition phase is complete when this document, aligned README and build gates are merged with green CI.
+## 20. Authoritative build decision
 
-After that point:
+Only `BUILD_GATES.md` A20 can declare build readiness. No README, historical product document or test result may independently override A20.
 
-- do not add another product-feasibility test before starting the web application;
-- do not reopen Portugal/Italy/Poland funded-project discovery for the MVP;
-- do not reinterpret Phase 0B or Phase 0C as PASS;
-- implementation findings may refine UX and engineering details, but not silently broaden customer claims beyond this contract.
-
-## 20. Final decision
-
-**BUILD.**
-
-ProcRun's first sellable form is not "complete tender decomposition" and not "pre-tender runway".
-
-It is a focused supplier-side infrastructure procurement intelligence product that combines a validated active TED infrastructure feed, structured procurement data, bounded evidence-backed demand enrichment, supplier relevance and historical market context.
-
-That is the product the web application should now implement.
+**Decision: BUILD the product now; keep live funded-project ingestion and paid production fail-closed until their explicit gates are green.**

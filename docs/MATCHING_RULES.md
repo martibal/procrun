@@ -1,63 +1,76 @@
-# Phase B matching rules
+# ProcRun procurement matching rules
 
-Status date: 2026-09-01.
+Status date: 2026-09-03
+Status: **CANONICAL FOR FUNDED-PROJECT RUNWAY**
+Current rule version: `phase-b-conservative-v1`
 
 ## Governing rule
 
-Product Requirements v1.0 freezes the candidate hierarchy and state semantics, but it does **not** freeze a numeric match score, CLOSED threshold or numeric review band. The implementation must not manufacture one.
+ProcRun tests each source-evidenced funded-project component against approved procurement evidence. It does not manufacture a numeric confidence score or turn semantic similarity into a procurement fact.
 
-Current rule version: `phase-b-conservative-v1`.
+Component states are `OPEN`, `CLOSED` and `UNRESOLVED`. `PARTIAL` is a project-level aggregate state when a project's component states differ; it is not currently a component state.
 
-## Candidate hierarchy
-
-### Tier A — automatic high confidence
+## Tier A — automatic high confidence
 
 A candidate may enter Tier A only when:
 
 - a deterministic project/funding identifier matches;
-- procurement scope has high overlap with the specific component being assessed; and
+- procurement scope has high overlap with the specific component being assessed;
 - the date window is compatible.
 
-An operation-code match alone does not close every component in a multi-component project.
+An operation-code match alone never closes every component in a multi-component project.
 
-### Tier B — automatic high confidence
+## Tier B — automatic high confidence
 
-All of the following are required:
+All are required:
 
 - contracting-authority organisation match;
 - geography match;
 - high component-scope overlap;
-- CPV/category agreement; and
+- CPV/category agreement;
 - compatible date window.
 
 Complete Tier A or Tier B evidence at/before cutoff may set the component to `CLOSED`.
 
-### Tier C — review band
+## Tier C — review only
 
-Tier C requires project-title/location support, high scope overlap, CPV/category agreement, compatible dates and corroborating amount/date evidence.
+Tier C requires title/location support, high scope overlap, CPV/category agreement, compatible dates and corroborating amount/date evidence.
 
-Because v1.0 does not freeze the numeric CLOSED threshold for Tier C, a qualifying Tier C candidate is deliberately `REVIEW`, not automatically `CLOSED`. A pre-cutoff Tier C candidate therefore makes the component `UNRESOLVED`, never `OPEN`.
+Tier C is deliberately `REVIEW`, never automatic CLOSED. A pre-cutoff Tier C candidate makes the component `UNRESOLVED`, never OPEN.
 
-A later Product Requirements version may promote a formally validated Tier C threshold. That change must be explicit and regression-tested; it must not appear as an undocumented code-tuning change.
+## Tier D — rejected for closure
 
-### Tier D — rejected for CLOSED
+Semantic similarity alone is Tier D and is never sufficient for CLOSED. The current baseline rejects it rather than promoting it into a confidence score.
 
-Semantic similarity alone is Tier D and is never sufficient for `CLOSED`. Under the current deterministic baseline it is rejected rather than treated as a review-band match.
-
-## Component state order
+## Component-state decision order
 
 For each component and historical cutoff:
 
-1. If the component boundary itself is ambiguous: `UNRESOLVED`.
-2. Else if at least one Tier A/B high-confidence pre-cutoff record covers it: `CLOSED`.
-3. Else if at least one Tier C pre-cutoff candidate is in review: `UNRESOLVED`.
-4. Else if required source coverage is incomplete: `UNRESOLVED`.
-5. Else: `OPEN`, with the bounded wording “No relevant procurement found in indexed sources as of DATE.”
+1. ambiguous component boundary -> `UNRESOLVED`;
+2. accepted Tier A/B pre-cutoff evidence -> `CLOSED`;
+3. Tier C pre-cutoff review candidate -> `UNRESOLVED`;
+4. incomplete required source coverage -> `UNRESOLVED`;
+5. otherwise -> `OPEN`.
 
-Coverage completeness is required for `OPEN`, but not for `CLOSED`: one demonstrably covering pre-cutoff procurement record is sufficient to suppress the component even if another source is temporarily unavailable.
+The only customer wording for OPEN is:
 
-Post-cutoff procurement cannot change the historical state at the earlier cutoff. It belongs in forward outcome tracking instead.
+> **No relevant procurement found in approved indexed sources as of DATE.**
+
+OPEN is a bounded search conclusion, not a statement that the source itself proves no procurement exists.
+
+## Project-state aggregation
+
+- all components CLOSED -> project `CLOSED`;
+- all components OPEN -> project `OPEN`;
+- mixed component states -> project `PARTIAL`;
+- only unresolved/no components -> project `UNRESOLVED`.
+
+The existing deterministic aggregation implementation is authoritative unless a later explicitly versioned rule changes it.
 
 ## False-OPEN invariant
 
-The implementation is intentionally asymmetric. Ambiguity reduces feed volume; it must never increase it. Review-band procurement, incomplete source coverage and ambiguous component boundaries all withhold the component rather than manufacture `OPEN`.
+False OPEN is the highest-cost error. Ambiguity must reduce feed volume rather than create a lead. Review-band evidence, incomplete coverage and ambiguous component boundaries all suppress OPEN.
+
+## Historical integrity
+
+Post-cutoff procurement cannot rewrite the state at an earlier cutoff. It becomes later evidence/outcome history. Every accepted state keeps the cutoff, evidence references, rule/model versions and immutable classification hash required by the ledger contract.

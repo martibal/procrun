@@ -1,285 +1,136 @@
 # ProcRun final build and release gates
 
-Status: **LOCKED FOR WEBSITE BUILD**
+Status: **PRODUCT BUILD APPROVED; LIVE FUNDED-PROJECT INGEST FAIL-CLOSED UNTIL A1**
 Canonical product spec: `docs/PRODUCT_FOUNDATION_FINAL.md`
 
-These gates supersede earlier funded-project-first and TED-v2 build gates where they conflict with the final product foundation. Failed Phase 0B/0C results remain preserved as evidence and must not be rewritten as PASS.
+These gates are authoritative. Historical product files cannot override them.
 
-## A1 — Source safety
+## A1 — Funded-project source activation
 
-A production source is usable only when RIGHTS, ACCESS and DATA SAFETY are all approved.
+A funded-project source may go live only when RIGHTS, ACCESS and DATA SAFETY are all APPROVED for the exact machine route and retained field surface.
 
-For every live retrieval:
+Required:
 
-- `require_live_source()` runs before network access;
-- prohibited natural-person/supplier/contact fields are excluded before receipt;
-- server-side projection is mandatory where the source contract depends on projection;
-- schema drift outside the frozen allowlist fails closed;
-- raw HTTP response bodies are not persisted for customer use;
-- public availability never overrides these rules.
+- commercial reuse/derivative use explicitly supported;
+- automated retrieval permitted;
+- no natural-person data can enter the intelligence plane before receipt;
+- every retained free-text field is covered by the same pre-receipt safety guarantee;
+- no `download then filter` workaround;
+- route/schema drift fails closed;
+- source review has an expiry date.
 
-For MVP, TED Search API is the production source foundation.
+Current PRR Projects/dados.gov.pt evidence is promising but not sufficient to mark A1 green under ProcRun's stricter absolute rule: portal policy says datasets may not contain personal data and State datasets default to CC BY 4.0 unless otherwise specified, but the exact machine route/free-text safety guarantee is not yet frozen source-specifically. The collector therefore remains disabled.
 
-## A2 — Absolute zero-PII intelligence boundary
+## A2 — Procurement source safety
 
-No natural-person data may be collected, stored or processed in the intelligence plane.
+TED Search API remains APPROVED for field-bounded procurement evidence and market context. Every network collector must call `require_live_source()` before retrieval. Unknown fields, incomplete pagination, stale compliance review or prohibited field expansion fail closed.
 
-Prohibited classes include natural-person names, contact people, personal email, phone, personal/postal addresses, tax identifiers, signatures and equivalent identifying fields.
+## A3 — Absolute zero-PII intelligence boundary
 
-Supplier/winner/contact records are not part of the MVP intelligence model.
+No natural-person data may be collected, stored or processed in the intelligence plane. Account, billing and support data live in a separate control plane and may not enter analytical ledger/model context.
 
-Account, billing and support PII belongs to a separate control plane and may not enter the analytical ledger or model context.
+## A4 — Canonical product object and state ontology
 
-The application must not intentionally persist client IP in ProcRun application-level intelligence logs.
+`funded project -> source-evidenced component -> procurement evidence -> conservative component state -> project aggregate state -> supplier runway`
 
-## A3 — Canonical product object
+Component states are exactly `OPEN`, `CLOSED`, `UNRESOLVED`.
 
-The customer object is:
+Project states are exactly `OPEN`, `PARTIAL`, `CLOSED`, `UNRESOLVED`.
 
-`TED notice -> infrastructure opportunity -> structured procurement fields -> evidence-backed demand tags where present -> supplier relevance -> market context -> customer feed`
+`PARTIAL` is a project-level aggregate state under the current implementation, not a component state. A TED-only opportunity feed is not the canonical product.
 
-The website must not be built around the retired funded-project `OPEN/CLOSED/PARTIAL` ontology.
+## A5 — Evidence integrity / zero unsupported inference
 
-Demand-tag absence must never be interpreted as evidence that no product/component demand exists.
+Every accepted positive component and procurement match must retain exact source evidence, source identifier, observation cutoff, method/version and immutable hash/version reference.
 
-## A4 — Evidence integrity
+No model/rule may invent source text, demand, procurement evidence or state.
 
-Every customer-visible ProcRun enrichment must retain source evidence.
+Blanket claims such as `100% accurate`, `trust blindly` or `zero inference` across all states are prohibited. `100% source-verified` may describe only a positive evidence object that actually satisfies this contract.
 
-For evidence-backed demand tags, the evidence contract contains at minimum:
+## A6 — OPEN invariant
 
-- source/publication identifier;
-- publication date;
-- exact supporting source text/span;
-- extraction method/version;
-- observation/as-of timestamp;
-- immutable version/hash reference where implemented.
+OPEN is not a source fact. It means only:
 
-No model or rule may invent a demand tag without accepted source support.
+`No relevant procurement found in approved indexed sources as of DATE.`
 
-## A5 — Bounded demand enrichment
+OPEN requires complete required-source coverage. Incomplete coverage, review-band evidence or ambiguous component scope yields `UNRESOLVED`.
 
-Demand tags are an enrichment layer, not the sole commercial product mechanism.
+False OPEN is treated as the highest-cost error.
 
-Allowed behavior:
+## A7 — Matching hierarchy
 
-- show a product/system tag where accepted source text supports it;
-- retain exact evidence;
-- use the tag to strengthen supplier relevance;
-- aggregate tagged demand in market-intelligence views with appropriate coverage disclosure.
+Tier A/B evidence may close a component only under `MATCHING_RULES.md`. Tier C remains review-only. Semantic similarity alone never closes a component. Post-cutoff evidence never rewrites an earlier historical state.
 
-Prohibited claims:
+## A8 — Component extraction
 
-- complete component decomposition;
-- all requirements identified;
-- hidden demand discovered;
-- absence of a tag means absence of demand;
-- every notice must contain a tag.
+Deterministic extraction is primary. Supported domains/categories are frozen and versioned. Unmatched scope is retained for bounded fallback; it is never interpreted as no demand.
 
-Phase 0B and Phase 0C remain failed tests of the broader v2 mechanism and must not be represented otherwise.
+## A9 — Local model boundary
 
-## A6 — Supplier relevance
+A production-approved local model may propose only a frozen category plus exact source span from already-approved text. Deterministic validation must prove the span exists verbatim. The model cannot set component state or procurement match state.
 
-Customer-facing relevance is explainable and bounded.
+## A10 — Ledger/reproducibility
 
-Allowed bands:
+Source observations, component extraction, candidate matching and state classifications are append-only/versioned where implemented. Historical outputs retain cutoff, rule/model versions and SHA-256-linked evidence so results can be reconstructed.
 
-- High;
-- Medium;
-- Low;
-- Not relevant.
+## A11 — Customer-safe read model
 
-Relevance may use supported profile criteria including infrastructure domain, demand tag where present, CPV, geography and value band.
+Browser/API surfaces consume only the post-validation read model. No raw source response, beneficiary/contact/person field or unvalidated model output reaches the browser.
 
-Demand tags may strengthen a match but are not mandatory for a valid opportunity match.
+## A12 — Supplier relevance
 
-Do not expose fake probabilistic precision such as `93% chance` unless a later validated probabilistic model explicitly supports that claim.
+Relevance is deterministic/profile-based and explainable. It may prioritize domain/category/CPV/geography/value preferences but cannot override evidence state and is never presented as win probability.
 
-## A7 — Procurement stage
+## A13 — Product UX
 
-Raw TED notice types are mapped to tested customer-readable stage groups:
+The customer-facing app centers on runway, not tender search:
 
-- planning / early notice;
-- competition open / active;
-- result / awarded;
-- other / special procedure.
+- project/component feed;
+- funded-project detail;
+- component evidence/history;
+- procurement evidence;
+- saved items;
+- market context;
+- profile;
+- customer-safe export;
+- account shell.
 
-The exact mapping is frozen in code and unit-tested before launch.
+## A14 — Trust UX
 
-The UI must not infer that a procurement is currently open beyond what the published source fields and implemented mapping support.
+Every commercial runway item exposes project-scope evidence, procurement evidence where present, state wording, coverage status, observed/as-of timestamp and immutable version reference. Source facts and ProcRun conclusions are visually distinct.
 
-## A8 — TED transport
+## A15 — Market context integrity
 
-TED collection uses the approved field-bounded Search API route.
-
-Requirements:
-
-- explicit requested-field allowlist;
-- no arbitrary customer-supplied field selection;
-- ITERATION mode for complete walks where required;
-- bounded page size/field-cell budget;
-- duplicate detection;
-- timeout/incomplete pagination fails closed;
-- no raw response persistence;
-- no buyer/contact/supplier-person fields in the customer intelligence contract.
-
-The capability inventory in CI #161 remains the source-foundation baseline.
-
-## A9 — Source-discovery closure
-
-Known Portugal funded-project discovery source families are CLOSED BY DEFAULT for the MVP and are not website dependencies.
-
-Do not resume source-family research merely to recreate the old funded-project product.
-
-A route may be reopened only if genuinely new authoritative evidence satisfies all source gates without weakening the zero-PII boundary.
-
-## A10 — PostgreSQL/history
-
-PostgreSQL 16 remains the canonical historical intelligence store.
-
-- source observations and transformed intelligence are versioned;
-- corrections append new versions rather than rewriting historical evidence;
-- immutable-ledger tables reject mutation where currently enforced;
-- run/manifests and content hashes retain reproducibility;
-- customer-specific saved/profile/control-plane state is kept separate from immutable source intelligence.
-
-## A11 — Local-model boundary
-
-Deterministic extraction remains primary for demand tags.
-
-Any local-model fallback:
-
-- receives only already-approved allowlisted text;
-- can propose frozen category labels and exact evidence locations only;
-- cannot invent source text;
-- cannot determine unsupported procurement state;
-- cannot bypass evidence validation;
-- remains subject to explicit benchmark/production approval.
-
-The current benchmark-candidate status does not by itself authorize unbounded production inference.
-
-## A12 — Customer-safe read model
-
-The website may consume only a customer-safe application contract produced after source validation and normalization.
-
-Required separation:
-
-1. source collection;
-2. canonical notice normalization;
-3. optional demand-tag extraction/evidence binding;
-4. supplier relevance;
-5. immutable intelligence storage;
-6. customer-safe read model/API;
-7. web/control plane.
-
-The browser must not query raw TED payloads directly.
-
-## A13 — Website definition of done
-
-The first website build includes:
-
-- public landing page;
-- product/how-it-works page;
-- methodology/source page;
-- pricing page;
-- supplier-profile onboarding;
-- opportunity feed;
-- opportunity detail with evidence;
-- market-intelligence dashboard;
-- saved opportunities;
-- customer-safe CSV export;
-- account/billing shell;
-- responsive mobile/desktop behavior;
-- explicit loading/empty/error/stale-data states.
-
-No CRM, bid writer, contact database, supplier/winner database or procurement-submission workflow is required.
-
-## A14 — Feed behavior
-
-Default feed behavior follows `PRODUCT_FOUNDATION_FINAL.md`:
-
-- Portugal;
-- active/current opportunity stages;
-- infrastructure universe only;
-- newest first;
-- supplier relevance applied where a profile exists;
-- award/result records excluded from default active view;
-- clear last-refresh/data-through timestamp.
-
-Every feed item must link to an evidence-capable detail page.
-
-A notice remains eligible for the feed even when no demand tag is present.
-
-## A15 — Market-intelligence integrity
-
-Charts and aggregates must expose data completeness where missing fields matter.
-
-Value-based charts must disclose the share/count of records with populated estimated value. Missing values must not silently be treated as zero.
-
-Demand-tag charts must clearly represent only tagged/evidence-backed records and must not imply complete taxonomy coverage.
-
-Market-intelligence outputs derive from the same approved infrastructure procurement universe as the feed.
+TED market views disclose missingness. Funding aggregates remain disabled until A1 is green. Market context may not silently become the primary TED-only product.
 
 ## A16 — Commercial packaging
 
-Implementation package is locked as:
+Launch package: **ProcRun Portugal — €149/month**. No permanent free tier. Sample/demo content must be synthetic or explicitly approved for publication.
 
-**ProcRun Portugal — €149/month**
+## A17 — Unsupported claims
 
-MVP includes one supplier profile/workspace, Portugal infrastructure feed, evidence detail, evidence-backed demand tags where available, saved opportunities, market intelligence and customer-safe CSV export.
-
-No permanent free tier.
-
-A sample/demo mode is permitted using synthetic or explicitly approved publishable examples.
-
-Checkout/payment activation remains blocked until A19 is green.
-
-## A17 — No unsupported product claims
-
-The website must not claim:
-
-- comprehensive EU-funded-project coverage;
-- reliable months-before-tender lead discovery;
-- complete component decomposition;
-- guaranteed discovery of every commercial requirement;
-- complete procurement coverage beyond the implemented TED source boundary;
-- guaranteed direct bid eligibility;
-- win probability;
-- EU/TED endorsement;
-- real-time monitoring unless the actual scheduler/latency supports it.
+Do not claim complete bill of materials, every future purchase, guaranteed months-ahead lead time, complete procurement coverage, probabilistic GO/NO-GO, win probability, buyer-person intelligence or EU/source endorsement.
 
 ## A18 — Cost ceiling
 
-Projected trailing-30-day recurring core infrastructure spend:
+Target recurring core infrastructure spend <= NOK 400/month; warning above NOK 400; architecture review required above NOK 500/month excluding volume-linked payment fees.
 
-- target: <= NOK 400/month;
-- warning above NOK 400/month;
-- no recurring architecture change above NOK 500/month without explicit architecture review.
+## A19 — Paid release
 
-Customer-volume-driven payment fees are tracked separately.
+Before checkout: legal entity/merchant identity, terms, privacy notice, VAT/invoicing, processor inventory/DPAs, source attribution, TLS/secrets/least privilege, backup/restore, control-plane separation and short external legal review must be green. A1 must also be green.
 
-## A19 — Paid customer release gate
+## A20 — Authoritative build readiness
 
-Before enabling paid customer release:
+A20 is the only authoritative `GO` source.
 
-- legal entity/merchant identity is final;
-- Terms of Service/subscription terms are published;
-- Privacy Notice is published;
-- account/billing/support PII is separated from intelligence data;
-- payment-provider account and VAT/invoicing flow are approved;
-- processor/subprocessor inventory and required DPAs are complete;
-- current source attribution/methodology obligations are reflected;
-- no analytics/session-replay/advertising SDK is enabled by default;
-- reverse-proxy/application logging is configured so ProcRun does not intentionally retain client IP in the intelligence data plane;
-- TLS, secrets, least privilege, encrypted backup and restore procedure are verified;
-- then-current source rights/attribution and customer terms receive a short external legal review.
+**A20 PRODUCT BUILD: GO.**
 
-These are release gates, not blockers for building stages before payment activation.
+The product mechanism, differentiation, evidence contract, matching semantics, source interfaces and customer surfaces are sufficiently frozen to build now. No further TED-v2 feasibility testing is required.
 
-## A20 — Website-build readiness
+**A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY A1.**
 
-Once `docs/PRODUCT_FOUNDATION_FINAL.md`, this file and the aligned README are merged with green CI, product-definition work is complete for the first website implementation.
+This does not block implementation. Build against the canonical `FundingProject` contract and safe fixtures; source activation is a controlled switch after A1, not a product redesign.
 
-**Do not create another product-feasibility test before beginning the web build.**
+**A20 PAID PRODUCTION: BLOCKED until A1 + A19 are green.**
 
-Do not reopen funded-project source discovery for the MVP. Implementation may expose engineering defects that require fixes, but those are implementation work, not a reason to return to product-hypothesis testing unless an absolute source/privacy contradiction appears.
+No other README/spec/history file may claim stronger readiness than these three A20 states.

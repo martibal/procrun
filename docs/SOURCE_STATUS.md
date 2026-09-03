@@ -1,136 +1,63 @@
 # ProcRun source status
 
 Status date: 2026-09-03
-Terms/compliance re-review due: 2026-11-30 unless a source contract says otherwise.
-Canonical product spec: `docs/PRODUCT_FOUNDATION_V2.md`
+Canonical product spec: `docs/PRODUCT_FOUNDATION_FINAL.md`
+Authoritative readiness gate: `docs/BUILD_GATES.md` A20
 
 ## Production rule
 
-Production source use is enforced by `procrun.source_contracts`. Every network collector must call `require_live_source()` before retrieval.
+Every live source must be registered in `procrun.source_contracts` and pass `require_live_source()` before network retrieval. A route is usable only when RIGHTS, ACCESS and DATA SAFETY are all APPROVED. Public availability alone is insufficient.
 
-A route is usable only when all three gates are approved:
+## Current canonical architecture
 
-1. **RIGHTS** — commercial reuse/derivative use is approved;
-2. **ACCESS** — automated access through the exact route is approved;
-3. **DATA SAFETY** — prohibited fields can be excluded before receipt.
+ProcRun is again funded-project first. TED is procurement evidence/market context, not the discovery object.
 
-Anything else fails closed. Public availability is not sufficient.
+`funded project -> purchasable components -> procurement evidence -> conservative state -> remaining runway`
 
-## Current v2 decision
+## Current source registry decision
 
-**TED Search API is the production foundation for ProcRun v2.**
-
-Known Portugal funded-project discovery source families are **CLOSED BY DEFAULT** for product development. They are not dependencies for the active-infrastructure opportunity product and must not be reopened merely to recreate the retired funded-project-first product.
-
-The old Portugal 2030 discovery blocker is therefore no longer a website-build blocker.
-
-## Current source registry
-
-| Source | Overall | Rights | Access | Data safety | v2 implication |
+| Source | Overall | Rights | Access | Data safety | Role |
 | --- | --- | --- | --- | --- | --- |
-| TED Search API | APPROVED | APPROVED | APPROVED | APPROVED | Production source for opportunity discovery and market intelligence |
-| Mais Transparência project search | CONDITIONAL | CONDITIONAL | CONDITIONAL | CONDITIONAL | Research/history only; not a v2 dependency |
-| Mais Transparência project detail | BLOCKED | CONDITIONAL | CONDITIONAL | BLOCKED | Must not be ingested |
-| PT2030 operations bulk workbook | BLOCKED | CONDITIONAL | APPROVED | BLOCKED | Must not be downloaded then filtered |
+| TED Search API | APPROVED | APPROVED | APPROVED | APPROVED | Procurement evidence + market context |
+| PRR Projects on dados.gov.pt | CONDITIONAL | APPROVED basis | APPROVED basis | CONDITIONAL | Preferred funded-project candidate; live collector disabled |
+| Mais Transparência project detail HTML | BLOCKED | CONDITIONAL | CONDITIONAL | BLOCKED | Human research only; contains beneficiary surface |
+| PT2030 operations bulk workbook | BLOCKED | CONDITIONAL | APPROVED | BLOCKED | Broad file; no download-then-filter |
 | Portal BASE / APIBase2 | BLOCKED | CONDITIONAL | CONDITIONAL | BLOCKED | No production calls |
 
-Research candidates not registered in `SOURCE_CONTRACTS` are not production sources.
+## PRR Projects evidence already established
+
+Official dados.gov.pt terms state that datasets published on the portal may not contain personal data and that State datasets use CC BY 4.0 by default unless otherwise specified. The PRR publisher exposes Projects separately from Entities and the project dataset is described as daily/current open data.
+
+That is strong evidence for the preferred source route, but ProcRun's absolute policy is stricter than ordinary portal/GDPR compliance. The terms also contemplate legally permitted publication of personal data, and the project dataset page does not provide a source-specific machine schema/free-text guarantee proving that every retained field can never contain a natural-person identifier before receipt.
+
+Therefore PRR Projects remains **CONDITIONAL, not APPROVED**, until one of the following is obtained from an authoritative source:
+
+1. a documented machine endpoint with a frozen output schema plus explicit pre-publication exclusion/redaction guarantee for all retained text fields; or
+2. an explicit source-owner statement that the exact Projects distribution/endpoint contains no natural-person data, including project-title/summary text, before publication.
+
+No row/file probe may be used as a substitute for that guarantee.
 
 ## TED production contract
 
-The MVP uses the public TED Search API with explicit server-side field projection and strict schema validation.
-
-The final live capability inventory in CI #161 proved:
-
-- executable Portugal query semantics;
-- executable date filtering;
-- combined Portugal + 12-month query;
-- minimal server-side projection;
-- individual projectability of every retained qualification field;
-- full iteration across 18,776 Portugal notices in the tested 12-month slice;
-- 4,893 infrastructure notices;
-- 3,812 later/active-stage infrastructure notices;
-- 100.0% title and description population for the tested early and later infrastructure slices.
-
-The v2 product decision from that run was:
-
-- active infrastructure opportunity feed: SUPPORTED;
-- procurement market intelligence: SUPPORTED;
-- early procurement runway: NOT SUPPORTED;
-- comprehensive EU-funding subset: NOT SUPPORTED.
-
-### TED transport requirements
-
-- endpoint: TED Search API v3;
-- explicit requested-field allowlist only;
-- server-side projection only;
-- ITERATION pagination for complete walks;
-- bounded page size and field-cell budget;
-- duplicate publication numbers fail closed;
-- timeout/incomplete pagination fails closed;
-- unknown envelope/notice fields fail before normalization;
-- raw response bodies and iteration tokens are not persisted for customer use.
-
-### Intelligence-safe field policy
-
-Customer intelligence may use approved non-person procurement fields such as:
-
-- publication number/date;
-- notice type;
-- procedure identifier;
-- notice title;
-- procurement description/scope;
-- CPV classification;
-- contract nature;
-- procedure type;
-- estimated value/currency;
-- place-of-performance subdivision;
-- approved EU-funding markers where present.
-
-The v2 customer contract does not require contact person, personal email, phone, supplier/winner identity, personal/postal address, tax identifiers or equivalent person-identifying fields.
-
-Any production field beyond the frozen contract requires a source-contract review before use.
+TED Search API remains approved with explicit server-side field projection, bounded pagination, schema validation and no prohibited buyer/contact/supplier-person fields. Phase 0 source qualification supports active infrastructure procurement and historical market context. Phase 0B/0C failures remain failures of the retired TED-only supplier-demand product.
 
 ## Zero-PII rule
 
-No natural-person data may enter the intelligence pipeline.
-
-Critical rule:
-
 > **Do not receive a broad response containing prohibited fields and discard them afterwards.**
 
-If a route cannot prevent prohibited fields from entering the response, it remains blocked regardless of convenience or public availability.
+No natural-person data may enter the intelligence plane. Account/billing/support PII is a separate control plane and is not an exception.
 
-Account/billing/support PII belongs to the separate customer control plane and is not an intelligence-source exception.
+## Activation procedure
 
-## Closed Portugal funded-project discovery families
+Changing a funded-project source from CONDITIONAL to APPROVED requires all of the following in one reviewed change:
 
-The following source families have already been investigated and do not currently satisfy the complete v2/zero-PII source contract needed for funded-project ingestion:
+- authoritative rights citation;
+- authoritative automated-access citation;
+- authoritative exact data-safety citation;
+- frozen route/schema/field allowlist;
+- fail-closed collector tests;
+- review-expiry date;
+- updated A1/A20 state;
+- green CI.
 
-- Mais Transparência project search/detail;
-- Portugal 2030 approved-operations bulk workbooks;
-- Portal BASE/APIBase2;
-- Kohesio project download/REST routes;
-- EU Knowledge Graph/SPARQL coverage tested for the earlier product path;
-- programme/managing-authority variants documented in the research record.
-
-They remain useful historical research but are not prerequisites for ProcRun v2.
-
-A known family may only be reopened when **genuinely new authoritative evidence** establishes the exact safe transport, rights/access and required field boundary. Do not weaken the privacy rule or perform broad row/file probes to look for a workaround.
-
-## Website source presentation
-
-Customer-facing pages must:
-
-- credit TED/EU as required;
-- identify ProcRun's transformation/classification separately from source facts;
-- provide publication/source references;
-- avoid implying EU/TED endorsement;
-- avoid distorting source meaning;
-- show an as-of/observation timestamp.
-
-The browser must consume the ProcRun customer-safe read model, not arbitrary raw TED responses.
-
-## Review expiry
-
-Approved live-source reviews are time-bounded. `require_live_source()` rejects stale approved sources until the then-current terms are rechecked and the registry is explicitly renewed.
+Until then, build the downstream production pipeline against the canonical FundingProject interface and fixtures, but do not enable live funded-project retrieval.

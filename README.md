@@ -1,120 +1,69 @@
 # ProcRun
 
-ProcRun is a private, evidence-first infrastructure procurement intelligence product for suppliers.
+ProcRun is an evidence-first infrastructure procurement runway product for suppliers.
 
-## Final product decision
+## Canonical decision
 
-**Status: READY FOR WEBSITE BUILD.**
+**Status: READY FOR PRODUCT BUILD; LIVE FUNDED-PROJECT INGEST REMAINS FAIL-CLOSED UNTIL A1 IS APPROVED.**
 
-Canonical product specification: [`docs/PRODUCT_FOUNDATION_FINAL.md`](docs/PRODUCT_FOUNDATION_FINAL.md).
+Canonical specification: [`docs/PRODUCT_FOUNDATION_FINAL.md`](docs/PRODUCT_FOUNDATION_FINAL.md).
+Authoritative build/release decision: [`docs/BUILD_GATES.md`](docs/BUILD_GATES.md), gate **A20**.
 
-ProcRun will be built as a focused supplier-side view of Portugal public-infrastructure procurement.
+The canonical mechanism is again funded-project first:
 
-The locked customer promise is:
+`approved funded project -> source-evidenced purchasable components -> indexed procurement evidence -> component state -> remaining procurement runway`
 
-> **ProcRun turns public infrastructure procurement into a focused supplier intelligence feed: active opportunities, evidence-backed demand tags where they can be proven, and market context from the same procurement universe.**
+TED remains an approved procurement-evidence and market-context source. The TED-only v2 pivot is retired as the primary product mechanism; its Phase 0B/0C failures remain preserved and must never be relabelled as PASS.
 
-Primary sales line:
+## Product contract
 
-> **From tenders to infrastructure demand.**
+Primary promise:
 
-Canonical pipeline:
+> **See what an approved infrastructure project is expected to buy, what ProcRun can prove has already entered procurement, and what remains without a verified procurement match as of the stated date.**
 
-`TED notice -> infrastructure opportunity -> structured procurement fields -> evidence-backed demand tags where present -> supplier relevance -> market context -> customer feed`
+Trust promise:
 
-## What is validated
+> **No invented demand. Every positive component and procurement match is tied to exact source evidence. Ambiguity abstains.**
 
-The production-safe source foundation is the TED Search API.
+This is deliberately different from AI-ranked tender products. ProcRun does not provide a GO/NO-GO probability, win score or generated commercial recommendation. It preserves source evidence, version, cutoff and hashes so a customer can inspect why a component exists and why a procurement record did or did not suppress it.
 
-Validated source capabilities include:
-
-| Capability | Result |
-| --- | --- |
-| Active infrastructure notice feed | SUPPORTED |
-| Procurement market-intelligence dataset | SUPPORTED |
-| Early procurement runway from TED | NOT SUPPORTED |
-| Comprehensive EU-funding subset | NOT SUPPORTED |
-
-The final TED capability inventory established a substantial Portugal infrastructure universe and approved server-side field projection under ProcRun's absolute pre-receipt privacy boundary.
-
-## What Phase 0B and 0C established
-
-The failed tests are preserved and are not relabelled as PASS.
-
-Phase 0B, 300 notices:
-
-- any requirement: 26.0%;
-- description-only value: 2.7% — FAIL against the frozen v2 gate;
-- CPV-blind value: 20.7%;
-- distinct categories: 20;
-- domains represented: 5.
-
-Phase 0C, disjoint 300-notice period:
-
-- any normalized requirement: 20.3%;
-- CPV-blind value: 18.7%;
-- distinct categories: 13 — FAIL against the frozen 15-category gate;
-- domains represented: 5.
-
-Therefore ProcRun does **not** sell complete component decomposition, hidden-demand discovery or guaranteed requirement coverage.
-
-The reproducible text/CPV signal is used only as a bounded enrichment: evidence-backed product/system demand tags are shown where source text proves them. Notices without tags remain valid opportunities.
-
-See:
-
-- [`docs/PHASE0B_TED_DEMAND_RESULT.md`](docs/PHASE0B_TED_DEMAND_RESULT.md)
-- [`docs/PHASE0C_CPV_NORMALIZATION_RESULT.md`](docs/PHASE0C_CPV_NORMALIZATION_RESULT.md)
+The phrase `100% source-verified` may be used only for positive evidence objects that actually satisfy the evidence contract. It must never imply that an `OPEN` state is a source fact. `OPEN` means only: **No relevant procurement found in approved indexed sources as of DATE, with required source coverage complete.**
 
 ## Differentiation
 
-ProcRun is not another general tender inbox.
+ProcRun's defensible combination is:
 
-It is deliberately built for manufacturers, OEMs, distributors, technical wholesalers, systems suppliers and specialist subcontractors selling into infrastructure projects, including firms that may never bid for the prime public contract themselves.
+- **funded-project-to-procurement gap**, rather than another tender inbox;
+- **supplier/component view**, including suppliers that may never bid for the prime contract;
+- **exact source evidence** for every accepted component and procurement match;
+- **conservative abstention**: ambiguity becomes `UNRESOLVED`, never a manufactured lead;
+- **historical reproducibility** through append-only evidence, model/rule versions and SHA-256-linked classifications;
+- **Portugal infrastructure focus** so evidence standards are not traded away for breadth.
 
-The product combines:
+Competitor breadth is not treated as a defect. ProcRun competes on a different customer contract: narrower scope, explicit evidence, remaining-runway state and reproducibility.
 
-- infrastructure-only opportunity monitoring;
-- supplier-profile relevance;
-- evidence-backed product/system demand tags where present;
-- exact evidence/provenance;
-- historical infrastructure procurement market intelligence from the same approved data universe.
+## Source status
 
-The product does not claim that no competitor can perform any individual function. The differentiation is the narrow infrastructure-supplier workflow and the combination above.
+- **TED Search API:** APPROVED for field-bounded procurement evidence and market context.
+- **PRR Projects / dados.gov.pt:** promising official funded-project source, but **not yet APPROVED for live intelligence ingestion** under ProcRun's stricter zero-natural-person pre-receipt rule. The portal's publication policy and default CC BY 4.0 basis are strong evidence, but the exact machine route/free-text boundary still lacks a source-specific guarantee sufficient for A1.
+- Broad PT2030/beneficiary/BASE routes remain blocked unless an exact safe route is independently approved.
 
-## MVP
+ProcRun never uses `download then filter` as a privacy mechanism.
 
-The first web application includes:
+## Existing engineering that is canonical again
 
-- landing/product/methodology/pricing pages;
-- supplier-profile onboarding;
-- active opportunity feed;
-- filters by supported domain, demand tag, CPV, region, value, stage and date;
-- opportunity detail with evidence;
-- market-intelligence dashboard;
-- saved opportunities;
-- customer-safe CSV export;
-- account/billing shell.
+The component engine, local-model contract, matching hierarchy and immutable ledger were built for the funded-project-first mechanism and are now first-class production architecture again. They are not evidence for the failed TED-only v2 hypothesis; they serve the restored runway mechanism.
 
-Launch package:
+See:
 
-> **ProcRun Portugal — €149/month**
-
-No permanent free tier. Checkout remains disabled until paid-release legal/security/control-plane gates are complete.
-
-## Absolute intelligence-data boundary
-
-No natural-person data may be collected, stored or processed in the ProcRun intelligence plane.
-
-This is a **pre-receipt** requirement. Receiving a broad response and deleting prohibited fields afterwards is not permitted.
-
-Account, authentication, billing and support information belong to a separate control plane and may not enter the analytical ledger/model context.
-
-See [`docs/SOURCE_STATUS.md`](docs/SOURCE_STATUS.md), [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) and [`docs/BUILD_GATES.md`](docs/BUILD_GATES.md).
+- [`docs/COMPONENT_ENGINE.md`](docs/COMPONENT_ENGINE.md)
+- [`docs/MATCHING_RULES.md`](docs/MATCHING_RULES.md)
+- [`docs/LOCAL_MODEL_CONTRACT.md`](docs/LOCAL_MODEL_CONTRACT.md)
+- [`docs/LEDGER.md`](docs/LEDGER.md)
+- [`docs/MODEL_BENCHMARK.md`](docs/MODEL_BENCHMARK.md)
 
 ## Build instruction
 
-**BUILD.**
+**BUILD the application and production-safe interfaces now.**
 
-Do not add another product-feasibility test before starting the web application. Do not reopen funded-project source discovery for the MVP. Do not broaden website claims beyond `PRODUCT_FOUNDATION_FINAL.md` without new evidence.
-
-Implementation starts with the web shell and customer-safe opportunity read model/API.
+Do not re-pivot to a TED-only supplier-demand feed, do not weaken Phase 0B/0C results, and do not weaken the zero-PII boundary to activate a funded-project source. The live runway collector remains disabled until A1 is green; everything downstream must be built against the frozen source contract and fixtures so source activation is a controlled switch, not another product redesign.

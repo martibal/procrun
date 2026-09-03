@@ -13,7 +13,7 @@ from procrun.source_contracts import (
 
 
 def test_ted_is_live_approved_only_when_all_compliance_gates_are_green() -> None:
-    contract = require_live_source("ted_search_api", as_of=date(2026, 9, 1))
+    contract = require_live_source("ted_search_api", as_of=date(2026, 9, 3))
     assert contract.status is SourceStatus.APPROVED
     assert contract.rights_status is SourceStatus.APPROVED
     assert contract.access_status is SourceStatus.APPROVED
@@ -36,6 +36,7 @@ def test_ted_review_expires_fail_closed() -> None:
 @pytest.mark.parametrize(
     "source_id",
     [
+        "prr_projects_dados_gov",
         "pt2030_project_search",
         "pt2030_project_detail",
         "pt2030_operations_bulk",
@@ -44,7 +45,19 @@ def test_ted_review_expires_fail_closed() -> None:
 )
 def test_nonapproved_sources_fail_before_retrieval(source_id: str) -> None:
     with pytest.raises(SourceNotApprovedError):
-        require_live_source(source_id, as_of=date(2026, 9, 1))
+        require_live_source(source_id, as_of=date(2026, 9, 3))
+
+
+def test_prr_projects_is_preferred_but_safety_conditional() -> None:
+    contract = SOURCE_CONTRACTS["prr_projects_dados_gov"]
+    assert contract.status is SourceStatus.CONDITIONAL
+    assert contract.rights_status is SourceStatus.APPROVED
+    assert contract.access_status is SourceStatus.APPROVED
+    assert contract.data_safety_status is SourceStatus.CONDITIONAL
+    assert contract.commercial_reuse_allowed is True
+    assert contract.automated_access_allowed is True
+    assert "free-text" in contract.reason
+    assert any("download-then-filter" in item for item in contract.obligations)
 
 
 def test_known_broad_response_routes_are_hard_blocked() -> None:
@@ -93,4 +106,4 @@ def test_public_attribution_is_deduplicated() -> None:
 
 def test_unknown_source_fails_closed() -> None:
     with pytest.raises(SourceNotApprovedError):
-        require_live_source("unregistered-source", as_of=date(2026, 9, 1))
+        require_live_source("unregistered-source", as_of=date(2026, 9, 3))
