@@ -7,64 +7,51 @@ def _read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_readme_points_to_v2_foundation() -> None:
+def test_readme_records_current_no_build_decision() -> None:
     readme = _read("README.md")
-    assert "docs/PRODUCT_FOUNDATION_V2.md" in readme
-    assert "READY FOR WEBSITE BUILD" in readme
-    assert "TED notice -> procurement opportunity -> purchasable requirements" in readme
+    assert "NOT READY FOR WEBSITE BUILD" in readme
+    assert "Phase 0B" in readme
+    assert "Phase 0C" in readme
+    assert "TED notice -> normalized purchasable requirements" in readme
 
 
-def test_v2_product_identity_is_locked() -> None:
-    spec = _read("docs/PRODUCT_FOUNDATION_V2.md")
-    assert "ProcRun turns public procurement notices into supplier-specific product demand." in spec
-    assert "Active infrastructure opportunity feed | SUPPORTED" in spec
-    assert "Early procurement runway | NOT SUPPORTED" in spec
-    assert "Comprehensive EU-funding subset | NOT SUPPORTED" in spec
-    assert "ProcRun Portugal — €149/month" in spec
+def test_phase0b_failure_is_preserved() -> None:
+    prereg = _read("docs/PHASE0B_TED_DEMAND_PREREG.md")
+    result = _read("docs/PHASE0B_TED_DEMAND_RESULT.md")
+    assert "description_only_value_pct >= 10.0" in prereg
+    assert "description-only value: 2.7%" in result
+    assert "Result: FAIL" in result
+    assert "not changed after observation" in result
 
 
-def test_v2_preserves_absolute_intelligence_privacy_boundary() -> None:
-    spec = _read("docs/PRODUCT_FOUNDATION_V2.md")
+def test_phase0c_failure_is_preserved() -> None:
+    prereg = _read("docs/PHASE0C_CPV_NORMALIZATION_PREREG.md")
+    result = _read("docs/PHASE0C_CPV_NORMALIZATION_RESULT.md")
+    assert "at least 15 distinct normalized categories" in prereg
+    assert "distinct categories: 13" in result
+    assert "Result: **FAIL**" in result
+    assert "No threshold was lowered" in result
+
+
+def test_v2_source_capability_is_not_relabelled_as_product_validation() -> None:
+    readme = _read("README.md")
+    assert "Active infrastructure notice feed | SUPPORTED" in readme
+    assert "Early procurement runway from TED | NOT SUPPORTED" in readme
+    assert "These results establish source capability. They do not by themselves validate a paid supplier product." in readme
+
+
+def test_absolute_intelligence_privacy_boundary_is_preserved() -> None:
+    readme = _read("README.md")
     gates = _read("docs/BUILD_GATES.md")
     source_status = _read("docs/SOURCE_STATUS.md")
 
-    assert "No natural-person data may be collected, stored or processed" in spec
-    assert "pre-receipt" in spec.lower()
+    assert "No natural-person data may be collected, stored or processed" in readme
+    assert "pre-receipt" in readme.lower()
     assert "No natural-person data may be collected, stored or processed" in gates
     assert "Do not receive a broad response containing prohibited fields" in source_status
 
 
-def test_funded_project_discovery_is_not_a_v2_dependency() -> None:
-    spec = _read("docs/PRODUCT_FOUNDATION_V2.md")
-    gates = _read("docs/BUILD_GATES.md")
-    source_status = _read("docs/SOURCE_STATUS.md")
-
-    assert "product no longer depends on a funded-project discovery source" in spec
-    assert "CLOSED BY DEFAULT" in gates
-    assert "CLOSED BY DEFAULT" in source_status
-
-
-def test_v2_website_scope_is_complete() -> None:
-    spec = _read("docs/PRODUCT_FOUNDATION_V2.md")
-    required_routes = (
-        "/app",
-        "/app/opportunities/[id]",
-        "/app/market",
-        "/app/profile",
-        "/app/saved",
-        "/app/account",
-        "/methodology",
-        "/pricing",
-    )
-    for route in required_routes:
-        assert route in spec
-
-    for capability in (
-        "supplier-profile onboarding",
-        "opportunity feed",
-        "opportunity detail",
-        "market-intelligence dashboard",
-        "saved opportunities",
-        "customer-safe read model/API",
-    ):
-        assert capability in spec
+def test_original_runway_evidence_is_not_claimed_for_v2() -> None:
+    readme = _read("README.md")
+    assert "The old evidence remains valid for what it actually tested" in readme
+    assert "it does not validate the TED-based v2 pivot" in readme
