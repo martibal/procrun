@@ -401,7 +401,9 @@ def main() -> int:
     supported = [name for name, viable in hypotheses.items() if viable]
     if not supported:
         print("PRODUCT_FOUNDATION=NO_SUPPORTED_HYPOTHESIS")
-        raise QualificationError("TED inventory supports none of the predeclared product hypotheses")
+        raise QualificationError(
+            "TED inventory supports none of the predeclared product hypotheses"
+        )
 
     # Prefer the earliest/highest-information product if the empirical evidence supports it; fall
     # back deterministically rather than bending thresholds after seeing results.
