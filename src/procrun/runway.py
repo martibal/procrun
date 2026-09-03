@@ -111,6 +111,7 @@ def assess_project_runway(
         unknown = ", ".join(sorted(unknown_coverage_keys))
         raise RunwayInvariantError(f"coverage supplied for unknown components: {unknown}")
 
+    deterministic_scope_complete = not extraction.model_fallback_required
     results: list[RunwayComponentResult] = []
     for extracted in extraction.components:
         component = extracted.component
@@ -125,12 +126,13 @@ def assess_project_runway(
 
         raw_evidence = tuple(evidence_by_component.get(component.component_id, ()))
         candidates = build_match_candidates(project, component, raw_evidence)
+        boundary_resolved = coverage.boundary_resolved and deterministic_scope_complete
         match = classify_component(
             component,
             cutoff_date,
             candidates,
             coverage_complete=coverage.complete,
-            component_boundary_resolved=coverage.boundary_resolved,
+            component_boundary_resolved=boundary_resolved,
             coverage_note=coverage.note,
         )
         results.append(
