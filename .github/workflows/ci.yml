@@ -58,3 +58,6 @@ jobs:
       - name: TED foundation total qualification
         if: github.event_name == 'pull_request' && github.head_ref == 'research/ted-foundation-total-test'
         run: python scripts/qualify_ted_foundation.py
+      - name: Phase 0B TED embedded-demand qualification
+        if: github.event_name == 'pull_request' && github.head_ref == 'validation/phase0b-ted-demand'
+        run: python scripts/qualify_ted_component_demand.py
