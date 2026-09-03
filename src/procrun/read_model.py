@@ -116,9 +116,11 @@ def _procurement_match(item: RunwayComponentResult, evidence_id: str) -> Procure
         if evidence.evidence_field is EvidenceField.TITLE
         else evidence.scope_description
     )
-    span = source_text[
-        evidence.evidence_start : evidence.evidence_end
-    ] if source_text is not None else None
+    span = (
+        source_text[evidence.evidence_start : evidence.evidence_end]
+        if source_text is not None
+        else None
+    )
     if span != evidence.evidence_text:
         raise ReadModelInvariantError(
             "accepted procurement source span failed verbatim validation"
@@ -178,7 +180,7 @@ def build_runway_read_model(result: RunwayResult) -> RunwayProject:
     """Build the frozen browser/API contract and attach a deterministic content hash."""
 
     components = tuple(_component(item) for item in result.components)
-    payload = {
+    hash_payload = {
         "operation_code": result.project.operation_code,
         "project_title": result.project.project_title,
         "project_start": result.project.project_start,
@@ -197,5 +199,24 @@ def build_runway_read_model(result: RunwayResult) -> RunwayProject:
         "project_classifier_version": result.project_classifier_version,
         "read_model_version": READ_MODEL_VERSION,
     }
-    digest = content_sha256(payload)
-    return RunwayProject(**payload, content_hash=digest)
+    digest = content_sha256(hash_payload)
+    return RunwayProject(
+        operation_code=result.project.operation_code,
+        project_title=result.project.project_title,
+        project_start=result.project.project_start,
+        project_end=result.project.project_end,
+        approved_funding_eur=result.project.approved_funding_eur,
+        programme=result.project.programme,
+        region=result.project.region,
+        nuts_code=result.project.nuts_code,
+        source_url=result.project.source_url,
+        state=result.assessment.state,
+        cutoff_date=result.cutoff_date,
+        components=components,
+        orchestration_version=result.orchestration_version,
+        component_rule_version=result.component_rule_version,
+        match_rule_version=result.match_rule_version,
+        project_classifier_version=result.project_classifier_version,
+        read_model_version=READ_MODEL_VERSION,
+        content_hash=digest,
+    )
