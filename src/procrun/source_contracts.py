@@ -98,24 +98,26 @@ SOURCE_CONTRACTS = {
             "dados.gov.pt; exact production machine route not yet frozen"
         ),
         reason=(
-            "Preferred funded-project source. dados.gov.pt states portal datasets may not "
-            "contain personal data and State datasets default to CC BY 4.0, and PRR Projects "
-            "is separated from Entities. ProcRun nevertheless requires source-specific proof "
-            "that the exact machine route and all retained free-text fields cannot emit a "
-            "natural-person identifier before receipt. That final proof is not yet frozen."
+            "Preferred PRR funded-project candidate. General dados.gov.pt policy is supportive, "
+            "but the PRR Projects dataset currently displays a dataset-specific licence of "
+            "'Licença não especificada'. The exact machine route and retained free-text fields "
+            "also lack the source-specific pre-receipt natural-person exclusion required by "
+            "ProcRun. Rights and data safety therefore remain conditional."
         ),
-        rights_status=SourceStatus.APPROVED,
+        rights_status=SourceStatus.CONDITIONAL,
         access_status=SourceStatus.APPROVED,
         data_safety_status=SourceStatus.CONDITIONAL,
-        commercial_reuse_allowed=True,
+        commercial_reuse_allowed=None,
         automated_access_allowed=True,
         license_basis=(
-            "dados.gov.pt terms: State datasets are published under CC BY 4.0 unless "
-            "otherwise specified; open consultation/download and read API access are allowed."
+            "dados.gov.pt general terms default State datasets to CC BY 4.0 unless otherwise "
+            "specified, but the PRR Projects dataset-specific metadata says licence unspecified; "
+            "source-specific confirmation is required before commercial activation."
         ),
         legal_basis_urls=(
             "https://dados.gov.pt/pt/termos-de-utilizacao",
-            "https://dados.gov.pt/pt/datasets/?organization=61140a0107819099529af103",
+            "https://dados.gov.pt/pt/datasets/dataset-estrutura-de-missao-prr-projetos/",
+            "https://dados.gov.pt/api/1/",
             "https://dados.gov.pt/pt/ajuda-e-contactos",
         ),
         terms_reviewed_on=_REVIEWED_ON,
@@ -129,6 +131,7 @@ SOURCE_CONTRACTS = {
             "Do not call this source from a live intelligence collector while CONDITIONAL.",
             "Do not use download-then-filter as a privacy mechanism.",
             "Before approval freeze exact route, schema and retained field allowlist.",
+            "Obtain source-specific commercial reuse confirmation for the Projects resource.",
             "Obtain authoritative source-specific pre-publication safety coverage for every "
             "retained structured and free-text field.",
         ),
@@ -194,19 +197,30 @@ SOURCE_CONTRACTS = {
         source_id="portal_base",
         status=SourceStatus.BLOCKED,
         retrieval_route="Portal BASE / IMPIC APIBase2",
-        reason="Documented route cannot exclude prohibited supplier/person fields before receipt.",
+        reason=(
+            "The general API response cannot exclude prohibited supplier/person fields before "
+            "receipt. Official documentation confirms announcement search exists, but no current "
+            "production response contract has yet been frozen that proves the exact announcement "
+            "surface is natural-person-free."
+        ),
         rights_status=SourceStatus.CONDITIONAL,
         access_status=SourceStatus.CONDITIONAL,
         data_safety_status=SourceStatus.BLOCKED,
         commercial_reuse_allowed=None,
         automated_access_allowed=True,
-        license_basis="API access/production reuse requires further authorization review.",
-        legal_basis_urls=("https://www.base.gov.pt/APIBase2",),
+        license_basis="API use requires IMPIC authorization; exact production reuse terms pending.",
+        legal_basis_urls=(
+            "https://www.base.gov.pt/APIBase2",
+            "https://www.base.gov.pt/Base4/pt/documentacao/formas-de-obter-dados-sobre-os-contratos-publicos/",
+        ),
         terms_reviewed_on=_REVIEWED_ON,
         terms_review_due_on=_REVIEW_DUE_ON,
         attribution_required=False,
         attribution_text=None,
-        obligations=("Do not activate while prohibited fields cannot be excluded pre-receipt.",),
+        obligations=(
+            "Do not activate while prohibited fields cannot be excluded pre-receipt.",
+            "Obtain the exact GetInfoAnuncio/PesquisarAnuncios production response schema before use.",
+        ),
     ),
 }
 
