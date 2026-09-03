@@ -35,7 +35,7 @@ def test_phase0c_failure_is_preserved() -> None:
 
 def test_final_product_restores_runway_without_rewriting_v2_history() -> None:
     spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
-    assert "funded-project first" in spec
+    assert "funded-project-first" in spec
     assert "Phase 0B and Phase 0C remain FAIL" in spec
     assert "remaining procurement runway" in spec
     assert "TED-only demand feed" in spec
