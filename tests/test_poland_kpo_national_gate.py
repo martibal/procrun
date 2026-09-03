@@ -10,7 +10,11 @@ def test_kpo_national_route_is_rejected() -> None:
     text = _text()
     assert "production eligibility: **REJECTED**" in text
     assert "Poland-wide project-level coverage surface: **FAIL / NOT ESTABLISHED**" in text
-    assert "completeness boundary that can be tested automatically: **FAIL / NOT ESTABLISHED**" in text
+    completeness_gate = (
+        "completeness boundary that can be tested automatically: "
+        "**FAIL / NOT ESTABLISHED**"
+    )
+    assert completeness_gate in text
 
 
 def test_privacy_and_transport_are_not_probed_after_coverage_failure() -> None:
