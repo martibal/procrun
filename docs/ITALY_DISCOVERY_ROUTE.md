@@ -78,50 +78,74 @@ safe response schema or server-side projection.
 
 ## Candidate 3 — `Lista beneficiari e operazioni 2021-2027`
 
-This is now the **preferred Italy research candidate**.
+This remains the **preferred Italy research candidate**, but it is not yet authorised for record receipt.
 
-Official OpenCoesione documentation states that:
+Official OpenCoesione documentation states that the lists are published as open CSV, split by Operational
+Programme, updated bimonthly and licensed CC BY 4.0. The published surface includes beneficiary identity,
+operation name and summary, dates, eligible expenditure, EU co-financing rate, location, intervention
+category and update date.
 
-- lists are published as open CSV and split by Operational Programme specifically to facilitate reuse,
-  processing and extraction;
-- the comprehensive list is updated bimonthly;
-- the data are CC BY 4.0;
-- published information includes beneficiary name **only for legal persons**, operation name, operation
-  summary, operation start/end dates, eligible expenditure, EU co-financing rate, postcode/country,
-  operation category and list update date;
-- `Operation summary` maps to PUC2127 `SINTESI_PRG` and is intended to state what is being built/done,
-  its purpose, and when necessary the type of territory, up to 1,300 characters;
-- operation name must not contain names of natural persons.
+This route therefore has the scope and timing fields missing from relational `Progetti`.
 
-This route therefore has the exact scope and timing fields missing from relational `Progetti`.
+### Phase-2 metadata review
 
-### Remaining zero-PII gate
+The exact linked metadata resource was retrieved without fetching beneficiary/operation records:
 
-The 2021-2027 publication layout also contains a field named `Codice fiscale Beneficiario`, sourced from
-PUC2127 `SC00`. The current public page says beneficiary **names** are published only for legal persons,
-and OpenCoesione's general privacy FAQ says a natural person's fiscal code is not published on the portal
-and is masked. Those are strong signals, but ProcRun requires exact-route proof before receipt.
+- `https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls`
+- observed SHA-256: `c1e3be23c8ba7c84bc18a1183bd2e6ac0044f966843d72403ce0725b7cd4b96a`
+- observed size: 38,400 bytes.
 
-The page links an exact metadata file:
+The workbook exposes 17 fields. Its relevant value rules are explicit:
 
-`https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls`
+- `CodiceFiscaleBeneficiario_BeneficiaryTaxCode`: when the beneficiary is an individual, the tax ID is
+  not published and is overwritten by `*CODICE FISCALE*`;
+- `NomeBeneficiario_BeneficiaryName`: when the beneficiary is an individual, the name is not published
+  and is overwritten by `*INDIVIDUO*`;
+- `TitoloProgetto_OperationName`: if the supplied project name contains a natural-person name/surname or
+  tax ID, that information is not published.
 
-The next authorised research action is **metadata only**. Do not retrieve a beneficiary/operation CSV until
-the metadata confirms the value rule for natural-person beneficiary fiscal codes/names and confirms that
-no other natural-person/contact field is present.
+No email, phone, personal contact, personal social identifier or equivalent direct-person field is present
+in the 17-field metadata surface.
 
-Required Phase-2 metadata conclusions:
+The route also contains the required project-scope and timing fields, including:
 
-1. list every field in the 2021-2027 beneficiary/operation record;
-2. prove the natural-person value rule for `Codice fiscale Beneficiario`;
-3. prove the natural-person value rule for `Nome Beneficiario`;
-4. confirm operation title/summary constraints;
-5. confirm no email, phone, address-of-person, personal social identifier or equivalent person field;
-6. freeze exact licence, owner, update cadence and attribution obligations.
+- `SintesiProgetto_OperationSummary` — detailed project description;
+- `DataInizioProgetto_OperationStartDate`;
+- `DataFineProgetto_OperationEndDate`;
+- `CostoAmmesso_TotalEligibleExpenditure`;
+- `TassoCofinanziamentoUE_EUCofinancingRate`;
+- `CodicePostale_Postcode`;
+- `StatoMembro_Country`;
+- `CategoriaOperazione_CategoryIntervention`;
+- `DataAggiornamento_LastUpdate`.
 
-If any natural-person identifier can be emitted, this route is `DATA SAFETY=BLOCKED` and the CSV body must
-not be fetched. If values are demonstrably anonymised (`Individuo`, blank or another non-identifying
-sentinel) before publication, a bounded Phase-3 smoke test may be designed.
+### Blocking issue — `OperationSummary`
+
+The metadata supplies **no pre-publication anonymisation or exclusion rule for
+`SintesiProgetto_OperationSummary`**. It describes the field only as a detailed project description.
+
+OpenCoesione's public privacy FAQ confirms masking for natural-person fiscal codes and, in specified cases,
+name/surname on the portal, but does not establish that arbitrary natural-person identifiers are removed
+from the operation-summary free text before the CSV is published.
+
+That distinction is decisive under ProcRun's boundary. A Phase-3 procedure that downloads an operation CSV
+and then scans `OperationSummary` for personal data is not an acceptable safety test: receipt and scanning
+would themselves process potentially identifying data. The source must be proven safe **before receipt**.
+
+Therefore:
+
+- Phase-2 identity-field rules: **PASS**;
+- Phase-2 structured-field surface: **PASS**;
+- Phase-2 scope sufficiency: **PASS**;
+- Phase-2 `OperationSummary` pre-receipt safety: **UNPROVEN**;
+- overall data-safety gate: **BLOCKED**;
+- Phase-3 CSV smoke test: **NOT AUTHORISED**.
+
+The next authorised action is documentation/provenance research only. ProcRun may proceed to a bounded CSV
+smoke test only if an authoritative OpenCoesione/MEF publication rule, schema contract or equivalent source
+proves that `OperationSummary` cannot expose natural-person identifiers before publication. If no such proof
+can be established, this route must be rejected or used without the summary only where server-side/source-side
+field projection can exclude it before receipt.
 
 ## OpenCUP enrichment — rejected
 
@@ -141,7 +165,7 @@ Current research classification:
 | --- | --- | --- | --- | --- | --- |
 | OpenCoesione relational `Progetti` | strong | strong | promising | **blocked for 2021-2027** | safe-looking discovery table, insufficient scope |
 | OpenCoesione `/api/progetti` | strong | strong | unresolved | insufficient/unresolved | do not call project records before current schema proof |
-| 2021-2027 beneficiary/operation list | **strong** | **strong** | **pending exact metadata** | **strong** | preferred candidate; metadata-only gate next |
+| 2021-2027 beneficiary/operation list | **strong** | **strong** | **BLOCKED: summary rule unproven** | **strong** | preferred candidate; documentation-only gate next |
 | OpenCUP project/API | strong/open-data signal | conditional/API registration | **blocked** | strong | reject as enrichment unless future projection exists |
 
 Nothing in this document changes the executable production registry.
