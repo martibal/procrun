@@ -4,7 +4,7 @@ ProcRun is an evidence-first infrastructure procurement runway product for suppl
 
 ## Canonical decision
 
-**Status: PRE-WEB TECHNICAL HARDENING. WEB BUILD MUST NOT START UNTIL `docs/BUILD_GATES.md` A20 SAYS `WEB BUILD: GO`.**
+**Status: WEB BUILD APPROVED. LIVE FUNDED-PROJECT INGEST REMAINS FAIL-CLOSED UNTIL THE REQUIRED PORTUGAL SOURCE CONTRACTS ARE APPROVED.**
 
 Canonical specification: [`docs/PRODUCT_FOUNDATION_FINAL.md`](docs/PRODUCT_FOUNDATION_FINAL.md).
 Authoritative build/release decision: [`docs/BUILD_GATES.md`](docs/BUILD_GATES.md), gate **A20**.
@@ -46,13 +46,14 @@ Competitor breadth is not treated as a defect. ProcRun competes on a different c
 
 - **TED Search API:** APPROVED for field-bounded procurement evidence and market context.
 - **PRR Projects / dados.gov.pt:** preferred funded-project candidate, but **not yet APPROVED for live intelligence ingestion** under ProcRun's absolute zero-natural-person pre-receipt rule. Portal-level publication policy is not treated as a source-specific guarantee for every retained free-text field.
+- **Portuguese national procurement coverage:** still requires an approved pre-receipt-safe source before live `OPEN` classification may use national absence evidence.
 - Broad PT2030/beneficiary/BASE routes remain blocked unless an exact safe route is independently approved.
 
 ProcRun never uses `download then filter` as a privacy mechanism.
 
 ## Existing engineering
 
-The component engine, local-model contract, matching hierarchy and immutable ledger are first-class production architecture for the funded-project-first mechanism.
+The component engine, matching hierarchy, exact-evidence provenance, append-only ledger, canonical runway orchestration and customer-safe read model are production architecture for the funded-project-first mechanism.
 
 See:
 
@@ -60,12 +61,12 @@ See:
 - [`docs/MATCHING_RULES.md`](docs/MATCHING_RULES.md)
 - [`docs/LOCAL_MODEL_CONTRACT.md`](docs/LOCAL_MODEL_CONTRACT.md)
 - [`docs/LEDGER.md`](docs/LEDGER.md)
-- [`docs/MODEL_BENCHMARK.md`](docs/MODEL_BENCHMARK.md)
+- [`docs/PREWEB_SHOWSTOPPER_STATUS.md`](docs/PREWEB_SHOWSTOPPER_STATUS.md)
 
 ## Current engineering instruction
 
-**DO NOT START THE WEB BUILD YET.**
+**START THE WEB BUILD against the frozen customer-safe read model.**
 
-Complete the pre-web technical hardening first. In particular, A1 must be resolved, the canonical end-to-end runway orchestration must exist, the customer-safe read model must be implemented as the sole browser/API contract, and the integrated fixture path must be regression-tested. Only A20 may then switch to `WEB BUILD: GO`.
+The web layer must never read raw source payloads or ledger internals directly. Live funded-project ingestion and live `OPEN` production output remain disabled until their exact source contracts pass the existing A1/national-source gates. This separation is deliberate: source activation is now a controlled backend switch and no longer requires changing the web-facing contract.
 
 Do not re-pivot to a TED-only supplier-demand feed, do not weaken Phase 0B/0C results, and do not weaken the zero-PII boundary to activate a funded-project source.
