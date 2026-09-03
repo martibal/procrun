@@ -13,7 +13,7 @@ def test_readme_defers_web_readiness_to_a20() -> None:
     assert "gate **A20**" in readme
     assert "funded project -> source-evidenced purchasable components" in readme
     assert "TED-only v2 pivot is retired" in readme
-    assert "DO NOT START THE WEB BUILD YET" in readme
+    assert "START THE WEB BUILD" in readme
 
 
 def test_phase0b_failure_is_preserved() -> None:
@@ -75,10 +75,20 @@ def test_a20_is_single_authoritative_web_build_gate() -> None:
     gates = _read("docs/BUILD_GATES.md")
     spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
     assert "A20 is the only authoritative `GO` source" in gates
-    assert "A20 WEB BUILD: BLOCKED" in gates
+    assert "A20 WEB BUILD: GO" in gates
     assert "A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY A1" in gates
-    assert "A20 PAID PRODUCTION: BLOCKED until A1 + A19 are green" in gates
+    assert "A20 LIVE PORTUGAL OPEN CLASSIFICATION: BLOCKED" in gates
+    assert "A20 PAID PRODUCTION: BLOCKED" in gates
     assert "Only `BUILD_GATES.md` A20 can declare build readiness" in spec
+
+
+def test_web_go_does_not_weaken_live_source_safety() -> None:
+    gates = _read("docs/BUILD_GATES.md")
+    status = _read("docs/PREWEB_SHOWSTOPPER_STATUS.md")
+    assert "This blocks live funded-project ingestion, not web implementation" in gates
+    assert "incomplete required-source coverage yields `UNRESOLVED`" in gates
+    assert "WEB BUILD GO; LIVE SOURCE ACTIVATION REMAINS FAIL-CLOSED" in status
+    assert "live funded-project ingestion remains disabled until A1 is approved" in status
 
 
 def test_customer_routes_follow_runway_product() -> None:
