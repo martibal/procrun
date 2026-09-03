@@ -1,89 +1,120 @@
 # ProcRun
 
-ProcRun is a private, evidence-first procurement-intelligence research product for suppliers to public infrastructure markets.
+ProcRun is a private, evidence-first infrastructure procurement intelligence product for suppliers.
 
-## Current product decision
+## Final product decision
 
-**Status: NOT READY FOR WEBSITE BUILD.**
+**Status: READY FOR WEBSITE BUILD.**
 
-The TED-based v2 candidate is a deliberate pivot away from the original funded-project-first Procurement Runway mechanism. It must not inherit the original Phase 0 validation by assumption.
+Canonical product specification: [`docs/PRODUCT_FOUNDATION_FINAL.md`](docs/PRODUCT_FOUNDATION_FINAL.md).
 
-The v2 candidate tested this pipeline:
+ProcRun will be built as a focused supplier-side view of Portugal public-infrastructure procurement.
 
-`TED notice -> normalized purchasable requirements -> supplier relevance -> evidence -> customer feed`
+The locked customer promise is:
 
-The source foundation is technically viable, but the customer-value mechanism has now been tested separately and did not pass its preregistered validation gates.
+> **ProcRun turns public infrastructure procurement into a focused supplier intelligence feed: active opportunities, evidence-backed demand tags where they can be proven, and market context from the same procurement universe.**
 
-## What is technically validated
+Primary sales line:
 
-The production-safe source foundation is the TED Search API. The prior TED capability inventory established a substantial Portugal infrastructure universe and safe server-side field projection under ProcRun's absolute pre-receipt privacy boundary.
+> **From tenders to infrastructure demand.**
 
-The validated TED source hypotheses remain:
+Canonical pipeline:
 
-| Hypothesis | Result |
+`TED notice -> infrastructure opportunity -> structured procurement fields -> evidence-backed demand tags where present -> supplier relevance -> market context -> customer feed`
+
+## What is validated
+
+The production-safe source foundation is the TED Search API.
+
+Validated source capabilities include:
+
+| Capability | Result |
 | --- | --- |
 | Active infrastructure notice feed | SUPPORTED |
-| Procurement market intelligence dataset | SUPPORTED |
+| Procurement market-intelligence dataset | SUPPORTED |
 | Early procurement runway from TED | NOT SUPPORTED |
 | Comprehensive EU-funding subset | NOT SUPPORTED |
 
-These results establish source capability. They do not by themselves validate a paid supplier product.
+The final TED capability inventory established a substantial Portugal infrastructure universe and approved server-side field projection under ProcRun's absolute pre-receipt privacy boundary.
 
-## Phase 0B — embedded-demand test
+## What Phase 0B and 0C established
 
-Phase 0B preregistered a direct test of whether active Portugal TED infrastructure notices contained a sufficiently rich purchasable-requirement layer under the existing frozen deterministic taxonomy.
+The failed tests are preserved and are not relabelled as PASS.
 
-Observed on 300 notices:
+Phase 0B, 300 notices:
 
-- any requirement: 26.0% — PASS;
-- description-only value: 2.7% — **FAIL**;
-- CPV-blind value: 20.7% — PASS;
-- distinct categories: 20 — PASS;
-- domains represented: 5 — PASS.
+- any requirement: 26.0%;
+- description-only value: 2.7% — FAIL against the frozen v2 gate;
+- CPV-blind value: 20.7%;
+- distinct categories: 20;
+- domains represented: 5.
 
-Because all mandatory gates had to pass, Phase 0B result was **FAIL**. The failed threshold was not changed after observation.
+Phase 0C, disjoint 300-notice period:
 
-See [`docs/PHASE0B_TED_DEMAND_PREREG.md`](docs/PHASE0B_TED_DEMAND_PREREG.md) and [`docs/PHASE0B_TED_DEMAND_RESULT.md`](docs/PHASE0B_TED_DEMAND_RESULT.md).
+- any normalized requirement: 20.3%;
+- CPV-blind value: 18.7%;
+- distinct categories: 13 — FAIL against the frozen 15-category gate;
+- domains represented: 5.
 
-## Phase 0C — disjoint confirmation
+Therefore ProcRun does **not** sell complete component decomposition, hidden-demand discovery or guaranteed requirement coverage.
 
-The strong post-hoc CPV-blind signal from Phase 0B was treated as a new hypothesis rather than being promoted to a conclusion. Phase 0C preregistered a confirmation test on a non-overlapping historical Portugal period.
+The reproducible text/CPV signal is used only as a bounded enrichment: evidence-backed product/system demand tags are shown where source text proves them. Notices without tags remain valid opportunities.
 
-Observed on another 300 notices:
+See:
 
-- any normalized requirement: 20.3% — PASS;
-- CPV-blind value: 18.7% — PASS;
-- distinct categories: 13 — **FAIL** against the frozen 15-category gate;
-- domains represented: 5 — PASS.
+- [`docs/PHASE0B_TED_DEMAND_RESULT.md`](docs/PHASE0B_TED_DEMAND_RESULT.md)
+- [`docs/PHASE0C_CPV_NORMALIZATION_RESULT.md`](docs/PHASE0C_CPV_NORMALIZATION_RESULT.md)
 
-Phase 0C therefore also resulted in **FAIL**. No threshold was lowered and no post-hoc PASS is declared.
+## Differentiation
 
-See [`docs/PHASE0C_CPV_NORMALIZATION_PREREG.md`](docs/PHASE0C_CPV_NORMALIZATION_PREREG.md) and [`docs/PHASE0C_CPV_NORMALIZATION_RESULT.md`](docs/PHASE0C_CPV_NORMALIZATION_RESULT.md).
+ProcRun is not another general tender inbox.
 
-## Consequence
+It is deliberately built for manufacturers, OEMs, distributors, technical wholesalers, systems suppliers and specialist subcontractors selling into infrastructure projects, including firms that may never bid for the prime public contract themselves.
 
-The previous `READY FOR WEBSITE BUILD` statement is superseded by these empirical results.
+The product combines:
 
-Do **not** build a full customer web application around the current TED-based v2 promise yet. The data source is usable and the CPV-blind signal is reproducible, but the complete commercial mechanism did not satisfy its frozen build gates.
+- infrastructure-only opportunity monitoring;
+- supplier-profile relevance;
+- evidence-backed product/system demand tags where present;
+- exact evidence/provenance;
+- historical infrastructure procurement market intelligence from the same approved data universe.
 
-The next move requires an explicit product decision rather than more threshold tuning or repeated testing on the same hypothesis.
+The product does not claim that no competitor can perform any individual function. The differentiation is the narrow infrastructure-supplier workflow and the combination above.
 
-## Original Procurement Runway
+## MVP
 
-The original product mechanism was:
+The first web application includes:
 
-`funded infrastructure project -> purchasable components -> procurement coverage -> components not yet procured`
+- landing/product/methodology/pricing pages;
+- supplier-profile onboarding;
+- active opportunity feed;
+- filters by supported domain, demand tag, CPV, region, value, stage and date;
+- opportunity detail with evidence;
+- market-intelligence dashboard;
+- saved opportunities;
+- customer-safe CSV export;
+- account/billing shell.
 
-That mechanism had separate Phase 0 evidence and a different value proposition: finding potential commercial demand before procurement publication. Its production path remains blocked by the absolute pre-receipt zero-PII source boundary for the required funded-project discovery data. The old evidence remains valid for what it actually tested, but it does not validate the TED-based v2 pivot.
+Launch package:
+
+> **ProcRun Portugal — €149/month**
+
+No permanent free tier. Checkout remains disabled until paid-release legal/security/control-plane gates are complete.
 
 ## Absolute intelligence-data boundary
 
 No natural-person data may be collected, stored or processed in the ProcRun intelligence plane.
 
-This is a pre-receipt requirement. Receiving a broad response and deleting prohibited fields afterwards is not permitted. Production collectors must pass independent RIGHTS, ACCESS and DATA SAFETY gates before retrieval.
+This is a **pre-receipt** requirement. Receiving a broad response and deleting prohibited fields afterwards is not permitted.
+
+Account, authentication, billing and support information belong to a separate control plane and may not enter the analytical ledger/model context.
 
 See [`docs/SOURCE_STATUS.md`](docs/SOURCE_STATUS.md), [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) and [`docs/BUILD_GATES.md`](docs/BUILD_GATES.md).
 
-## Current rule
+## Build instruction
 
-Further product work must preserve the failed validation results and must not silently relabel the current v2 candidate as build-ready. A new build decision requires a genuinely new, preregistered product hypothesis or a resolved production-safe source path for the original mechanism.
+**BUILD.**
+
+Do not add another product-feasibility test before starting the web application. Do not reopen funded-project source discovery for the MVP. Do not broaden website claims beyond `PRODUCT_FOUNDATION_FINAL.md` without new evidence.
+
+Implementation starts with the web shell and customer-safe opportunity read model/API.

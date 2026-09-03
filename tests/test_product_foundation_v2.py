@@ -7,12 +7,12 @@ def _read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_readme_records_current_no_build_decision() -> None:
+def test_readme_records_final_build_decision() -> None:
     readme = _read("README.md")
-    assert "NOT READY FOR WEBSITE BUILD" in readme
-    assert "Phase 0B" in readme
-    assert "Phase 0C" in readme
-    assert "TED notice -> normalized purchasable requirements" in readme
+    assert "READY FOR WEBSITE BUILD" in readme
+    assert "docs/PRODUCT_FOUNDATION_FINAL.md" in readme
+    assert "From tenders to infrastructure demand." in readme
+    assert "Do not add another product-feasibility test" in readme
 
 
 def test_phase0b_failure_is_preserved() -> None:
@@ -33,15 +33,21 @@ def test_phase0c_failure_is_preserved() -> None:
     assert "No threshold is lowered" in result
 
 
-def test_v2_source_capability_is_not_relabelled_as_product_validation() -> None:
+def test_final_product_does_not_relabel_failed_v2_as_pass() -> None:
+    readme = _read("README.md")
+    spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
+    assert "failed tests are preserved and are not relabelled as PASS" in readme
+    assert "Failed Phase 0B and Phase 0C results remain valid" in spec
+    assert "complete component decomposition" in spec
+    assert "bounded enrichment" in spec
+
+
+def test_validated_source_capabilities_are_preserved() -> None:
     readme = _read("README.md")
     assert "Active infrastructure notice feed | SUPPORTED" in readme
+    assert "Procurement market-intelligence dataset | SUPPORTED" in readme
     assert "Early procurement runway from TED | NOT SUPPORTED" in readme
-    source_only = (
-        "These results establish source capability. They do not by themselves "
-        "validate a paid supplier product."
-    )
-    assert source_only in readme
+    assert "Comprehensive EU-funding subset | NOT SUPPORTED" in readme
 
 
 def test_absolute_intelligence_privacy_boundary_is_preserved() -> None:
@@ -55,7 +61,22 @@ def test_absolute_intelligence_privacy_boundary_is_preserved() -> None:
     assert "Do not receive a broad response containing prohibited fields" in source_status
 
 
-def test_original_runway_evidence_is_not_claimed_for_v2() -> None:
-    readme = _read("README.md")
-    assert "The old evidence remains valid for what it actually tested" in readme
-    assert "it does not validate the TED-based v2 pivot" in readme
+def test_final_product_scope_is_locked() -> None:
+    spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
+    gates = _read("docs/BUILD_GATES.md")
+
+    for route in (
+        "/app",
+        "/app/opportunities/[id]",
+        "/app/market",
+        "/app/profile",
+        "/app/saved",
+        "/app/account",
+        "/methodology",
+        "/pricing",
+    ):
+        assert route in spec
+
+    assert "ProcRun Portugal — €149/month" in spec
+    assert "Do not create another product-feasibility test" in gates
+    assert "A notice remains eligible for the feed even when no demand tag is present" in gates
