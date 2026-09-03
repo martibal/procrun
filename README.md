@@ -4,14 +4,14 @@ ProcRun is an evidence-first infrastructure procurement runway product for suppl
 
 ## Canonical decision
 
-**Status: READY FOR PRODUCT BUILD; LIVE FUNDED-PROJECT INGEST REMAINS FAIL-CLOSED UNTIL A1 IS APPROVED.**
+**Status: WEB BUILD APPROVED. LIVE FUNDED-PROJECT INGEST REMAINS FAIL-CLOSED UNTIL THE REQUIRED PORTUGAL SOURCE CONTRACTS ARE APPROVED.**
 
 Canonical specification: [`docs/PRODUCT_FOUNDATION_FINAL.md`](docs/PRODUCT_FOUNDATION_FINAL.md).
 Authoritative build/release decision: [`docs/BUILD_GATES.md`](docs/BUILD_GATES.md), gate **A20**.
 
-The canonical mechanism is again funded-project first:
+The canonical mechanism is funded-project first:
 
-`approved funded project -> source-evidenced purchasable components -> indexed procurement evidence -> component state -> remaining procurement runway`
+`approved funded project -> source-evidenced purchasable components -> indexed procurement evidence -> conservative component state -> project aggregate state -> remaining procurement runway`
 
 TED remains an approved procurement-evidence and market-context source. The TED-only v2 pivot is retired as the primary product mechanism; its Phase 0B/0C failures remain preserved and must never be relabelled as PASS.
 
@@ -45,14 +45,15 @@ Competitor breadth is not treated as a defect. ProcRun competes on a different c
 ## Source status
 
 - **TED Search API:** APPROVED for field-bounded procurement evidence and market context.
-- **PRR Projects / dados.gov.pt:** promising official funded-project source, but **not yet APPROVED for live intelligence ingestion** under ProcRun's stricter zero-natural-person pre-receipt rule. The portal's publication policy and default CC BY 4.0 basis are strong evidence, but the exact machine route/free-text boundary still lacks a source-specific guarantee sufficient for A1.
+- **PRR Projects / dados.gov.pt:** preferred funded-project candidate, but **not yet APPROVED for live intelligence ingestion** under ProcRun's absolute zero-natural-person pre-receipt rule. Portal-level publication policy is not treated as a source-specific guarantee for every retained free-text field.
+- **Portuguese national procurement coverage:** still requires an approved pre-receipt-safe source before live `OPEN` classification may use national absence evidence.
 - Broad PT2030/beneficiary/BASE routes remain blocked unless an exact safe route is independently approved.
 
 ProcRun never uses `download then filter` as a privacy mechanism.
 
-## Existing engineering that is canonical again
+## Existing engineering
 
-The component engine, local-model contract, matching hierarchy and immutable ledger were built for the funded-project-first mechanism and are now first-class production architecture again. They are not evidence for the failed TED-only v2 hypothesis; they serve the restored runway mechanism.
+The component engine, matching hierarchy, exact-evidence provenance, append-only ledger, canonical runway orchestration and customer-safe read model are production architecture for the funded-project-first mechanism.
 
 See:
 
@@ -60,10 +61,12 @@ See:
 - [`docs/MATCHING_RULES.md`](docs/MATCHING_RULES.md)
 - [`docs/LOCAL_MODEL_CONTRACT.md`](docs/LOCAL_MODEL_CONTRACT.md)
 - [`docs/LEDGER.md`](docs/LEDGER.md)
-- [`docs/MODEL_BENCHMARK.md`](docs/MODEL_BENCHMARK.md)
+- [`docs/PREWEB_SHOWSTOPPER_STATUS.md`](docs/PREWEB_SHOWSTOPPER_STATUS.md)
 
-## Build instruction
+## Current engineering instruction
 
-**BUILD the application and production-safe interfaces now.**
+**START THE WEB BUILD against the frozen customer-safe read model.**
 
-Do not re-pivot to a TED-only supplier-demand feed, do not weaken Phase 0B/0C results, and do not weaken the zero-PII boundary to activate a funded-project source. The live runway collector remains disabled until A1 is green; everything downstream must be built against the frozen source contract and fixtures so source activation is a controlled switch, not another product redesign.
+The web layer must never read raw source payloads or ledger internals directly. Live funded-project ingestion and live `OPEN` production output remain disabled until their exact source contracts pass the existing A1/national-source gates. This separation is deliberate: source activation is now a controlled backend switch and no longer requires changing the web-facing contract.
+
+Do not re-pivot to a TED-only supplier-demand feed, do not weaken Phase 0B/0C results, and do not weaken the zero-PII boundary to activate a funded-project source.

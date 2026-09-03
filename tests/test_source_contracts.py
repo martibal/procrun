@@ -41,6 +41,8 @@ def test_ted_review_expires_fail_closed() -> None:
         "pt2030_project_detail",
         "pt2030_operations_bulk",
         "portal_base",
+        "base_announcements_bulk",
+        "dre_part_l_rss",
     ],
 )
 def test_nonapproved_sources_fail_before_retrieval(source_id: str) -> None:
@@ -48,15 +50,16 @@ def test_nonapproved_sources_fail_before_retrieval(source_id: str) -> None:
         require_live_source(source_id, as_of=date(2026, 9, 3))
 
 
-def test_prr_projects_is_preferred_but_safety_conditional() -> None:
+def test_prr_projects_rights_and_safety_remain_source_specific_conditions() -> None:
     contract = SOURCE_CONTRACTS["prr_projects_dados_gov"]
     assert contract.status is SourceStatus.CONDITIONAL
-    assert contract.rights_status is SourceStatus.APPROVED
+    assert contract.rights_status is SourceStatus.CONDITIONAL
     assert contract.access_status is SourceStatus.APPROVED
     assert contract.data_safety_status is SourceStatus.CONDITIONAL
-    assert contract.commercial_reuse_allowed is True
+    assert contract.commercial_reuse_allowed is None
     assert contract.automated_access_allowed is True
-    assert "free-text" in contract.reason
+    assert "Licença não especificada" in contract.reason
+    assert "project text" in contract.reason
     assert any("download-then-filter" in item for item in contract.obligations)
 
 
@@ -64,7 +67,26 @@ def test_known_broad_response_routes_are_hard_blocked() -> None:
     assert SOURCE_CONTRACTS["pt2030_project_detail"].status is SourceStatus.BLOCKED
     assert SOURCE_CONTRACTS["pt2030_operations_bulk"].status is SourceStatus.BLOCKED
     assert SOURCE_CONTRACTS["portal_base"].status is SourceStatus.BLOCKED
+    assert SOURCE_CONTRACTS["base_announcements_bulk"].status is SourceStatus.BLOCKED
     assert SOURCE_CONTRACTS["portal_base"].server_side_projection is False
+    assert SOURCE_CONTRACTS["base_announcements_bulk"].server_side_projection is False
+
+
+def test_base_announcement_bulk_has_rights_but_fails_pre_receipt_safety() -> None:
+    contract = SOURCE_CONTRACTS["base_announcements_bulk"]
+    assert contract.rights_status is SourceStatus.APPROVED
+    assert contract.access_status is SourceStatus.APPROVED
+    assert contract.commercial_reuse_allowed is True
+    assert contract.data_safety_status is SourceStatus.BLOCKED
+
+
+def test_dre_rss_is_not_promoted_from_narrower_transport_alone() -> None:
+    contract = SOURCE_CONTRACTS["dre_part_l_rss"]
+    assert contract.status is SourceStatus.CONDITIONAL
+    assert contract.access_status is SourceStatus.APPROVED
+    assert contract.data_safety_status is SourceStatus.CONDITIONAL
+    assert contract.commercial_reuse_allowed is None
+    assert any("RSS absence" in item for item in contract.obligations)
 
 
 def test_pt2030_project_search_remains_conditional() -> None:

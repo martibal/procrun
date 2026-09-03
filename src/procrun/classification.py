@@ -1,7 +1,8 @@
 """Deterministic project-state aggregation.
 
-Component OPEN/CLOSED decisions must be evidence rules, not model predictions. This module
-only aggregates already-assessed component states to the project-level state.
+Component OPEN/CLOSED decisions must be evidence rules, not model predictions. Project
+aggregation is also fail-closed: any unresolved component makes the project aggregate
+UNRESOLVED. PARTIAL is reserved for a fully resolved mixture of OPEN and CLOSED components.
 """
 
 from datetime import date
@@ -24,11 +25,13 @@ def aggregate_project_state(
 
     states = {component.state for component in components}
 
-    if states == {ComponentState.CLOSED}:
+    if ComponentState.UNRESOLVED in states:
+        project_state = ProjectState.UNRESOLVED
+    elif states == {ComponentState.CLOSED}:
         project_state = ProjectState.CLOSED
     elif states == {ComponentState.OPEN}:
         project_state = ProjectState.OPEN
-    elif len(states) > 1:
+    elif states == {ComponentState.OPEN, ComponentState.CLOSED}:
         project_state = ProjectState.PARTIAL
     else:
         project_state = ProjectState.UNRESOLVED

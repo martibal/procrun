@@ -21,12 +21,8 @@ def notice(**extra: object) -> dict[str, object]:
         "classification-cpv": ["45200000"],
         "contract-nature": "works",
         "procedure-type": "open",
-        "buyer-name": {"eng": ["Authority A"]},
         "estimated-value-proc": 1000,
         "estimated-value-cur-proc": "EUR",
-        "result-value-notice": "900",
-        "result-value-cur-notice": "EUR",
-        "place-of-performance-city-proc": ["Lisboa"],
         "place-of-performance-subdiv-proc": ["PT170"],
         "eu-funds-identifier": ["PACS-FC-X"],
         "links": {"xml": "https://example.invalid/notice.xml"},
@@ -77,7 +73,8 @@ def test_iteration_uses_frozen_projection_and_token() -> None:
     assert "iterationNextToken" not in calls[0]
     assert calls[1]["iterationNextToken"] == "first-token"
 
-    prohibited = {
+    unqualified_or_prohibited = {
+        "buyer-name",
         "buyer-email",
         "buyer-contact-point",
         "buyer-person",
@@ -85,8 +82,11 @@ def test_iteration_uses_frozen_projection_and_token() -> None:
         "business-email",
         "business-tel",
         "business-street",
+        "place-of-performance-city-proc",
+        "result-value-notice",
+        "result-value-cur-notice",
     }
-    assert not prohibited.intersection(calls[0]["fields"])
+    assert not unqualified_or_prohibited.intersection(calls[0]["fields"])
 
 
 def test_collected_record_is_compatible_with_canonical_ingest() -> None:
@@ -99,10 +99,12 @@ def test_collected_record_is_compatible_with_canonical_ingest() -> None:
 
     assert normalized.notice_id == "123456-2026"
     assert normalized.title == "English title"
-    assert normalized.contracting_authority_name == "Authority A"
+    assert normalized.contracting_authority_name is None
     assert normalized.project_reference == "PACS-FC-X"
     assert normalized.estimated_value_eur == 1000
-    assert normalized.awarded_value_eur == 900
+    assert normalized.awarded_value_eur is None
+    assert normalized.municipality is None
+    assert normalized.place_of_performance is None
 
 
 def test_unknown_response_field_fails_closed() -> None:
@@ -122,7 +124,7 @@ def test_non_projected_notice_field_fails_closed() -> None:
         del request
         return response(
             {
-                "notices": [notice(**{"buyer-email": "prohibited@example.invalid"})],
+                "notices": [notice(**{"buyer-name": "Authority A"})],
                 "totalNoticeCount": 1,
                 "iterationNextToken": "token",
                 "timedOut": False,
@@ -180,12 +182,7 @@ def test_max_pages_marks_coverage_incomplete() -> None:
 
 def test_non_eur_values_are_not_mislabeled_as_eur() -> None:
     canonical = canonicalize_ted_notice(
-        notice(
-            **{
-                "estimated-value-cur-proc": "USD",
-                "result-value-cur-notice": "NOK",
-            }
-        )
+        notice(**{"estimated-value-cur-proc": "USD"})
     )
 
     assert canonical["estimated_value_eur"] is None

@@ -52,7 +52,6 @@ def test_normalize_ted_record_from_safe_projection() -> None:
             "scope_description": "Civil works and pumps",
             "cpv_codes": ["45200000"],
             "procedure_value_eur": 500_000,
-            "contracting_authority_name": "Example Municipality",
             "project_reference": "PACS-FC-TEST",
             "source_url": "https://example.invalid/notice/notice-1",
         },
@@ -62,5 +61,5 @@ def test_normalize_ted_record_from_safe_projection() -> None:
     assert evidence.publication_date == date(2026, 8, 20)
     assert evidence.award_date == date(2026, 9, 1)
     assert evidence.cpv_codes == ("45200000",)
-    assert evidence.contracting_authority_name == "Example Municipality"
+    assert evidence.contracting_authority_name is None
     assert evidence.project_reference == "PACS-FC-TEST"

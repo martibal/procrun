@@ -54,7 +54,7 @@ def test_open_and_closed_is_partial() -> None:
     assert result.state is ProjectState.PARTIAL
 
 
-def test_closed_and_unresolved_is_partial_not_open() -> None:
+def test_closed_and_unresolved_is_unresolved() -> None:
     result = aggregate_project_state(
         "OP-1",
         CUTOFF,
@@ -63,7 +63,19 @@ def test_closed_and_unresolved_is_partial_not_open() -> None:
             component("b", ComponentState.UNRESOLVED),
         ),
     )
-    assert result.state is ProjectState.PARTIAL
+    assert result.state is ProjectState.UNRESOLVED
+
+
+def test_open_and_unresolved_is_unresolved() -> None:
+    result = aggregate_project_state(
+        "OP-1",
+        CUTOFF,
+        (
+            component("a", ComponentState.OPEN),
+            component("b", ComponentState.UNRESOLVED),
+        ),
+    )
+    assert result.state is ProjectState.UNRESOLVED
 
 
 def test_only_unresolved_is_unresolved() -> None:

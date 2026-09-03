@@ -1,4 +1,9 @@
-"""Field-projected TED Search API collector."""
+"""Field-projected TED Search API collector.
+
+The production collector intentionally uses a strict subset of the field projection that was
+qualified live. Fields that were not part of that frozen qualification are not requested merely
+because TED can return them.
+"""
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -15,6 +20,10 @@ TED_DEFAULT_PAGE_SIZE = 100
 TED_MAX_PAGE_SIZE = 250
 TED_FIELD_CELL_LIMIT = 10_000
 
+# Frozen production subset of scripts/qualify_ted_foundation.py SAFE_FIELDS.
+# Deliberately excluded until separately qualified for the intelligence plane:
+# buyer-name, place-of-performance-city-proc, result-value-notice and
+# result-value-cur-notice.
 TED_PROJECTED_FIELDS = (
     "publication-number",
     "publication-date",
@@ -25,11 +34,7 @@ TED_PROJECTED_FIELDS = (
     "procedure-type",
     "estimated-value-proc",
     "estimated-value-cur-proc",
-    "result-value-notice",
-    "result-value-cur-notice",
-    "place-of-performance-city-proc",
     "place-of-performance-subdiv-proc",
-    "buyer-name",
     "eu-funds-financing-id-lot",
     "eu-funds-identifier",
 )
@@ -153,15 +158,10 @@ def canonicalize_ted_notice(notice: Mapping[str, Any]) -> dict[str, Any]:
             safe.get("estimated-value-proc"), safe.get("estimated-value-cur-proc")
         ),
         "base_value_eur": None,
-        "awarded_value_eur": _eur_integer_amount(
-            safe.get("result-value-notice"), safe.get("result-value-cur-notice")
-        ),
-        "place_of_performance": _text(
-            safe.get("place-of-performance-city-proc"), join=True
-        ),
+        "awarded_value_eur": None,
+        "place_of_performance": None,
         "nuts_code": _text(safe.get("place-of-performance-subdiv-proc"), join=True),
-        "municipality": _text(safe.get("place-of-performance-city-proc"), join=True),
-        "contracting_authority_name": _text(safe.get("buyer-name"), join=True),
+        "municipality": None,
         "project_reference": _project_reference(safe),
         "source_url": f"https://ted.europa.eu/en/notice/-/detail/{publication_number}",
     }

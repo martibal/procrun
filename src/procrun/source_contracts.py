@@ -98,25 +98,26 @@ SOURCE_CONTRACTS = {
             "dados.gov.pt; exact production machine route not yet frozen"
         ),
         reason=(
-            "Preferred funded-project source. dados.gov.pt states portal datasets may not "
-            "contain personal data and State datasets default to CC BY 4.0, and PRR Projects "
-            "is separated from Entities. ProcRun nevertheless requires source-specific proof "
-            "that the exact machine route and all retained free-text fields cannot emit a "
-            "natural-person identifier before receipt. That final proof is not yet frozen."
+            "Published-evidence qualification is closed without approval. The PRR Projects dataset "
+            "shows 'Licença não especificada', uses a broad machine distribution, and lacks a "
+            "source-specific pre-publication guarantee that retained project text and structured "
+            "fields cannot emit natural-person identifiers. Publisher confirmation is required."
         ),
-        rights_status=SourceStatus.APPROVED,
+        rights_status=SourceStatus.CONDITIONAL,
         access_status=SourceStatus.APPROVED,
         data_safety_status=SourceStatus.CONDITIONAL,
-        commercial_reuse_allowed=True,
+        commercial_reuse_allowed=None,
         automated_access_allowed=True,
         license_basis=(
-            "dados.gov.pt terms: State datasets are published under CC BY 4.0 unless "
-            "otherwise specified; open consultation/download and read API access are allowed."
+            "dados.gov.pt general terms are supportive, but the PRR Projects dataset-specific "
+            "metadata says licence unspecified; source-specific confirmation is required."
         ),
         legal_basis_urls=(
             "https://dados.gov.pt/pt/termos-de-utilizacao",
-            "https://dados.gov.pt/pt/datasets/?organization=61140a0107819099529af103",
-            "https://dados.gov.pt/pt/ajuda-e-contactos",
+            "https://dados.gov.pt/pt/datasets/dataset-estrutura-de-missao-prr-projetos-2/",
+            "https://recuperarportugal.gov.pt/monitorizacao-relatorios-de-monitorizacao/",
+            "https://recuperarportugal.gov.pt/wp-content/uploads/2024/04/"
+            "EMRP-Politica-de-Protecao-de-Dados_publicacao-20230717.pdf",
         ),
         terms_reviewed_on=_REVIEWED_ON,
         terms_review_due_on=_REVIEW_DUE_ON,
@@ -129,6 +130,7 @@ SOURCE_CONTRACTS = {
             "Do not call this source from a live intelligence collector while CONDITIONAL.",
             "Do not use download-then-filter as a privacy mechanism.",
             "Before approval freeze exact route, schema and retained field allowlist.",
+            "Obtain source-specific commercial reuse confirmation for the Projects resource.",
             "Obtain authoritative source-specific pre-publication safety coverage for every "
             "retained structured and free-text field.",
         ),
@@ -194,19 +196,94 @@ SOURCE_CONTRACTS = {
         source_id="portal_base",
         status=SourceStatus.BLOCKED,
         retrieval_route="Portal BASE / IMPIC APIBase2",
-        reason="Documented route cannot exclude prohibited supplier/person fields before receipt.",
+        reason=(
+            "The documented API response cannot exclude prohibited identity-bearing fields before "
+            "receipt and exposes no server-side output projection. IMPIC also documents that BASE "
+            "announcement data can be delayed and less complete than Diário da República."
+        ),
         rights_status=SourceStatus.CONDITIONAL,
         access_status=SourceStatus.CONDITIONAL,
         data_safety_status=SourceStatus.BLOCKED,
         commercial_reuse_allowed=None,
         automated_access_allowed=True,
-        license_basis="API access/production reuse requires further authorization review.",
-        legal_basis_urls=("https://www.base.gov.pt/APIBase2",),
+        license_basis="API use requires IMPIC authorization; exact production reuse terms pending.",
+        legal_basis_urls=(
+            "https://www.base.gov.pt/APIBase2",
+            "https://www.base.gov.pt/Base4/pt/documentacao/"
+            "formas-de-obter-dados-sobre-os-contratos-publicos/",
+        ),
         terms_reviewed_on=_REVIEWED_ON,
         terms_review_due_on=_REVIEW_DUE_ON,
         attribution_required=False,
         attribution_text=None,
-        obligations=("Do not activate while prohibited fields cannot be excluded pre-receipt.",),
+        obligations=(
+            "Do not activate while prohibited fields cannot be excluded pre-receipt.",
+            "Obtain a bounded announcement response or source-specific no-person guarantee.",
+            "Obtain exact historical/completeness semantics needed for the OPEN boundary.",
+        ),
+    ),
+    "base_announcements_bulk": SourceContract(
+        source_id="base_announcements_bulk",
+        status=SourceStatus.BLOCKED,
+        retrieval_route=(
+            "dados.gov.pt IMPIC dataset: Contratos Públicos - Portal Base - Anúncios de 2012 a 2026"
+        ),
+        reason=(
+            "The separate nationwide announcement dataset has historical coverage and a public-domain "
+            "licence, but delivery is a broad annual JSON/XLSX resource without documented server-side "
+            "field projection or a source-specific no-natural-person guarantee for all received text."
+        ),
+        rights_status=SourceStatus.APPROVED,
+        access_status=SourceStatus.APPROVED,
+        data_safety_status=SourceStatus.BLOCKED,
+        commercial_reuse_allowed=True,
+        automated_access_allowed=True,
+        license_basis="Dataset-specific dados.gov.pt licence: Outra (Domínio Público).",
+        legal_basis_urls=(
+            "https://dados.gov.pt/pt/datasets/"
+            "contratos-publicos-portal-base-impic-anuncios-de-2012-a-2026/",
+            "https://www.base.gov.pt/Base4/pt/documentacao/"
+            "formas-de-obter-dados-sobre-os-contratos-publicos/",
+        ),
+        terms_reviewed_on=_REVIEWED_ON,
+        terms_review_due_on=_REVIEW_DUE_ON,
+        attribution_required=True,
+        attribution_text="Source: Portal BASE / IMPIC via dados.gov.pt.",
+        obligations=(
+            "Never download the annual bulk announcement file into the intelligence plane.",
+            "Do not treat public-domain licensing as a privacy-safety guarantee.",
+        ),
+    ),
+    "dre_part_l_rss": SourceContract(
+        source_id="dre_part_l_rss",
+        status=SourceStatus.CONDITIONAL,
+        retrieval_route="Diário da República Série II, Parte L official RSS/index feed",
+        reason=(
+            "The official feed is a narrower update surface than full announcements, but no official "
+            "item-schema/no-natural-person guarantee or historical-completeness contract has been "
+            "found. Part L also covers procedures requiring journal publication, not every possible "
+            "Portuguese procurement path."
+        ),
+        rights_status=SourceStatus.CONDITIONAL,
+        access_status=SourceStatus.APPROVED,
+        data_safety_status=SourceStatus.CONDITIONAL,
+        commercial_reuse_allowed=None,
+        automated_access_allowed=True,
+        license_basis="DRE legal/service terms reviewed; commercial feed reuse not yet frozen.",
+        legal_basis_urls=(
+            "https://diariodarepublica.pt/dr/geral/rss",
+            "https://diariodarepublica.pt/dr/detalhe/despacho-normativo/13-2009-1142925",
+            "https://diariodarepublica.pt/dr/geral/avisos-legais",
+        ),
+        terms_reviewed_on=_REVIEWED_ON,
+        terms_review_due_on=_REVIEW_DUE_ON,
+        attribution_required=False,
+        attribution_text=None,
+        obligations=(
+            "Do not use RSS absence as national procurement absence.",
+            "Do not follow RSS links into full notices in the intelligence plane.",
+            "Require official item schema, reuse terms and historical completeness before approval.",
+        ),
     ),
 }
 

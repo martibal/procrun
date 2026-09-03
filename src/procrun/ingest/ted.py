@@ -1,7 +1,7 @@
 """TED Search API projection contract.
 
-The live client must request only these fields via TED's server-side field projection. A broader
-notice response is not an acceptable input to the intelligence pipeline.
+The live client must request only the fields qualified and approved through TED's server-side field
+projection. A broader notice response is not an acceptable input to the intelligence pipeline.
 """
 
 from datetime import date, datetime
@@ -28,7 +28,6 @@ TED_ALLOWED_FIELDS = frozenset(
         "place_of_performance",
         "nuts_code",
         "municipality",
-        "contracting_authority_name",
         "project_reference",
         "source_url",
     }
@@ -58,11 +57,7 @@ def normalize_ted_record(
         raise ValueError("publication_date is required")
 
     raw_cpv = safe.get("cpv_codes") or ()
-    cpv_codes = (
-        (raw_cpv,)
-        if isinstance(raw_cpv, str)
-        else tuple(str(code) for code in raw_cpv)
-    )
+    cpv_codes = (raw_cpv,) if isinstance(raw_cpv, str) else tuple(str(code) for code in raw_cpv)
 
     return ProcurementEvidence(
         evidence_id=evidence_id,
@@ -83,7 +78,7 @@ def normalize_ted_record(
         place_of_performance=_optional_text(safe.get("place_of_performance")),
         nuts_code=_optional_text(safe.get("nuts_code")),
         municipality=_optional_text(safe.get("municipality")),
-        contracting_authority_name=_optional_text(safe.get("contracting_authority_name")),
+        contracting_authority_name=None,
         project_reference=_optional_text(safe.get("project_reference")),
         source_url=str(safe["source_url"]),
     )

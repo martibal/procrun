@@ -34,7 +34,7 @@ addopts = "-q --strict-markers"
 
 [tool.ruff]
 target-version = "py312"
-line-length = 100
+line-length = 105
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
