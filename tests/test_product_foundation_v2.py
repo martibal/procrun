@@ -30,7 +30,7 @@ def test_phase0c_failure_is_preserved() -> None:
     assert "at least 15 distinct normalized categories" in prereg
     assert "distinct categories: 13" in result
     assert "Result: **FAIL**" in result
-    assert "No threshold was lowered" in result
+    assert "No threshold is lowered" in result
 
 
 def test_v2_source_capability_is_not_relabelled_as_product_validation() -> None:
