@@ -7,14 +7,16 @@ def _read(path: str) -> str:
         return handle.read()
 
 
-def test_beneficiary_operation_csv_remains_blocked_until_summary_is_precleared() -> None:
+def test_beneficiary_operation_csv_is_rejected_after_provenance_review() -> None:
     doc = _read(DOC)
 
-    assert "Phase-2 `OperationSummary` pre-receipt safety: **UNPROVEN**" in doc
-    assert "overall data-safety gate: **BLOCKED**" in doc
-    assert "Phase-3 CSV smoke test: **NOT AUTHORISED**" in doc
-    assert "Download-then-filter is not" in doc
-    assert "acceptable safety test" in doc
+    assert "Phase-3 record smoke test: **PROHIBITED**" in doc
+    assert (
+        "production eligibility: **REJECTED under the current zero-PII product requirement**"
+        in doc
+    )
+    assert "source-side projection excluding `OperationSummary`: **NOT FOUND**" in doc
+    assert "A local filter, post-download scanner or sample inspection is not sufficient." in doc
 
 
 def test_metadata_probe_cannot_authorise_record_receipt() -> None:
