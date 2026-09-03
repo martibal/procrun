@@ -58,6 +58,3 @@ jobs:
       - name: TED foundation total qualification
         if: github.event_name == 'pull_request' && github.head_ref == 'research/ted-foundation-total-test'
         run: python scripts/qualify_ted_foundation.py
-      - name: Phase 0C CPV-normalization confirmation
-        if: github.event_name == 'pull_request' && github.head_ref == 'validation/phase0b-ted-demand'
-        run: python scripts/confirm_ted_cpv_normalization.py
