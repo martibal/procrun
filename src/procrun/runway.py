@@ -37,9 +37,26 @@ class RunwayInvariantError(ValueError):
 
 @dataclass(frozen=True)
 class ComponentCoverage:
-    complete: bool
+    """Named source coverage used to prove absence without a bare boolean escape hatch."""
+
+    required_source_ids: frozenset[str]
+    complete_source_ids: frozenset[str]
     boundary_resolved: bool
     note: str
+
+    def __post_init__(self) -> None:
+        if not self.required_source_ids:
+            raise RunwayInvariantError("at least one required procurement source is required")
+        if any(not source_id.strip() for source_id in self.required_source_ids):
+            raise RunwayInvariantError("required procurement source ids must not be blank")
+        if any(not source_id.strip() for source_id in self.complete_source_ids):
+            raise RunwayInvariantError("completed procurement source ids must not be blank")
+        if not self.note.strip():
+            raise RunwayInvariantError("coverage note must not be empty")
+
+    @property
+    def complete(self) -> bool:
+        return self.required_source_ids.issubset(self.complete_source_ids)
 
 
 @dataclass(frozen=True)
@@ -121,8 +138,6 @@ def assess_project_runway(
             raise RunwayInvariantError(
                 f"explicit procurement coverage is required for {component.component_id}"
             ) from exc
-        if not coverage.note.strip():
-            raise RunwayInvariantError("coverage note must not be empty")
 
         raw_evidence = tuple(evidence_by_component.get(component.component_id, ()))
         candidates = build_match_candidates(project, component, raw_evidence)
