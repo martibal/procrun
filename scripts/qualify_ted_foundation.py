@@ -172,7 +172,9 @@ def main() -> int:
     if not contract.server_side_projection:
         raise QualificationError("TED source contract lost server-side projection")
 
-    base_query = f"buyer-country = PRT AND publication-date >= {AUDIT_START}"
+    # TED expert search comparison syntax requires the comparison to be expressed
+    # as a search-term value, e.g. publication-date = (>=20250903).
+    base_query = f"buyer-country = PRT AND publication-date = (>={AUDIT_START})"
     with httpx.Client(timeout=45.0, headers={"Accept": "application/json"}) as client:
         portugal = _fetch_slice(client, base_query)
 
