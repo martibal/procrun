@@ -6,17 +6,22 @@ def _doc_text() -> str:
         return handle.read()
 
 
-def test_openbdap_mop_rows_are_blocked_until_projection_and_scope_are_proven() -> None:
+def test_openbdap_mop_is_rejected_under_zero_pii_scope_boundary() -> None:
     text = _doc_text()
 
     assert "project-row smoke test: **PROHIBITED**" in text
     assert "server-side field projection: **UNPROVEN**" in text
-    assert "scope sufficiency after safe projection: **UNPROVEN**" in text
-    assert "production eligibility: **BLOCKED pending metadata-only OData and scope proof**" in text
+    assert "scope pre-receipt zero-PII guarantee: **FAIL / NOT ESTABLISHED**" in text
+    assert (
+        "production eligibility: **REJECTED under the current zero-PII and scope requirements**"
+        in text
+    )
 
 
-def test_openbdap_mop_research_remains_metadata_only() -> None:
+def test_openbdap_mop_cannot_be_rescued_by_projection_alone() -> None:
     text = _doc_text()
 
-    assert "No `DataRows`, CSV, JSON or XML project body may be fetched" in text
-    assert "metadata and transport-contract validation only" in text
+    assert "That is an input instruction, not a source-side guarantee." in text
+    assert "structured taxonomy as scope replacement: **INSUFFICIENT" in text
+    assert "Proving `$select` alone would not make the route eligible." in text
+    assert "rather than issue an OpenBDAP/MOP project-row request" in text
