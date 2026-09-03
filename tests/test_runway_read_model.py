@@ -23,6 +23,7 @@ PROJECT = FundingProject(
     source_url="https://example.invalid/project/PRR-C02-I01-TEST",
 )
 CUTOFF = date(2026, 9, 1)
+REQUIRED_PROCUREMENT_SOURCES = frozenset({"ted_search_api", "pt_national_procurement"})
 
 
 def _components(project: FundingProject = PROJECT):
@@ -46,11 +47,21 @@ def _pump_evidence(component_id: str) -> ProcurementEvidence:
     )
 
 
-def _coverage(ids: tuple[str, ...], *, complete: bool = True):
-    note = "TED iteration complete through cutoff." if complete else "TED coverage incomplete."
+def _coverage(
+    ids: tuple[str, ...],
+    *,
+    complete_source_ids: frozenset[str] = REQUIRED_PROCUREMENT_SOURCES,
+):
+    complete = REQUIRED_PROCUREMENT_SOURCES.issubset(complete_source_ids)
+    note = (
+        "TED and Portuguese national procurement coverage complete through cutoff."
+        if complete
+        else "Required Portuguese national procurement coverage incomplete."
+    )
     return {
         component_id: ComponentCoverage(
-            complete=complete,
+            required_source_ids=REQUIRED_PROCUREMENT_SOURCES,
+            complete_source_ids=complete_source_ids,
             boundary_resolved=True,
             note=note,
         )
@@ -118,7 +129,7 @@ def test_end_to_end_runway_produces_exact_evidence_and_stable_safe_read_model() 
     walk(serialized)
 
 
-def test_incomplete_coverage_can_never_create_open() -> None:
+def test_ted_only_coverage_can_never_create_open() -> None:
     components = _components()
     ids = tuple(component.component_id for component in components.values())
     result = assess_project_runway(
@@ -126,7 +137,7 @@ def test_incomplete_coverage_can_never_create_open() -> None:
         domains=(ComponentDomain.WATER_WASTEWATER,),
         cutoff_date=CUTOFF,
         evidence_by_component={},
-        coverage_by_component=_coverage(ids, complete=False),
+        coverage_by_component=_coverage(ids, complete_source_ids=frozenset({"ted_search_api"})),
     )
     assert all(
         item.match.assessment.state is ComponentState.UNRESOLVED for item in result.components
