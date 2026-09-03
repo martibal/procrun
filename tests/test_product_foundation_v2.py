@@ -13,7 +13,7 @@ def test_readme_defers_web_readiness_to_a20() -> None:
     assert "gate **A20**" in readme
     assert "funded project -> source-evidenced purchasable components" in readme
     assert "TED-only v2 pivot is retired" in readme
-    assert "START THE WEB BUILD" in readme
+    assert "DO NOT START THE WEB BUILD YET" in readme
 
 
 def test_phase0b_failure_is_preserved() -> None:
@@ -48,7 +48,7 @@ def test_zero_unsupported_inference_contract_is_bounded() -> None:
     assert "No invented demand" in spec
     assert "100% source-verified" in spec
     assert "must not be used as a blanket claim" in spec
-    assert "OPEN is not a source fact" in gates
+    assert "`OPEN` is not a source fact" in gates
     assert "UNRESOLVED" in gates
 
 
@@ -62,33 +62,48 @@ def test_absolute_intelligence_privacy_boundary_is_preserved() -> None:
     assert "download-then-filter" in source_status
 
 
-def test_prr_candidate_remains_fail_closed_until_exact_safety_proof() -> None:
+def test_zero_contact_validation_rule_is_locked() -> None:
+    readme = _read("README.md")
+    gates = _read("docs/BUILD_GATES.md")
+    a1 = _read("docs/A1_PRR_SOURCE_CLARIFICATION.md")
+    approval = _read("docs/PRR_PROJECTS_A1_APPROVAL_REQUEST.md")
+    assert "no authority, source-owner or public-body contact" in gates
+    assert "no paid consultant, auditor or legal opinion" in gates
+    assert "Silence is never permission" in gates
+    assert "No email, call, interview, survey" in a1
+    assert "HUMAN-DEPENDENT APPROVAL PATH RETIRED" in approval
+    assert "Only already-public, independently inspectable evidence" in readme
+
+
+def test_prr_candidate_remains_fail_closed_until_public_safety_proof() -> None:
     source_status = _read("docs/SOURCE_STATUS.md")
     contracts = _read("src/procrun/source_contracts.py")
+    a1 = _read("docs/A1_PRR_SOURCE_CLARIFICATION.md")
     assert "PRR Projects on dados.gov.pt | CONDITIONAL" in source_status
     assert '"prr_projects_dados_gov"' in contracts
     assert "data_safety_status=SourceStatus.CONDITIONAL" in contracts
     assert "live retrieval is prohibited" in contracts
+    assert "new public authoritative evidence" in a1
 
 
 def test_a20_is_single_authoritative_web_build_gate() -> None:
     gates = _read("docs/BUILD_GATES.md")
     spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
     assert "A20 is the only authoritative `GO` source" in gates
-    assert "A20 WEB BUILD: GO" in gates
+    assert "A20 WEB BUILD: BLOCKED" in gates
     assert "A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY A1" in gates
-    assert "A20 LIVE PORTUGAL OPEN CLASSIFICATION: BLOCKED" in gates
+    assert "A20 LIVE PORTUGAL OPEN CLASSIFICATION: BLOCKED BY NATIONAL SOURCE COVERAGE" in gates
     assert "A20 PAID PRODUCTION: BLOCKED" in gates
     assert "Only `BUILD_GATES.md` A20 can declare build readiness" in spec
 
 
-def test_web_go_does_not_weaken_live_source_safety() -> None:
+def test_preweb_blockers_are_source_contracts_not_internal_pipeline() -> None:
     gates = _read("docs/BUILD_GATES.md")
     status = _read("docs/PREWEB_SHOWSTOPPER_STATUS.md")
-    assert "This blocks live funded-project ingestion, not web implementation" in gates
-    assert "incomplete required-source coverage yields `UNRESOLVED`" in gates
-    assert "WEB BUILD GO; LIVE SOURCE ACTIVATION REMAINS FAIL-CLOSED" in status
-    assert "live funded-project ingestion remains disabled until A1 is approved" in status
+    assert "one funded-project source passes A1 entirely from public evidence" in gates
+    assert "one complete-enough Portuguese national procurement source" in gates
+    assert "WEB BUILD BLOCKED — TWO PUBLIC-EVIDENCE SOURCE GATES REMAIN" in status
+    assert "live end-to-end acceptance" in status
 
 
 def test_customer_routes_follow_runway_product() -> None:
