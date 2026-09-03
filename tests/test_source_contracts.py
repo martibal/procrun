@@ -48,14 +48,15 @@ def test_nonapproved_sources_fail_before_retrieval(source_id: str) -> None:
         require_live_source(source_id, as_of=date(2026, 9, 3))
 
 
-def test_prr_projects_is_preferred_but_safety_conditional() -> None:
+def test_prr_projects_rights_and_safety_remain_source_specific_conditions() -> None:
     contract = SOURCE_CONTRACTS["prr_projects_dados_gov"]
     assert contract.status is SourceStatus.CONDITIONAL
-    assert contract.rights_status is SourceStatus.APPROVED
+    assert contract.rights_status is SourceStatus.CONDITIONAL
     assert contract.access_status is SourceStatus.APPROVED
     assert contract.data_safety_status is SourceStatus.CONDITIONAL
-    assert contract.commercial_reuse_allowed is True
+    assert contract.commercial_reuse_allowed is None
     assert contract.automated_access_allowed is True
+    assert "licence" in contract.reason
     assert "free-text" in contract.reason
     assert any("download-then-filter" in item for item in contract.obligations)
 
