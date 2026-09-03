@@ -7,12 +7,12 @@ def _read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_readme_records_final_build_decision() -> None:
+def test_readme_defers_readiness_to_a20() -> None:
     readme = _read("README.md")
-    assert "READY FOR WEBSITE BUILD" in readme
     assert "docs/PRODUCT_FOUNDATION_FINAL.md" in readme
-    assert "From tenders to infrastructure demand." in readme
-    assert "Do not add another product-feasibility test" in readme
+    assert "gate **A20**" in readme
+    assert "funded project -> source-evidenced purchasable components" in readme
+    assert "TED-only v2 pivot is retired" in readme
 
 
 def test_phase0b_failure_is_preserved() -> None:
@@ -33,41 +33,59 @@ def test_phase0c_failure_is_preserved() -> None:
     assert "No threshold is lowered" in result
 
 
-def test_final_product_does_not_relabel_failed_v2_as_pass() -> None:
-    readme = _read("README.md")
+def test_final_product_restores_runway_without_rewriting_v2_history() -> None:
     spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
-    assert "failed tests are preserved and are not relabelled as PASS" in readme
-    assert "Failed Phase 0B and Phase 0C results remain valid" in spec
-    assert "complete component decomposition" in spec
-    assert "bounded enrichment" in spec
+    assert "funded-project first" in spec
+    assert "Phase 0B and Phase 0C remain FAIL" in spec
+    assert "remaining procurement runway" in spec
+    assert "TED-only demand feed" in spec
 
 
-def test_validated_source_capabilities_are_preserved() -> None:
-    readme = _read("README.md")
-    assert "Active infrastructure notice feed | SUPPORTED" in readme
-    assert "Procurement market-intelligence dataset | SUPPORTED" in readme
-    assert "Early procurement runway from TED | NOT SUPPORTED" in readme
-    assert "Comprehensive EU-funding subset | NOT SUPPORTED" in readme
+def test_zero_unsupported_inference_contract_is_bounded() -> None:
+    spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
+    gates = _read("docs/BUILD_GATES.md")
+    assert "No invented demand" in spec
+    assert "100% source-verified" in spec
+    assert "must not be used as a blanket claim" in spec
+    assert "OPEN is not a source fact" in gates
+    assert "UNRESOLVED" in gates
 
 
 def test_absolute_intelligence_privacy_boundary_is_preserved() -> None:
     readme = _read("README.md")
     gates = _read("docs/BUILD_GATES.md")
     source_status = _read("docs/SOURCE_STATUS.md")
-
-    assert "No natural-person data may be collected, stored or processed" in readme
-    assert "pre-receipt" in readme.lower()
+    assert "zero-PII" in readme
     assert "No natural-person data may be collected, stored or processed" in gates
     assert "Do not receive a broad response containing prohibited fields" in source_status
+    assert "download-then-filter" in source_status
 
 
-def test_final_product_scope_is_locked() -> None:
-    spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
+def test_prr_candidate_remains_fail_closed_until_exact_safety_proof() -> None:
+    source_status = _read("docs/SOURCE_STATUS.md")
+    contracts = _read("src/procrun/source_contracts.py")
+    assert "PRR Projects on dados.gov.pt | CONDITIONAL" in source_status
+    assert '"prr_projects_dados_gov"' in contracts
+    assert "data_safety_status=SourceStatus.CONDITIONAL" in contracts
+    assert "live retrieval is prohibited" in contracts
+
+
+def test_a20_is_single_authoritative_build_gate() -> None:
     gates = _read("docs/BUILD_GATES.md")
+    spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
+    assert "A20 is the only authoritative `GO` source" in gates
+    assert "A20 PRODUCT BUILD: GO" in gates
+    assert "A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY A1" in gates
+    assert "A20 PAID PRODUCTION: BLOCKED until A1 + A19 are green" in gates
+    assert "Only `BUILD_GATES.md` A20 can declare build readiness" in spec
 
+
+def test_customer_routes_follow_runway_product() -> None:
+    spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
     for route in (
         "/app",
-        "/app/opportunities/[id]",
+        "/app/projects/[id]",
+        "/app/components/[id]",
         "/app/market",
         "/app/profile",
         "/app/saved",
@@ -76,7 +94,4 @@ def test_final_product_scope_is_locked() -> None:
         "/pricing",
     ):
         assert route in spec
-
     assert "ProcRun Portugal — €149/month" in spec
-    assert "Do not create another product-feasibility test" in gates
-    assert "A notice remains eligible for the feed even when no demand tag is present" in gates
