@@ -68,7 +68,9 @@ def require_validated_funded_source(source_id: str) -> SourceUniverseValidation:
     return validation
 
 
-def require_product_ready_funded_source(source_id: str) -> tuple[SourceContract, SourceUniverseValidation]:
+def require_product_ready_funded_source(
+    source_id: str,
+) -> tuple[SourceContract, SourceUniverseValidation]:
     """Require both live-source approval and source-family product validation."""
 
     contract = require_live_source(source_id)
