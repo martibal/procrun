@@ -1,7 +1,8 @@
 """Deterministic procurement-candidate feature construction.
 
-This module is the only production bridge between normalized procurement evidence and the matching
-hierarchy. It never assigns a customer state and never treats semantic similarity as evidence.
+This module is the only production bridge between normalized procurement evidence and the
+matching hierarchy. It never assigns a customer state and never treats semantic similarity as
+evidence.
 """
 
 from __future__ import annotations
@@ -38,9 +39,11 @@ def _rule_for_component(component: PurchaseComponent) -> ComponentRule:
         if rule.domain.value == domain_name and rule.category == category
     )
     if len(matches) != 1:
-        raise CandidateConstructionError(
-            f"component category is not uniquely represented in frozen taxonomy: {component.category}"
+        message = (
+            "component category is not uniquely represented in frozen taxonomy: "
+            f"{component.category}"
         )
+        raise CandidateConstructionError(message)
     return matches[0]
 
 
@@ -68,7 +71,7 @@ def bind_exact_component_evidence(
     component: PurchaseComponent,
     evidence: ProcurementEvidence,
 ) -> BoundEvidence | None:
-    """Bind a notice to a component only when frozen taxonomy text occurs verbatim in source text."""
+    """Bind only when frozen taxonomy text occurs verbatim in the source text."""
 
     if evidence.component_id != component.component_id:
         raise CandidateConstructionError("evidence component_id does not match component")
@@ -102,7 +105,9 @@ def bind_exact_component_evidence(
 def _reference_matches(project: FundingProject, evidence: ProcurementEvidence) -> bool:
     if not evidence.project_reference:
         return False
-    return evidence.project_reference.strip().casefold() == project.operation_code.strip().casefold()
+    reference = evidence.project_reference.strip().casefold()
+    operation_code = project.operation_code.strip().casefold()
+    return reference == operation_code
 
 
 def _date_compatible(project: FundingProject, publication_date: date) -> bool:
@@ -111,9 +116,7 @@ def _date_compatible(project: FundingProject, publication_date: date) -> bool:
         return False
     if project.project_start is not None and publication_date < project.project_start:
         return False
-    if project.project_end is not None and publication_date > project.project_end:
-        return False
-    return True
+    return project.project_end is None or publication_date <= project.project_end
 
 
 def _geography_matches(project: FundingProject, evidence: ProcurementEvidence) -> bool:
@@ -153,9 +156,11 @@ def build_match_candidate(
     rule = _rule_for_component(component)
     high_scope_overlap = bound is not None
     bound_evidence = evidence if bound is None else bound.evidence
-    cpv_match = any(
-        cpv_matches_prefixes(code, rule.cpv_prefixes) for code in evidence.cpv_codes
-    ) if rule.cpv_prefixes else False
+    cpv_match = (
+        any(cpv_matches_prefixes(code, rule.cpv_prefixes) for code in evidence.cpv_codes)
+        if rule.cpv_prefixes
+        else False
+    )
     compatible_date = _date_compatible(project, evidence.publication_date)
 
     return MatchCandidate(

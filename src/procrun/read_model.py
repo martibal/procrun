@@ -116,8 +116,13 @@ def _procurement_match(item: RunwayComponentResult, evidence_id: str) -> Procure
         if evidence.evidence_field is EvidenceField.TITLE
         else evidence.scope_description
     )
-    if source_text is None or source_text[evidence.evidence_start : evidence.evidence_end] != evidence.evidence_text:
-        raise ReadModelInvariantError("accepted procurement source span failed verbatim validation")
+    span = source_text[
+        evidence.evidence_start : evidence.evidence_end
+    ] if source_text is not None else None
+    if span != evidence.evidence_text:
+        raise ReadModelInvariantError(
+            "accepted procurement source span failed verbatim validation"
+        )
     return ProcurementMatch(
         evidence_id=evidence.evidence_id,
         notice_id=evidence.notice_id,
@@ -145,7 +150,10 @@ def _component(item: RunwayComponentResult) -> RunwayComponent:
         if evaluation.disposition is CandidateDisposition.HIGH_CONFIDENCE
     )
     accepted_ids = tuple(evaluation.evidence_id for evaluation in accepted)
-    if tuple(assessment.evidence_ids) != accepted_ids and assessment.state is ComponentState.CLOSED:
+    if (
+        tuple(assessment.evidence_ids) != accepted_ids
+        and assessment.state is ComponentState.CLOSED
+    ):
         raise ReadModelInvariantError("CLOSED assessment/evidence ids are inconsistent")
     if assessment.state is ComponentState.CLOSED and not accepted_ids:
         raise ReadModelInvariantError("CLOSED component has no accepted procurement evidence")

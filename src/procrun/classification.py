@@ -1,8 +1,8 @@
 """Deterministic project-state aggregation.
 
-Component OPEN/CLOSED decisions must be evidence rules, not model predictions. Project aggregation is
-also fail-closed: any unresolved component makes the project aggregate UNRESOLVED. PARTIAL is reserved
-for the commercially meaningful and fully resolved mixture of OPEN and CLOSED components.
+Component OPEN/CLOSED decisions must be evidence rules, not model predictions. Project
+aggregation is also fail-closed: any unresolved component makes the project aggregate
+UNRESOLVED. PARTIAL is reserved for a fully resolved mixture of OPEN and CLOSED components.
 """
 
 from datetime import date

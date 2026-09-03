@@ -20,7 +20,12 @@ from procrun.component_engine import (
     extract_components,
 )
 from procrun.domain import FundingProject, ProcurementEvidence, ProjectAssessment
-from procrun.matching import MATCH_RULE_VERSION, ComponentMatchResult, MatchCandidate, classify_component
+from procrun.matching import (
+    MATCH_RULE_VERSION,
+    ComponentMatchResult,
+    MatchCandidate,
+    classify_component,
+)
 
 RUNWAY_ORCHESTRATION_VERSION = "runway-v1"
 PROJECT_CLASSIFIER_VERSION = "project-state-v1"
@@ -80,12 +85,14 @@ def assess_project_runway(
     evidence_by_component: Mapping[str, Sequence[ProcurementEvidence]],
     coverage_by_component: Mapping[str, ComponentCoverage],
 ) -> RunwayResult:
-    """Run extraction, candidate construction, matching and project aggregation fail-closed."""
+    """Run extraction, candidate construction, matching and aggregation fail-closed."""
 
     raw_extraction = extract_components(project, domains)
     extraction = replace(
         raw_extraction,
-        components=tuple(_with_primary_component_span(item) for item in raw_extraction.components),
+        components=tuple(
+            _with_primary_component_span(item) for item in raw_extraction.components
+        ),
     )
     if extraction.operation_code != project.operation_code:
         raise RunwayInvariantError("extraction/project operation code mismatch")
@@ -98,13 +105,11 @@ def assess_project_runway(
     unknown_evidence_keys = set(evidence_by_component) - known_component_ids
     unknown_coverage_keys = set(coverage_by_component) - known_component_ids
     if unknown_evidence_keys:
-        raise RunwayInvariantError(
-            "evidence supplied for unknown components: " + ", ".join(sorted(unknown_evidence_keys))
-        )
+        unknown = ", ".join(sorted(unknown_evidence_keys))
+        raise RunwayInvariantError(f"evidence supplied for unknown components: {unknown}")
     if unknown_coverage_keys:
-        raise RunwayInvariantError(
-            "coverage supplied for unknown components: " + ", ".join(sorted(unknown_coverage_keys))
-        )
+        unknown = ", ".join(sorted(unknown_coverage_keys))
+        raise RunwayInvariantError(f"coverage supplied for unknown components: {unknown}")
 
     results: list[RunwayComponentResult] = []
     for extracted in extraction.components:

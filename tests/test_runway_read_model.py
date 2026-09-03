@@ -47,11 +47,12 @@ def _pump_evidence(component_id: str) -> ProcurementEvidence:
 
 
 def _coverage(ids: tuple[str, ...], *, complete: bool = True):
+    note = "TED iteration complete through cutoff." if complete else "TED coverage incomplete."
     return {
         component_id: ComponentCoverage(
             complete=complete,
             boundary_resolved=True,
-            note="TED iteration complete through cutoff." if complete else "TED coverage incomplete.",
+            note=note,
         )
         for component_id in ids
     }
@@ -159,6 +160,8 @@ def test_exact_project_reference_without_component_text_cannot_close_component()
         coverage_by_component=coverage,
     )
     pump_result = next(
-        item for item in result.components if item.extracted.component.component_id == pump.component_id
+        item
+        for item in result.components
+        if item.extracted.component.component_id == pump.component_id
     )
     assert pump_result.match.assessment.state is ComponentState.OPEN

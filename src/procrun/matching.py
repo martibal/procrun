@@ -1,8 +1,8 @@
 """Conservative deterministic procurement candidate matching.
 
-The matching hierarchy is intentionally asymmetric: missing or ambiguous evidence may reduce output
-volume, but it may never manufacture OPEN or CLOSED. Tier A/B can close only when the candidate also
-carries an exact source span that has already passed the domain-model verbatim validation.
+The hierarchy is intentionally asymmetric: missing or ambiguous evidence may reduce output volume,
+but it may never manufacture OPEN or CLOSED. Tier A/B can close only when the candidate also carries
+an exact source span that has already passed the domain-model verbatim validation.
 """
 
 from collections.abc import Sequence
@@ -132,7 +132,7 @@ def evaluate_candidate(candidate: MatchCandidate, cutoff_date: date) -> Candidat
         disposition = CandidateDisposition.REJECTED
         reason = "procurement evidence is after the historical cutoff"
     elif tier in {MatchTier.A, MatchTier.B} and not _has_exact_evidence(candidate.evidence):
-        # REVIEW rather than REJECTED is deliberate: an otherwise strong candidate lacking the
+        # REVIEW rather than REJECTED is deliberate. An otherwise strong candidate lacking the
         # customer-verifiable source span must suppress OPEN until its evidence is resolved.
         disposition = CandidateDisposition.REVIEW
         reason = "Tier A/B structural facts lack the required exact source span"
@@ -211,9 +211,8 @@ def classify_component(
         evidence_ids = ()
     else:
         state = ComponentState.OPEN
-        rationale = (
-            f"No relevant procurement found in approved indexed sources as of {cutoff_date.isoformat()}."
-        )
+        as_of = cutoff_date.isoformat()
+        rationale = f"No relevant procurement found in approved indexed sources as of {as_of}."
         evidence_ids = ()
 
     return ComponentMatchResult(
