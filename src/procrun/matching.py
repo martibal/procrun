@@ -1,9 +1,8 @@
-"""Conservative deterministic procurement candidate matching for Phase B.
+"""Conservative deterministic procurement candidate matching.
 
-The Product Requirements freeze the Tier A-D hierarchy but do not freeze a numeric match score or
-review threshold. This module therefore does not invent one. Tier A and complete Tier B evidence may
-close a component automatically; Tier C is explicitly review-band until a later requirements version
-freezes its threshold; Tier D semantic similarity alone can never close a component.
+The matching hierarchy is intentionally asymmetric: missing or ambiguous evidence may reduce output
+volume, but it may never manufacture OPEN or CLOSED. Tier A/B can close only when the candidate also
+carries an exact source span that has already passed the domain-model verbatim validation.
 """
 
 from collections.abc import Sequence
@@ -18,7 +17,7 @@ from procrun.domain import (
     PurchaseComponent,
 )
 
-MATCH_RULE_VERSION = "phase-b-conservative-v1"
+MATCH_RULE_VERSION = "phase-b-conservative-v2-exact-evidence"
 
 
 class MatchTier(StrEnum):
@@ -110,6 +109,18 @@ def _tier(features: CandidateFeatures) -> MatchTier:
     return MatchTier.NONE
 
 
+def _has_exact_evidence(evidence: ProcurementEvidence) -> bool:
+    return all(
+        value is not None
+        for value in (
+            evidence.evidence_field,
+            evidence.evidence_text,
+            evidence.evidence_start,
+            evidence.evidence_end,
+        )
+    )
+
+
 def evaluate_candidate(candidate: MatchCandidate, cutoff_date: date) -> CandidateEvaluation:
     """Evaluate one candidate without inventing an unfrozen numeric score."""
 
@@ -120,6 +131,11 @@ def evaluate_candidate(candidate: MatchCandidate, cutoff_date: date) -> Candidat
     if not pre_cutoff:
         disposition = CandidateDisposition.REJECTED
         reason = "procurement evidence is after the historical cutoff"
+    elif tier in {MatchTier.A, MatchTier.B} and not _has_exact_evidence(candidate.evidence):
+        # REVIEW rather than REJECTED is deliberate: an otherwise strong candidate lacking the
+        # customer-verifiable source span must suppress OPEN until its evidence is resolved.
+        disposition = CandidateDisposition.REVIEW
+        reason = "Tier A/B structural facts lack the required exact source span"
     elif tier in {MatchTier.A, MatchTier.B}:
         disposition = CandidateDisposition.HIGH_CONFIDENCE
         reason = f"complete deterministic Tier {tier.value} evidence covers the component"
@@ -196,7 +212,7 @@ def classify_component(
     else:
         state = ComponentState.OPEN
         rationale = (
-            f"No relevant procurement found in indexed sources as of {cutoff_date.isoformat()}."
+            f"No relevant procurement found in approved indexed sources as of {cutoff_date.isoformat()}."
         )
         evidence_ids = ()
 
