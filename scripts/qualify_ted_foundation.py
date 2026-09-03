@@ -1,9 +1,9 @@
-"""One-shot live qualification of TED as a complete ProcRun data foundation candidate.
+"""Single self-diagnosing live qualification of TED as a ProcRun production foundation.
 
-The probe intentionally requests only the frozen, non-person field classes needed to measure
-Portugal infrastructure volume, early-stage signal density, scope richness and notice-lifecycle
-linkability. It prints aggregate metrics only; no notice titles, descriptions or buyer values are
-written to logs or disk.
+The run first proves working TED query semantics with aggregate-only control probes, then executes
+one complete Portugal 12-month qualification using only the frozen non-person field projection.
+No raw response bodies, titles, descriptions, buyer values or person fields are logged or persisted.
+Frozen product thresholds are not changed based on observed results.
 """
 
 from __future__ import annotations
@@ -20,8 +20,8 @@ from procrun.source_contracts import require_live_source
 TED_URL = "https://api.ted.europa.eu/v3/notices/search"
 SOURCE_ID = "ted_search_api"
 AUDIT_START = "20250903"
-PAGE_SIZE = 200
-MAX_PAGES = 100
+PAGE_SIZE = 250
+MAX_PAGES = 200
 
 SAFE_FIELDS = (
     "publication-number",
@@ -61,6 +61,17 @@ LATER_TYPES = frozenset(
 )
 INFRA_CPV_PREFIXES = ("31", "34", "42", "44", "45", "90")
 
+# Candidate spellings are resolved inside this single run. This is transport diagnosis only;
+# the product gates below remain frozen and are never weakened to manufacture PASS.
+COUNTRY_QUERIES = (
+    "buyer-country = PRT",
+    "buyer-country = (PRT)",
+)
+DATE_QUERIES = (
+    f"publication-date = (>={AUDIT_START})",
+    f"publication-date >= {AUDIT_START}",
+)
+
 
 class QualificationError(RuntimeError):
     """Raised when the live source violates the qualification contract."""
@@ -69,7 +80,6 @@ class QualificationError(RuntimeError):
 @dataclass(frozen=True)
 class SliceResult:
     records: tuple[Mapping[str, Any], ...]
-    total: int
     pages: int
 
 
@@ -112,44 +122,107 @@ def _validate_notice(notice: Any) -> Mapping[str, Any]:
     return notice
 
 
+def _post_page(
+    client: httpx.Client,
+    query: str,
+    *,
+    limit: int,
+    token: str | None = None,
+) -> Mapping[str, Any]:
+    payload: dict[str, Any] = {
+        "query": query,
+        "fields": list(SAFE_FIELDS),
+        "limit": limit,
+        "scope": "ALL",
+        "checkQuerySyntax": True,
+        "paginationMode": "ITERATION",
+    }
+    if token is not None:
+        payload["iterationNextToken"] = token
+
+    response = client.post(TED_URL, json=payload)
+    response.raise_for_status()
+    if "application/json" not in response.headers.get("content-type", "").lower():
+        raise QualificationError("TED returned a non-JSON response")
+    body = response.json()
+    if not isinstance(body, Mapping):
+        raise QualificationError("TED returned a non-object envelope")
+    extra = set(body) - ALLOWED_ENVELOPE_KEYS
+    if extra:
+        raise QualificationError(
+            "TED returned unexpected envelope fields: " + ", ".join(sorted(extra))
+        )
+    if body.get("timedOut") is not False:
+        raise QualificationError("TED query timed out")
+    notices = body.get("notices")
+    if not isinstance(notices, list):
+        raise QualificationError("TED notices is not an array")
+    for notice in notices:
+        _validate_notice(notice)
+    return body
+
+
+def _probe_query(client: httpx.Client, query: str) -> bool:
+    """Return only whether a query yields at least one projected notice."""
+    try:
+        body = _post_page(client, query, limit=1)
+    except (httpx.HTTPError, QualificationError):
+        return False
+    notices = body.get("notices")
+    return isinstance(notices, list) and bool(notices)
+
+
+def _resolve_query(client: httpx.Client) -> str:
+    country_results = [(_query, _probe_query(client, _query)) for _query in COUNTRY_QUERIES]
+    date_results = [(_query, _probe_query(client, _query)) for _query in DATE_QUERIES]
+
+    print(
+        "TED_QUERY_DIAGNOSTIC country_control="
+        + ("PASS" if any(ok for _, ok in country_results) else "FAIL")
+    )
+    print(
+        "TED_QUERY_DIAGNOSTIC date_control="
+        + ("PASS" if any(ok for _, ok in date_results) else "FAIL")
+    )
+
+    for country_query, country_ok in country_results:
+        if not country_ok:
+            continue
+        for date_query, date_ok in date_results:
+            if not date_ok:
+                continue
+            combined = f"{country_query} AND {date_query}"
+            if _probe_query(client, combined):
+                print("TED_QUERY_DIAGNOSTIC combined_control=PASS")
+                return combined
+
+    print("TED_QUERY_DIAGNOSTIC combined_control=FAIL")
+    raise QualificationError(
+        "TED query semantics could not be resolved to a non-empty Portugal 12-month result"
+    )
+
+
 def _fetch_slice(client: httpx.Client, query: str) -> SliceResult:
     token: str | None = None
     records: list[Mapping[str, Any]] = []
+    seen_publication_numbers: set[str] = set()
 
     for page in range(1, MAX_PAGES + 1):
-        payload: dict[str, Any] = {
-            "query": query,
-            "fields": list(SAFE_FIELDS),
-            "limit": PAGE_SIZE,
-            "scope": "ALL",
-            "checkQuerySyntax": True,
-            "paginationMode": "ITERATION",
-        }
-        if token is not None:
-            payload["iterationNextToken"] = token
-
-        response = client.post(TED_URL, json=payload)
-        response.raise_for_status()
-        if "application/json" not in response.headers.get("content-type", "").lower():
-            raise QualificationError("TED returned a non-JSON response")
-        body = response.json()
-        if not isinstance(body, Mapping):
-            raise QualificationError("TED returned a non-object envelope")
-        extra = set(body) - ALLOWED_ENVELOPE_KEYS
-        if extra:
-            raise QualificationError(
-                "TED returned unexpected envelope fields: " + ", ".join(sorted(extra))
-            )
-        if body.get("timedOut") is not False:
-            raise QualificationError("TED query timed out")
-        notices = body.get("notices")
-        if not isinstance(notices, list):
-            raise QualificationError("TED notices is not an array")
+        body = _post_page(client, query, limit=PAGE_SIZE, token=token)
+        notices = body["notices"]
 
         if not notices:
-            return SliceResult(tuple(records), len(records), page)
+            return SliceResult(tuple(records), page)
 
-        records.extend(_validate_notice(item) for item in notices)
+        for item in notices:
+            notice = _validate_notice(item)
+            publication_number = _first(notice.get("publication-number"))
+            if publication_number:
+                if publication_number in seen_publication_numbers:
+                    raise QualificationError("TED returned duplicate publication-number")
+                seen_publication_numbers.add(publication_number)
+            records.append(notice)
+
         next_token = body.get("iterationNextToken")
         if not isinstance(next_token, str) or not next_token:
             raise QualificationError("TED iteration token missing before completion")
@@ -172,10 +245,8 @@ def main() -> int:
     if not contract.server_side_projection:
         raise QualificationError("TED source contract lost server-side projection")
 
-    # TED expert search comparison syntax requires the comparison to be expressed
-    # as a search-term value, e.g. publication-date = (>=20250903).
-    base_query = f"buyer-country = PRT AND publication-date = (>={AUDIT_START})"
     with httpx.Client(timeout=45.0, headers={"Accept": "application/json"}) as client:
+        base_query = _resolve_query(client)
         portugal = _fetch_slice(client, base_query)
 
     records = portugal.records
@@ -239,9 +310,10 @@ def main() -> int:
 
     if not all(gates.values()):
         failed = ", ".join(name for name, passed in gates.items() if not passed)
-        raise QualificationError(f"TED foundation qualification failed: {failed}")
+        print("PRODUCTION_FOUNDATION=FAIL")
+        raise QualificationError(f"TED production foundation failed: {failed}")
 
-    print("TED_FOUNDATION_VERDICT=PASS")
+    print("PRODUCTION_FOUNDATION=PASS")
     return 0
 
 
