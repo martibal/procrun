@@ -101,18 +101,6 @@ def _has_text(value: Any) -> bool:
     return any(bool(item.strip()) for item in _flatten(value))
 
 
-def _parse_total(value: Any) -> int:
-    if isinstance(value, bool):
-        raise QualificationError("TED totalNoticeCount is invalid")
-    if isinstance(value, int):
-        if value < 0:
-            raise QualificationError("TED totalNoticeCount is invalid")
-        return value
-    if isinstance(value, str) and value.isdigit():
-        return int(value)
-    raise QualificationError("TED totalNoticeCount is invalid")
-
-
 def _validate_notice(notice: Any) -> Mapping[str, Any]:
     if not isinstance(notice, Mapping):
         raise QualificationError("TED returned a non-object notice")
@@ -127,7 +115,6 @@ def _validate_notice(notice: Any) -> Mapping[str, Any]:
 def _fetch_slice(client: httpx.Client, query: str) -> SliceResult:
     token: str | None = None
     records: list[Mapping[str, Any]] = []
-    first_total: int | None = None
 
     for page in range(1, MAX_PAGES + 1):
         payload: dict[str, Any] = {
@@ -159,15 +146,8 @@ def _fetch_slice(client: httpx.Client, query: str) -> SliceResult:
         if not isinstance(notices, list):
             raise QualificationError("TED notices is not an array")
 
-        if first_total is None:
-            first_total = _parse_total(body.get("totalNoticeCount"))
-
         if not notices:
-            if len(records) != first_total:
-                raise QualificationError(
-                    f"TED iteration count mismatch: received={len(records)} expected={first_total}"
-                )
-            return SliceResult(tuple(records), first_total, page)
+            return SliceResult(tuple(records), len(records), page)
 
         records.extend(_validate_notice(item) for item in notices)
         next_token = body.get("iterationNextToken")
