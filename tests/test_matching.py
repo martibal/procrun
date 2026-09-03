@@ -2,7 +2,12 @@ from datetime import date
 
 import pytest
 
-from procrun.domain import ComponentState, ProcurementEvidence, PurchaseComponent
+from procrun.domain import (
+    ComponentState,
+    EvidenceField,
+    ProcurementEvidence,
+    PurchaseComponent,
+)
 from procrun.matching import (
     CandidateDisposition,
     CandidateFeatures,
@@ -16,10 +21,11 @@ CUTOFF = date(2026, 7, 31)
 COMPONENT = PurchaseComponent(
     component_id="crossing-a",
     operation_code="PACS-FC-04022300",
-    category="crossings",
+    category="rail_transport:crossings",
     description="Level-crossing suppression civil works",
     scope_evidence="Suppression of one of the funded level crossings.",
 )
+TITLE = "Level-crossing suppression works"
 
 
 def evidence(
@@ -27,15 +33,25 @@ def evidence(
     *,
     publication_date: date = date(2026, 3, 1),
     component_id: str = "crossing-a",
+    exact_span: bool = True,
 ) -> ProcurementEvidence:
+    kwargs: dict[str, object] = {}
+    if exact_span:
+        kwargs = {
+            "evidence_field": EvidenceField.TITLE,
+            "evidence_text": TITLE,
+            "evidence_start": 0,
+            "evidence_end": len(TITLE),
+        }
     return ProcurementEvidence(
         evidence_id=evidence_id,
         component_id=component_id,
         notice_id=f"notice-{evidence_id}",
         publication_date=publication_date,
-        title="Level-crossing suppression works",
+        title=TITLE,
         cpv_codes=("45200000",),
         source_url=f"https://example.invalid/{evidence_id}",
+        **kwargs,
     )
 
 
@@ -70,6 +86,21 @@ def test_complete_tier_a_closes_component() -> None:
     assert result.assessment.evidence_ids == ("ev-1",)
     assert result.evaluations[0].tier is MatchTier.A
     assert result.evaluations[0].disposition is CandidateDisposition.HIGH_CONFIDENCE
+
+
+def test_tier_a_without_exact_source_span_is_withheld() -> None:
+    candidate = MatchCandidate(
+        evidence(exact_span=False),
+        CandidateFeatures(
+            exact_project_identifier=True,
+            high_scope_overlap=True,
+            compatible_date_window=True,
+        ),
+    )
+    result = classify((candidate,))
+
+    assert result.assessment.state is ComponentState.UNRESOLVED
+    assert result.evaluations[0].disposition is CandidateDisposition.REVIEW
 
 
 def test_complete_tier_b_closes_component() -> None:
