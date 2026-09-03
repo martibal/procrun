@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ComponentState(StrEnum):
@@ -22,6 +22,11 @@ class ProjectState(StrEnum):
     CLOSED = "CLOSED"
     PARTIAL = "PARTIAL"
     UNRESOLVED = "UNRESOLVED"
+
+
+class EvidenceField(StrEnum):
+    TITLE = "title"
+    SCOPE_DESCRIPTION = "scope_description"
 
 
 class StrictModel(BaseModel):
@@ -54,6 +59,19 @@ class PurchaseComponent(StrictModel):
     category: str
     description: str
     scope_evidence: str
+    scope_evidence_start: int | None = Field(default=None, ge=0)
+    scope_evidence_end: int | None = Field(default=None, ge=0)
+    scope_source_field: str = "project_scope_text"
+
+    @model_validator(mode="after")
+    def validate_scope_span(self) -> "PurchaseComponent":
+        start = self.scope_evidence_start
+        end = self.scope_evidence_end
+        if (start is None) != (end is None):
+            raise ValueError("scope evidence offsets must either both be present or both be absent")
+        if start is not None and end is not None and end <= start:
+            raise ValueError("scope evidence end must be greater than start")
+        return self
 
 
 class ProcurementEvidence(StrictModel):
@@ -78,6 +96,43 @@ class ProcurementEvidence(StrictModel):
     contracting_authority_name: str | None = None
     project_reference: str | None = None
     source_url: str
+    evidence_field: EvidenceField | None = None
+    evidence_text: str | None = None
+    evidence_start: int | None = Field(default=None, ge=0)
+    evidence_end: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_evidence_span(self) -> "ProcurementEvidence":
+        span_values = (
+            self.evidence_field,
+            self.evidence_text,
+            self.evidence_start,
+            self.evidence_end,
+        )
+        if all(value is None for value in span_values):
+            return self
+        if any(value is None for value in span_values):
+            raise ValueError(
+                "procurement evidence field, text and offsets must be present together"
+            )
+        assert self.evidence_field is not None
+        assert self.evidence_text is not None
+        assert self.evidence_start is not None
+        assert self.evidence_end is not None
+        if self.evidence_end <= self.evidence_start:
+            raise ValueError("procurement evidence end must be greater than start")
+        source_text = (
+            self.title
+            if self.evidence_field is EvidenceField.TITLE
+            else self.scope_description
+        )
+        if source_text is None:
+            raise ValueError("procurement evidence field points to an absent source field")
+        if self.evidence_end > len(source_text):
+            raise ValueError("procurement evidence offsets exceed the source field")
+        if source_text[self.evidence_start : self.evidence_end] != self.evidence_text:
+            raise ValueError("procurement evidence text must match the exact source span")
+        return self
 
 
 class ComponentAssessment(StrictModel):
