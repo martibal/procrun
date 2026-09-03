@@ -173,7 +173,10 @@ SOURCE_CONTRACTS = {
         source_id="pt2030_operations_bulk",
         status=SourceStatus.BLOCKED,
         retrieval_route="PT2030 approved-operations bulk workbook",
-        reason="Broad response includes beneficiary/tax surface; download-then-filter is prohibited.",
+        reason=(
+            "Broad response includes beneficiary/tax surface; download-then-filter is "
+            "prohibited."
+        ),
         rights_status=SourceStatus.CONDITIONAL,
         access_status=SourceStatus.APPROVED,
         data_safety_status=SourceStatus.BLOCKED,
