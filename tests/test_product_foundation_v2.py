@@ -37,7 +37,11 @@ def test_v2_source_capability_is_not_relabelled_as_product_validation() -> None:
     readme = _read("README.md")
     assert "Active infrastructure notice feed | SUPPORTED" in readme
     assert "Early procurement runway from TED | NOT SUPPORTED" in readme
-    assert "These results establish source capability. They do not by themselves validate a paid supplier product." in readme
+    source_only = (
+        "These results establish source capability. They do not by themselves "
+        "validate a paid supplier product."
+    )
+    assert source_only in readme
 
 
 def test_absolute_intelligence_privacy_boundary_is_preserved() -> None:
