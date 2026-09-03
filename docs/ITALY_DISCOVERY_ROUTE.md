@@ -71,6 +71,66 @@ The exact safety condition therefore remains unprovable from the source contract
 
 This candidate may only be reconsidered if OpenCoesione/MEF later publishes a source-side guarantee covering `SINTESI_PRG`, or provides an official server-side projection that excludes the field before ProcRun receives a record. A local filter, post-download scanner or sample inspection is not sufficient.
 
+## Candidate 4 — OpenBDAP / MOP public-works project data
+
+The next independent national source family is the Ragioneria Generale dello Stato's OpenBDAP `Monitoraggio Opere Pubbliche` (MOP) dataset. Documentation/catalogue research was performed without requesting any MOP project row.
+
+Official OpenBDAP material establishes that MOP covers the life cycle of public works and integrates information from CUP, ANAC/BDNCP and the national unitary monitoring system for works within EU/cohesion policy. The national `Progetti Opere Pubbliche MOP - Totale` dataset was created in November 2024 and is exposed through the OpenBDAP catalogue with CSV, XML, JSON and OData download options. The OpenBDAP catalogue identifies the public-works datasets as CC BY / free reuse with attribution.
+
+The indexed metadata view for the regional MOP project dataset exposes a 48-field project model. Relevant examples include:
+
+- `Codice Locale Progetto`;
+- `Codice CUP`;
+- `Descrizione CUP Integrale`;
+- CUP status and validity dates;
+- `Descrizione Titolare`;
+- `Codice Fiscale Titolare`;
+- intervention nature/type, sector, subsector and category;
+- planned/effective procedural dates.
+
+This immediately makes the broad CSV/JSON/XML distributions **ineligible** for ProcRun because the response surface contains a fiscal/tax identifier field and ProcRun may not receive a broad record and discard that field locally.
+
+### OData projection gate
+
+OpenBDAP exposes OData as a machine-readable transport, which makes this source materially more interesting than a bulk-only route. However, the exact MOP OData endpoint and its production-supported query options have not yet been authoritatively frozen. ProcRun must not infer that `$select` is available merely because OData as a protocol defines projection semantics.
+
+Before any row request is authorised, documentation/metadata-only research must establish all of the following for the exact national MOP project resource:
+
+1. the stable dataset identifier / OData metadata endpoint;
+2. that the deployed service accepts server-side `$select` or an equivalent output projection;
+3. the exact projected response schema and unknown-field behaviour;
+4. that the projection can exclude `Codice Fiscale Titolare`, title-holder identity and every other prohibited person/identifier field **before receipt**.
+
+Until those four points are proven, MOP project-row retrieval is **PROHIBITED**.
+
+### Scope-text gate
+
+Even if OData projection is proven, ProcRun still needs a safe scope source. `Descrizione CUP Integrale` is the only currently identified MOP field with sufficiently rich project-specific text to be a plausible component-evidence source. Current documentation has not established a pre-publication rule guaranteeing that this free-text CUP description cannot contain natural-person names or equivalent identifiers.
+
+The structured intervention taxonomy (`Tipologia Intervento`, `Settore Interv Inv`, `Sottosettore Interv Inv`, `Categoria Interv Inv`) is safer and commercially relevant, but it has not yet been shown to be sufficiently granular to replace project-specific scope text for ProcRun's exact component evidence spans.
+
+Therefore Candidate 4 currently has two independent unresolved gates:
+
+- pre-receipt OData field projection: **UNPROVEN**;
+- safe and sufficiently granular component scope: **UNPROVEN**.
+
+### Coverage caveat
+
+OpenBDAP states that the `Interventi UE` view covers only part of all Structural-Fund interventions: investment projects increasing physical or technological capital. This is directionally aligned with ProcRun's infrastructure/equipment wedge but is not equivalent to complete Italy 2021-2027 cohesion coverage. OpenBDAP also states that CUPs monitored through ReGiS are no longer monitored in BDAP from December 2024. Coverage therefore requires a separate documented test before MOP could be treated as a complete Italy discovery source.
+
+### Current decision for Candidate 4
+
+- rights: **PASS at catalogue level**;
+- automated/public access: **PROMISING / OData exposed**;
+- broad distribution data safety: **FAIL** because prohibited identifier fields are present;
+- server-side field projection: **UNPROVEN**;
+- scope sufficiency after safe projection: **UNPROVEN**;
+- Italy 2021-2027 coverage sufficiency: **UNPROVEN / PARTIAL-SOURCE RISK**;
+- project-row smoke test: **PROHIBITED**;
+- production eligibility: **BLOCKED pending metadata-only OData and scope proof**.
+
+The next authorised action is restricted to OpenBDAP catalogue/OData metadata and documentation. No `DataRows`, CSV, JSON or XML project body may be fetched until the projection gate is proven.
+
 ## OpenCUP enrichment
 
 OpenCUP remains rejected because available project surfaces can include beneficiary/person names and fiscal/tax identifiers in the same record, and no documented safe server-side projection has been established.
@@ -84,6 +144,7 @@ No Italy funded-project source is production-approved yet.
 | OpenCoesione relational `Progetti` | strong | strong | promising | **blocked for 2021-2027** | reject as current-cycle scope source |
 | OpenCoesione `/api/progetti` | strong | strong | unresolved | unresolved | do not call project records |
 | 2021-2027 beneficiary/operation list | **strong** | **strong** | **FAIL: summary pre-receipt safety unproven** | **strong** | **rejected under zero-PII boundary** |
+| OpenBDAP / MOP project data | **strong** | **promising** | **blocked until projection is proven** | **unproven** | metadata-only research authorised |
 | OpenCUP project/API | strong/open-data signal | conditional | **blocked** | strong | reject as enrichment |
 
-Nothing in this document changes the executable production registry. The Italy research path must now move to a different source or a structurally safe source-side projection rather than attempting a beneficiary/operation CSV smoke test.
+Nothing in this document changes the executable production registry. The active Italy research route is now OpenBDAP/MOP metadata and transport-contract validation only.
