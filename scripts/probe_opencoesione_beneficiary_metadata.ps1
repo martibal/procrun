@@ -97,7 +97,7 @@ try {
         project_data_called = $false
         redirect_following_allowed = $false
         saved_metadata_path = $OutputPath
-        next_action = "Upload this metadata XLS for schema/value-rule review; do not fetch an operations CSV yet."
+        next_action = "Metadata review complete: OperationSummary pre-publication PII safety remains unproven. Do not fetch an operations CSV; continue documentation/provenance research only."
     } | ConvertTo-Json -Depth 6
 }
 finally {
