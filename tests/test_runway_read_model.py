@@ -25,8 +25,8 @@ PROJECT = FundingProject(
 CUTOFF = date(2026, 9, 1)
 
 
-def _components():
-    result = extract_components(PROJECT, (ComponentDomain.WATER_WASTEWATER,))
+def _components(project: FundingProject = PROJECT):
+    result = extract_components(project, (ComponentDomain.WATER_WASTEWATER,))
     return {item.component.category: item.component for item in result.components}
 
 
@@ -132,6 +132,32 @@ def test_incomplete_coverage_can_never_create_open() -> None:
         item.match.assessment.state is ComponentState.UNRESOLVED for item in result.components
     )
     assert result.assessment.state is ProjectState.UNRESOLVED
+
+
+def test_unmatched_scope_requires_fallback_and_can_never_create_open() -> None:
+    project = PROJECT.model_copy(
+        update={
+            "project_scope_text": (
+                PROJECT.project_scope_text
+                + " Fornecimento adicional de equipamento especial ainda não classificado."
+            )
+        }
+    )
+    components = _components(project)
+    ids = tuple(component.component_id for component in components.values())
+    result = assess_project_runway(
+        project,
+        domains=(ComponentDomain.WATER_WASTEWATER,),
+        cutoff_date=CUTOFF,
+        evidence_by_component={},
+        coverage_by_component=_coverage(ids),
+    )
+
+    assert result.extraction.model_fallback_required
+    assert result.assessment.state is ProjectState.UNRESOLVED
+    assert all(
+        item.match.assessment.state is ComponentState.UNRESOLVED for item in result.components
+    )
 
 
 def test_missing_explicit_coverage_fails_before_a_state_is_built() -> None:
