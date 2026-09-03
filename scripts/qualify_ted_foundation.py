@@ -101,6 +101,18 @@ def _has_text(value: Any) -> bool:
     return any(bool(item.strip()) for item in _flatten(value))
 
 
+def _parse_total(value: Any) -> int:
+    if isinstance(value, bool):
+        raise QualificationError("TED totalNoticeCount is invalid")
+    if isinstance(value, int):
+        if value < 0:
+            raise QualificationError("TED totalNoticeCount is invalid")
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    raise QualificationError("TED totalNoticeCount is invalid")
+
+
 def _validate_notice(notice: Any) -> Mapping[str, Any]:
     if not isinstance(notice, Mapping):
         raise QualificationError("TED returned a non-object notice")
@@ -147,11 +159,8 @@ def _fetch_slice(client: httpx.Client, query: str) -> SliceResult:
         if not isinstance(notices, list):
             raise QualificationError("TED notices is not an array")
 
-        total = body.get("totalNoticeCount")
         if first_total is None:
-            if not isinstance(total, int) or isinstance(total, bool) or total < 0:
-                raise QualificationError("TED totalNoticeCount is invalid")
-            first_total = total
+            first_total = _parse_total(body.get("totalNoticeCount"))
 
         if not notices:
             if len(records) != first_total:
