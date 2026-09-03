@@ -1,9 +1,9 @@
 """One-shot, data-first TED capability inventory for ProcRun product discovery.
 
-This run answers a different question from the legacy product-fit gate: what can TED safely,
-stably and usefully provide if the product is designed around the available data? It first proves
-the API/query transport with a minimal safe projection, then verifies every retained field against
-TED, and finally inventories Portugal over the last 12 months. Only approved non-person fields are
+This is the final live foundation test. It executes real TED searches (syntax checking is not used
+as a data request), proves a minimal field-bounded transport, resolves a working Portugal/date
+query inside the same run, verifies the complete retained projection, inventories the last 12
+months, and evaluates independent product hypotheses. Only approved non-person fields are
 requested. No raw responses, titles, descriptions, buyer values or notice payloads are logged or
 persisted.
 """
@@ -42,7 +42,6 @@ SAFE_FIELDS = (
     "eu-funds-financing-id-lot",
     "eu-funds-identifier",
 )
-ALLOWED_NOTICE_KEYS = frozenset(SAFE_FIELDS) | {"links"}
 ALLOWED_ENVELOPE_KEYS = frozenset(
     {"notices", "totalNoticeCount", "iterationNextToken", "timedOut"}
 )
@@ -64,11 +63,11 @@ LATER_TYPES = frozenset(
 )
 INFRA_CPV_PREFIXES = ("31", "34", "42", "44", "45", "90")
 
-# TED documents buyer-country with ISO-style authority codes (for example FRA). PRT is the
-# Portuguese country code. Date comparison has had more than one accepted spelling in TED help,
-# so the inventory resolves the working form inside this single run rather than consuming CI runs.
+# Alternative documented/observed spellings are resolved within this one run. These are transport
+# alternatives, not product-threshold changes.
 COUNTRY_QUERIES = (
     "buyer-country = PRT",
+    "buyer-country=PRT",
     "CY = PRT",
 )
 DATE_QUERIES = (
@@ -77,7 +76,6 @@ DATE_QUERIES = (
     f"PD >= {AUDIT_START}",
     f"PD = (>={AUDIT_START})",
 )
-ALL_NOTICES_QUERY = "OJ = ()"
 
 
 class QualificationError(RuntimeError):
@@ -140,6 +138,8 @@ def _post_page(
     *,
     fields: Sequence[str],
     limit: int,
+    mode: str = "PAGE_NUMBER",
+    page: int | None = 1,
     token: str | None = None,
 ) -> Mapping[str, Any]:
     payload: dict[str, Any] = {
@@ -147,10 +147,13 @@ def _post_page(
         "fields": list(fields),
         "limit": limit,
         "scope": "ALL",
-        "checkQuerySyntax": True,
-        "paginationMode": "ITERATION",
+        # Important: true is syntax-check mode and is not used for data retrieval.
+        "checkQuerySyntax": False,
+        "paginationMode": mode,
     }
-    if token is not None:
+    if mode == "PAGE_NUMBER":
+        payload["page"] = page or 1
+    elif token is not None:
         payload["iterationNextToken"] = token
 
     response = client.post(TED_URL, json=payload)
@@ -165,7 +168,7 @@ def _post_page(
         raise QualificationError(
             "TED returned unexpected envelope fields: " + ", ".join(sorted(extra))
         )
-    if body.get("timedOut") is not False:
+    if body.get("timedOut") not in (False, None):
         raise QualificationError("TED query timed out")
     notices = body.get("notices")
     if not isinstance(notices, list):
@@ -176,8 +179,15 @@ def _post_page(
 
 
 def _probe_query(client: httpx.Client, query: str) -> bool:
-    """Probe query semantics using only publication-number, never the full field inventory."""
-    body = _post_page(client, query, fields=MINIMAL_FIELDS, limit=1)
+    """Execute a real first-page search using only publication-number."""
+    body = _post_page(
+        client,
+        query,
+        fields=MINIMAL_FIELDS,
+        limit=1,
+        mode="PAGE_NUMBER",
+        page=1,
+    )
     notices = body.get("notices")
     return isinstance(notices, list) and bool(notices)
 
@@ -198,11 +208,18 @@ def _first_working_query(client: httpx.Client, candidates: Sequence[str], label:
     raise QualificationError(f"TED {label} query could not be resolved")
 
 
-def _verify_field(client: httpx.Client, field: str) -> bool:
-    """Prove that a retained field can be projected without receiving any unrequested fields."""
+def _verify_field(client: httpx.Client, query: str, field: str) -> bool:
+    """Prove a retained field can be projected without receiving unrequested fields."""
     fields = tuple(dict.fromkeys(("publication-number", field)))
     try:
-        _post_page(client, ALL_NOTICES_QUERY, fields=fields, limit=1)
+        _post_page(
+            client,
+            query,
+            fields=fields,
+            limit=1,
+            mode="PAGE_NUMBER",
+            page=1,
+        )
     except (httpx.HTTPError, QualificationError):
         return False
     return True
@@ -213,11 +230,19 @@ def _fetch_slice(client: httpx.Client, query: str) -> SliceResult:
     records: list[Mapping[str, Any]] = []
     seen_publication_numbers: set[str] = set()
 
-    for page in range(1, MAX_PAGES + 1):
-        body = _post_page(client, query, fields=SAFE_FIELDS, limit=PAGE_SIZE, token=token)
+    for page_number in range(1, MAX_PAGES + 1):
+        body = _post_page(
+            client,
+            query,
+            fields=SAFE_FIELDS,
+            limit=PAGE_SIZE,
+            mode="ITERATION",
+            page=None,
+            token=token,
+        )
         notices = body["notices"]
         if not notices:
-            return SliceResult(tuple(records), page)
+            return SliceResult(tuple(records), page_number)
 
         for item in notices:
             notice = _validate_notice(item, SAFE_FIELDS)
@@ -230,6 +255,11 @@ def _fetch_slice(client: httpx.Client, query: str) -> SliceResult:
 
         next_token = body.get("iterationNextToken")
         if not isinstance(next_token, str) or not next_token:
+            # Some APIs terminate the final non-empty page without another cursor. Accept only a
+            # short page as an unambiguous completion condition; a full page without a token is
+            # fail-closed because records could otherwise be silently truncated.
+            if len(notices) < PAGE_SIZE:
+                return SliceResult(tuple(records), page_number)
             raise QualificationError("TED iteration token missing before completion")
         token = next_token
 
@@ -250,23 +280,28 @@ def main() -> int:
     if not contract.server_side_projection:
         raise QualificationError("TED source contract lost server-side projection")
 
-    with httpx.Client(timeout=45.0, headers={"Accept": "application/json"}) as client:
-        # 1. Prove endpoint + minimal server-side projection independently of product fields.
-        if not _probe_query(client, ALL_NOTICES_QUERY):
-            raise QualificationError("TED endpoint control returned no notices")
-        print("TED_TRANSPORT endpoint_control=PASS")
+    with httpx.Client(
+        timeout=60.0,
+        headers={"Accept": "application/json", "User-Agent": "ProcRun-foundation-audit/1.0"},
+    ) as client:
+        # 1. Resolve a real, non-empty Portugal query using a minimal field projection. This proves
+        # endpoint execution, query semantics and server-side field bounding together.
+        country_query = _first_working_query(client, COUNTRY_QUERIES, "country_control")
+        print("TED_TRANSPORT endpoint_execution=PASS")
         print("TED_TRANSPORT minimal_projection=PASS")
 
-        # 2. Resolve Portugal/date query semantics in this run.
-        country_query = _first_working_query(client, COUNTRY_QUERIES, "country_control")
+        # 2. Resolve date syntax independently, then prove the combined 12-month population.
         date_query = _first_working_query(client, DATE_QUERIES, "date_control")
         combined_query = f"{country_query} AND {date_query}"
         if not _probe_query(client, combined_query):
             raise QualificationError("TED Portugal/date combination returned no notices")
         print("TED_QUERY_DIAGNOSTIC combined_control=PASS")
 
-        # 3. Verify the complete retained projection one field at a time before bulk receipt.
-        field_support = {field: _verify_field(client, field) for field in SAFE_FIELDS}
+        # 3. Verify the complete retained projection one field at a time against the same proven
+        # population before bulk receipt.
+        field_support = {
+            field: _verify_field(client, combined_query, field) for field in SAFE_FIELDS
+        }
         for field, supported in field_support.items():
             print(f"TED_FIELD_SUPPORT {field}={'PASS' if supported else 'FAIL'}")
         unsupported = [field for field, supported in field_support.items() if not supported]
@@ -279,6 +314,9 @@ def main() -> int:
         portugal = _fetch_slice(client, combined_query)
 
     records = portugal.records
+    if not records:
+        raise QualificationError("TED Portugal 12-month inventory unexpectedly empty")
+
     infra = tuple(record for record in records if _is_infra(record))
     early = tuple(record for record in infra if _first(record.get("notice-type")) in EARLY_TYPES)
     later = tuple(record for record in infra if _first(record.get("notice-type")) in LATER_TYPES)
@@ -343,7 +381,7 @@ def main() -> int:
     for field in SAFE_FIELDS:
         print(f"TED_FIELD_POPULATION field={field} pct={round(_population(records, field), 1)}")
 
-    # Product hypotheses are reported independently. A failed hypothesis is not a failed dataset.
+    # These hypotheses are independent. A failed hypothesis does not invalidate the dataset.
     hypotheses = {
         "early_procurement_runway": (
             len(early) >= 5
@@ -360,6 +398,21 @@ def main() -> int:
     for name, viable in hypotheses.items():
         print(f"TED_PRODUCT_HYPOTHESIS {name}={'SUPPORTED' if viable else 'NOT_SUPPORTED'}")
 
+    supported = [name for name, viable in hypotheses.items() if viable]
+    if not supported:
+        print("PRODUCT_FOUNDATION=NO_SUPPORTED_HYPOTHESIS")
+        raise QualificationError("TED inventory supports none of the predeclared product hypotheses")
+
+    # Prefer the earliest/highest-information product if the empirical evidence supports it; fall
+    # back deterministically rather than bending thresholds after seeing results.
+    priority = (
+        "early_procurement_runway",
+        "active_infrastructure_feed",
+        "procurement_market_intelligence",
+        "eu_funding_subset",
+    )
+    selected = next(name for name in priority if hypotheses[name])
+    print(f"PRODUCT_FOUNDATION=PASS selected={selected}")
     print("TED_CAPABILITY_INVENTORY=PASS")
     return 0
 
