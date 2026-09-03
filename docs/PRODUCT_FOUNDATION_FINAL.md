@@ -11,7 +11,7 @@ ProcRun is a supplier-side infrastructure procurement runway product.
 
 Canonical pipeline:
 
-`approved funded project -> source-evidenced purchasable components -> approved procurement evidence -> conservative matching -> OPEN / PARTIAL / CLOSED / UNRESOLVED -> customer runway`
+`approved funded project -> source-evidenced purchasable components -> approved procurement evidence -> conservative matching -> component OPEN/CLOSED/UNRESOLVED -> project OPEN/PARTIAL/CLOSED/UNRESOLVED -> customer runway`
 
 Primary customer promise:
 
@@ -40,22 +40,30 @@ Marketing may say:
 
 The stronger phrase `100% source-verified` is allowed only when attached to a positive evidence object that satisfies the evidence contract. It must not be used as a blanket claim that every state is a source fact.
 
-`OPEN` is necessarily a bounded negative-search conclusion. Customer wording is frozen as:
+`OPEN` is a bounded negative-search conclusion. Customer wording is frozen as:
 
 > **No relevant procurement found in approved indexed sources as of DATE.**
 
-An OPEN state is permitted only when required source coverage is complete at that cutoff. If coverage is incomplete, the state is `UNRESOLVED`.
+An OPEN component is permitted only when required source coverage is complete at that cutoff. If coverage is incomplete, the component is `UNRESOLVED`.
 
 No probabilistic fit score, win probability or AI confidence score is part of the product contract.
 
-## 4. Product states
+## 4. State ontology
 
-- **CLOSED** — at least one accepted Tier A/B procurement record provides sufficient pre-cutoff evidence that the component has entered procurement.
-- **PARTIAL** — source-backed procurement covers only part of a component boundary under an explicitly supported partial-coverage rule.
-- **OPEN** — no relevant procurement was found in the approved indexed sources as of the cutoff and all required coverage gates are complete.
-- **UNRESOLVED** — ambiguity, review-band evidence, source incompleteness or insufficient evidence prevents a safe state.
+### Component states
 
-False OPEN is the most damaging classification error. The system therefore sacrifices recall before it sacrifices this invariant.
+- **CLOSED** — accepted Tier A/B procurement evidence shows that the specific component has entered procurement at/before cutoff.
+- **OPEN** — no relevant procurement was found for the component in approved indexed sources as of cutoff and required source coverage is complete.
+- **UNRESOLVED** — ambiguity, review-band evidence, source incompleteness or insufficient evidence prevents a safe OPEN/CLOSED decision.
+
+### Project states
+
+- **CLOSED** — all assessed components are CLOSED.
+- **OPEN** — all assessed components are OPEN.
+- **PARTIAL** — assessed component states differ, including OPEN/CLOSED or CLOSED/UNRESOLVED mixtures.
+- **UNRESOLVED** — no components exist or all assessed components remain unresolved.
+
+False OPEN is the highest-cost classification error. The system therefore sacrifices recall before it sacrifices this invariant.
 
 ## 5. Initial domains
 
@@ -67,21 +75,21 @@ The initial supported infrastructure domains remain:
 - energy efficiency/electrical systems;
 - resilience/fire.
 
-The frozen component taxonomy and deterministic extraction rules are defined in `COMPONENT_ENGINE.md` and code. Expansion requires evidence and regression tests, not ad-hoc model labels.
+The frozen component taxonomy and deterministic extraction rules are defined in `COMPONENT_ENGINE.md` and code. Expansion requires explicit versioning, evidence and regression tests.
 
 ## 6. Sources
 
 ### 6.1 Funded-project source
 
-A funded-project source must satisfy the complete A1 source contract before live use: RIGHTS, ACCESS and DATA SAFETY all approved, including the absolute pre-receipt natural-person boundary for every retained structured/free-text field.
+A funded-project source must satisfy A1 before live use: RIGHTS, ACCESS and DATA SAFETY all approved, including the absolute pre-receipt natural-person boundary for every retained structured/free-text field.
 
-Current PRR/dados.gov.pt evidence is strong enough to keep the route as the preferred production candidate: official national open-data publisher, daily project dataset, separate Projects and Entities resources, portal rule that datasets may not contain personal data, and default CC BY 4.0 for State datasets unless otherwise specified. However the product's stricter rule requires an exact source-specific machine-route/free-text guarantee before activation. Until that is frozen, the collector stays disabled.
+Current PRR/dados.gov.pt evidence is strong enough to keep the route as the preferred production candidate: official national open-data publisher, daily PRR project dataset, separate Projects and Entities resources, portal rule that datasets may not contain personal data, and default CC BY 4.0 for State datasets unless otherwise specified. ProcRun's stricter rule still requires exact source-specific machine-route/free-text safety proof before activation. Until that is frozen, the collector stays disabled.
 
-The product definition does not change if the final approved funded-project transport is PRR Projects or another authoritative route; the source must implement the same canonical `FundingProject` contract.
+The product definition does not change if the finally approved funded-project transport is PRR Projects or another authoritative route; the source must implement the same canonical `FundingProject` contract.
 
 ### 6.2 Procurement evidence
 
-TED Search API remains APPROVED for field-bounded procurement evidence and market context. Its Phase 0 qualification supports active infrastructure feed and historical procurement analysis; it does not independently support early-runway discovery or comprehensive EU-funding linkage.
+TED Search API remains APPROVED for field-bounded procurement evidence and market context. Its Phase 0 qualification supports active infrastructure procurement and historical market analysis; it does not independently support early-runway discovery or comprehensive EU-funding linkage.
 
 Additional procurement sources may be activated only through the same source-contract registry and pre-receipt safety gates.
 
@@ -89,25 +97,29 @@ Additional procurement sources may be activated only through the same source-con
 
 ### FundingProject
 
-Required fields: stable source ID/operation code, project title, approved scope text, start/end dates where available, funding/value fields where approved, programme/component/investment classification, source observation timestamp and content hash.
+Required fields: stable source ID/operation code, project title, approved scope text, start/end dates where available, approved funding/value fields, programme/component/investment classification where available, source observation timestamp and immutable version/hash.
 
 No beneficiary/contact/person identity is part of the analytical contract.
 
 ### PurchaseComponent
 
-Required fields: deterministic component ID, domain, canonical category, display label, exact source evidence span, extraction method/version, project source/cutoff and immutable hash/version reference.
+Required fields: deterministic component ID, domain, canonical category, display label, exact project-scope evidence span, extraction method/version, source cutoff and immutable version/hash.
 
 ### ProcurementEvidence
 
-Required fields: approved source/publication identifier, publication date, accepted procurement scope evidence, CPV/category where approved, match tier/reasons, observation timestamp and content hash.
+Required fields: approved source/publication identifier, publication date, accepted procurement scope evidence, approved CPV/category context, match tier/reasons, observation timestamp and immutable version/hash.
 
-### ComponentState
+### ComponentAssessment
 
-Required fields: component ID, historical cutoff, `OPEN|PARTIAL|CLOSED|UNRESOLVED`, exact evidence references, required-source coverage status, rule/model versions and deterministic classification hash.
+Required fields: component ID, historical cutoff, `OPEN|CLOSED|UNRESOLVED`, exact evidence references, required-source coverage status, rationale, rule/model versions and deterministic classification hash where implemented.
+
+### ProjectAssessment
+
+Required fields: operation code, historical cutoff, `OPEN|PARTIAL|CLOSED|UNRESOLVED`, component assessments and immutable version/hash where implemented.
 
 ## 8. Matching contract
 
-The hierarchy in `MATCHING_RULES.md` remains canonical.
+The hierarchy in `MATCHING_RULES.md` is canonical.
 
 - Tier A/B may close a component only with explicit evidence and required corroboration.
 - Tier C is review-only and yields `UNRESOLVED`.
@@ -126,7 +138,7 @@ The model may not create source text, assign procurement state, manufacture a ma
 The authenticated product centers on:
 
 - `/app` — runway feed;
-- `/app/projects/[id]` — funded-project and component runway detail;
+- `/app/projects/[id]` — funded-project and project-state detail;
 - `/app/components/[id]` — component evidence/history;
 - `/app/market` — procurement/funding market context;
 - `/app/profile` — supplier category/domain profile;
@@ -137,25 +149,26 @@ Public routes remain `/`, `/product`, `/methodology`, `/pricing`, `/login`, with
 
 ## 11. Runway feed
 
-The default feed shows only states that satisfy the customer-safe read contract. Each item communicates:
+The default feed shows only customer-safe assessments. Each item communicates:
 
 - funded project;
 - project dates/value where approved;
 - component/category;
-- current state and historical cutoff;
+- component state and historical cutoff;
+- project state;
 - exact project-scope evidence;
-- accepted procurement evidence when CLOSED/PARTIAL;
+- accepted procurement evidence when CLOSED;
 - bounded OPEN wording when OPEN;
 - source coverage status;
 - last observation and immutable version/hash.
 
-`UNRESOLVED` is visible in project detail and diagnostics but may be hidden from the commercial default feed.
+`UNRESOLVED` components are visible in project detail/diagnostics but may be hidden from the commercial default feed.
 
 ## 12. Supplier relevance
 
-Supplier relevance is deterministic and profile-based. It may use selected domains/categories, approved CPV families and geography/value preferences. Relevance is not a probability and cannot override component state.
+Supplier relevance is deterministic and profile-based. It may use selected domains/categories, approved CPV families and geography/value preferences. Relevance is not a probability and cannot override component/project evidence state.
 
-The product can rank source-verified OPEN/PARTIAL components for a supplier, but every reason must be inspectable.
+The product may prioritize source-evidenced OPEN components for a supplier, but every reason must be inspectable.
 
 ## 13. Market context
 
@@ -165,9 +178,10 @@ TED can power procurement activity/time/value/category views with missingness di
 
 Allowed after A1 source activation:
 
-- approved funded-project scope translated into evidence-backed purchasable components;
+- approved funded-project scope translated into source-evidenced purchasable components;
 - exact evidence for every accepted component and positive procurement match;
-- conservative OPEN/PARTIAL/CLOSED/UNRESOLVED state semantics;
+- conservative component OPEN/CLOSED/UNRESOLVED semantics;
+- conservative project OPEN/PARTIAL/CLOSED/UNRESOLVED semantics;
 - historical cutoff/version reproducibility;
 - supplier-side view of remaining procurement runway;
 - Portugal infrastructure focus.
@@ -193,7 +207,7 @@ Subheadline: `ProcRun turns explicit project scope into source-evidenced compone
 
 Trust strip: `No invented demand · Exact source evidence · Ambiguity stays unresolved`
 
-The product demonstration must show the three evidence layers side by side: project-scope span, procurement evidence, resulting bounded state.
+The product demonstration must show three layers together: project-scope span, procurement evidence where present, and the bounded component/project state that follows.
 
 ## 16. Packaging
 
@@ -214,10 +228,10 @@ Phase 0B and Phase 0C remain FAIL for the TED-only demand-extraction product hyp
 ## 19. Production implementation order
 
 1. lock this product/source contract and regression tests;
-2. build funded-project `FundingProject` ingress interface with fail-closed source activation;
-3. wire existing component engine + ledger to the canonical project object;
-4. wire approved TED procurement evidence and matching hierarchy;
-5. expose customer-safe runway read model/API;
+2. build the `FundingProject` ingress interface with fail-closed source activation;
+3. wire the existing component engine and immutable ledger to the canonical project object;
+4. wire approved TED procurement evidence and the conservative matching hierarchy;
+5. expose the customer-safe runway read model/API;
 6. build public pages and authenticated feed/detail/evidence UX;
 7. add market context, saved/export and account shell;
 8. activate a funded-project collector only after A1 is approved;
