@@ -7,12 +7,13 @@ def _read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_readme_defers_readiness_to_a20() -> None:
+def test_readme_defers_web_readiness_to_a20() -> None:
     readme = _read("README.md")
     assert "docs/PRODUCT_FOUNDATION_FINAL.md" in readme
     assert "gate **A20**" in readme
     assert "funded project -> source-evidenced purchasable components" in readme
     assert "TED-only v2 pivot is retired" in readme
+    assert "DO NOT START THE WEB BUILD YET" in readme
 
 
 def test_phase0b_failure_is_preserved() -> None:
@@ -55,7 +56,7 @@ def test_absolute_intelligence_privacy_boundary_is_preserved() -> None:
     readme = _read("README.md")
     gates = _read("docs/BUILD_GATES.md")
     source_status = _read("docs/SOURCE_STATUS.md")
-    assert "zero-PII" in readme
+    assert "zero-natural-person" in readme
     assert "No natural-person data may be collected, stored or processed" in gates
     assert "Do not receive a broad response containing prohibited fields" in source_status
     assert "download-then-filter" in source_status
@@ -70,11 +71,11 @@ def test_prr_candidate_remains_fail_closed_until_exact_safety_proof() -> None:
     assert "live retrieval is prohibited" in contracts
 
 
-def test_a20_is_single_authoritative_build_gate() -> None:
+def test_a20_is_single_authoritative_web_build_gate() -> None:
     gates = _read("docs/BUILD_GATES.md")
     spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
     assert "A20 is the only authoritative `GO` source" in gates
-    assert "A20 PRODUCT BUILD: GO" in gates
+    assert "A20 WEB BUILD: BLOCKED" in gates
     assert "A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY A1" in gates
     assert "A20 PAID PRODUCTION: BLOCKED until A1 + A19 are green" in gates
     assert "Only `BUILD_GATES.md` A20 can declare build readiness" in spec
