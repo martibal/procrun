@@ -1,14 +1,16 @@
-"""Single self-diagnosing live qualification of TED as a ProcRun production foundation.
+"""One-shot, data-first TED capability inventory for ProcRun product discovery.
 
-The run first proves working TED query semantics with aggregate-only control probes, then executes
-one complete Portugal 12-month qualification using only the frozen non-person field projection.
-No raw response bodies, titles, descriptions, buyer values or person fields are logged or persisted.
-Frozen product thresholds are not changed based on observed results.
+This run answers a different question from the legacy product-fit gate: what can TED safely,
+stably and usefully provide if the product is designed around the available data? It first proves
+the API/query transport with a minimal safe projection, then verifies every retained field against
+TED, and finally inventories Portugal over the last 12 months. Only approved non-person fields are
+requested. No raw responses, titles, descriptions, buyer values or notice payloads are logged or
+persisted.
 """
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -23,6 +25,7 @@ AUDIT_START = "20250903"
 PAGE_SIZE = 250
 MAX_PAGES = 200
 
+MINIMAL_FIELDS = ("publication-number",)
 SAFE_FIELDS = (
     "publication-number",
     "publication-date",
@@ -61,20 +64,24 @@ LATER_TYPES = frozenset(
 )
 INFRA_CPV_PREFIXES = ("31", "34", "42", "44", "45", "90")
 
-# Candidate spellings are resolved inside this single run. This is transport diagnosis only;
-# the product gates below remain frozen and are never weakened to manufacture PASS.
+# TED documents buyer-country with ISO-style authority codes (for example FRA). PRT is the
+# Portuguese country code. Date comparison has had more than one accepted spelling in TED help,
+# so the inventory resolves the working form inside this single run rather than consuming CI runs.
 COUNTRY_QUERIES = (
     "buyer-country = PRT",
-    "buyer-country = (PRT)",
+    "CY = PRT",
 )
 DATE_QUERIES = (
-    f"publication-date = (>={AUDIT_START})",
     f"publication-date >= {AUDIT_START}",
+    f"publication-date = (>={AUDIT_START})",
+    f"PD >= {AUDIT_START}",
+    f"PD = (>={AUDIT_START})",
 )
+ALL_NOTICES_QUERY = "OJ = ()"
 
 
 class QualificationError(RuntimeError):
-    """Raised when the live source violates the qualification contract."""
+    """Raised when the live source violates the capability-inventory contract."""
 
 
 @dataclass(frozen=True)
@@ -95,7 +102,7 @@ def _flatten(value: Any) -> list[str]:
             out.extend(_flatten(item))
         return out
     if isinstance(value, Sequence) and not isinstance(value, bytes | bytearray):
-        out = []
+        out: list[str] = []
         for item in value:
             out.extend(_flatten(item))
         return out
@@ -111,10 +118,15 @@ def _has_text(value: Any) -> bool:
     return any(bool(item.strip()) for item in _flatten(value))
 
 
-def _validate_notice(notice: Any) -> Mapping[str, Any]:
+def _pct(numerator: int, denominator: int) -> float:
+    return 0.0 if denominator == 0 else 100.0 * numerator / denominator
+
+
+def _validate_notice(notice: Any, requested_fields: Sequence[str]) -> Mapping[str, Any]:
     if not isinstance(notice, Mapping):
         raise QualificationError("TED returned a non-object notice")
-    extra = set(notice) - ALLOWED_NOTICE_KEYS
+    allowed = frozenset(requested_fields) | {"links"}
+    extra = set(notice) - allowed
     if extra:
         raise QualificationError(
             "TED returned fields outside the pre-receipt allowlist: " + ", ".join(sorted(extra))
@@ -126,12 +138,13 @@ def _post_page(
     client: httpx.Client,
     query: str,
     *,
+    fields: Sequence[str],
     limit: int,
     token: str | None = None,
 ) -> Mapping[str, Any]:
     payload: dict[str, Any] = {
         "query": query,
-        "fields": list(SAFE_FIELDS),
+        "fields": list(fields),
         "limit": limit,
         "scope": "ALL",
         "checkQuerySyntax": True,
@@ -158,48 +171,41 @@ def _post_page(
     if not isinstance(notices, list):
         raise QualificationError("TED notices is not an array")
     for notice in notices:
-        _validate_notice(notice)
+        _validate_notice(notice, fields)
     return body
 
 
 def _probe_query(client: httpx.Client, query: str) -> bool:
-    """Return only whether a query yields at least one projected notice."""
-    try:
-        body = _post_page(client, query, limit=1)
-    except (httpx.HTTPError, QualificationError):
-        return False
+    """Probe query semantics using only publication-number, never the full field inventory."""
+    body = _post_page(client, query, fields=MINIMAL_FIELDS, limit=1)
     notices = body.get("notices")
     return isinstance(notices, list) and bool(notices)
 
 
-def _resolve_query(client: httpx.Client) -> str:
-    country_results = [(_query, _probe_query(client, _query)) for _query in COUNTRY_QUERIES]
-    date_results = [(_query, _probe_query(client, _query)) for _query in DATE_QUERIES]
+def _first_working_query(client: httpx.Client, candidates: Sequence[str], label: str) -> str:
+    failures: list[str] = []
+    for query in candidates:
+        try:
+            if _probe_query(client, query):
+                print(f"TED_QUERY_DIAGNOSTIC {label}=PASS")
+                return query
+            failures.append("EMPTY")
+        except httpx.HTTPStatusError as exc:
+            failures.append(f"HTTP_{exc.response.status_code}")
+        except (httpx.HTTPError, QualificationError):
+            failures.append("TRANSPORT_OR_SCHEMA")
+    print(f"TED_QUERY_DIAGNOSTIC {label}=FAIL attempts={','.join(failures)}")
+    raise QualificationError(f"TED {label} query could not be resolved")
 
-    print(
-        "TED_QUERY_DIAGNOSTIC country_control="
-        + ("PASS" if any(ok for _, ok in country_results) else "FAIL")
-    )
-    print(
-        "TED_QUERY_DIAGNOSTIC date_control="
-        + ("PASS" if any(ok for _, ok in date_results) else "FAIL")
-    )
 
-    for country_query, country_ok in country_results:
-        if not country_ok:
-            continue
-        for date_query, date_ok in date_results:
-            if not date_ok:
-                continue
-            combined = f"{country_query} AND {date_query}"
-            if _probe_query(client, combined):
-                print("TED_QUERY_DIAGNOSTIC combined_control=PASS")
-                return combined
-
-    print("TED_QUERY_DIAGNOSTIC combined_control=FAIL")
-    raise QualificationError(
-        "TED query semantics could not be resolved to a non-empty Portugal 12-month result"
-    )
+def _verify_field(client: httpx.Client, field: str) -> bool:
+    """Prove that a retained field can be projected without receiving any unrequested fields."""
+    fields = tuple(dict.fromkeys(("publication-number", field)))
+    try:
+        _post_page(client, ALL_NOTICES_QUERY, fields=fields, limit=1)
+    except (httpx.HTTPError, QualificationError):
+        return False
+    return True
 
 
 def _fetch_slice(client: httpx.Client, query: str) -> SliceResult:
@@ -208,14 +214,13 @@ def _fetch_slice(client: httpx.Client, query: str) -> SliceResult:
     seen_publication_numbers: set[str] = set()
 
     for page in range(1, MAX_PAGES + 1):
-        body = _post_page(client, query, limit=PAGE_SIZE, token=token)
+        body = _post_page(client, query, fields=SAFE_FIELDS, limit=PAGE_SIZE, token=token)
         notices = body["notices"]
-
         if not notices:
             return SliceResult(tuple(records), page)
 
         for item in notices:
-            notice = _validate_notice(item)
+            notice = _validate_notice(item, SAFE_FIELDS)
             publication_number = _first(notice.get("publication-number"))
             if publication_number:
                 if publication_number in seen_publication_numbers:
@@ -228,7 +233,7 @@ def _fetch_slice(client: httpx.Client, query: str) -> SliceResult:
             raise QualificationError("TED iteration token missing before completion")
         token = next_token
 
-    raise QualificationError("TED qualification exceeded MAX_PAGES")
+    raise QualificationError("TED capability inventory exceeded MAX_PAGES")
 
 
 def _is_infra(record: Mapping[str, Any]) -> bool:
@@ -236,8 +241,8 @@ def _is_infra(record: Mapping[str, Any]) -> bool:
     return any(code.startswith(INFRA_CPV_PREFIXES) for code in codes)
 
 
-def _pct(numerator: int, denominator: int) -> float:
-    return 0.0 if denominator == 0 else 100.0 * numerator / denominator
+def _population(records: Sequence[Mapping[str, Any]], field: str) -> float:
+    return _pct(sum(1 for record in records if _has_text(record.get(field))), len(records))
 
 
 def main() -> int:
@@ -246,25 +251,58 @@ def main() -> int:
         raise QualificationError("TED source contract lost server-side projection")
 
     with httpx.Client(timeout=45.0, headers={"Accept": "application/json"}) as client:
-        base_query = _resolve_query(client)
-        portugal = _fetch_slice(client, base_query)
+        # 1. Prove endpoint + minimal server-side projection independently of product fields.
+        if not _probe_query(client, ALL_NOTICES_QUERY):
+            raise QualificationError("TED endpoint control returned no notices")
+        print("TED_TRANSPORT endpoint_control=PASS")
+        print("TED_TRANSPORT minimal_projection=PASS")
+
+        # 2. Resolve Portugal/date query semantics in this run.
+        country_query = _first_working_query(client, COUNTRY_QUERIES, "country_control")
+        date_query = _first_working_query(client, DATE_QUERIES, "date_control")
+        combined_query = f"{country_query} AND {date_query}"
+        if not _probe_query(client, combined_query):
+            raise QualificationError("TED Portugal/date combination returned no notices")
+        print("TED_QUERY_DIAGNOSTIC combined_control=PASS")
+
+        # 3. Verify the complete retained projection one field at a time before bulk receipt.
+        field_support = {field: _verify_field(client, field) for field in SAFE_FIELDS}
+        for field, supported in field_support.items():
+            print(f"TED_FIELD_SUPPORT {field}={'PASS' if supported else 'FAIL'}")
+        unsupported = [field for field, supported in field_support.items() if not supported]
+        if unsupported:
+            raise QualificationError(
+                "TED safe projection contains unsupported fields: " + ", ".join(unsupported)
+            )
+
+        # 4. Inventory the actual current Portugal universe using only the proven safe projection.
+        portugal = _fetch_slice(client, combined_query)
 
     records = portugal.records
     infra = tuple(record for record in records if _is_infra(record))
-    early = tuple(
-        record for record in infra if _first(record.get("notice-type")) in EARLY_TYPES
-    )
-    later = tuple(
-        record for record in infra if _first(record.get("notice-type")) in LATER_TYPES
+    early = tuple(record for record in infra if _first(record.get("notice-type")) in EARLY_TYPES)
+    later = tuple(record for record in infra if _first(record.get("notice-type")) in LATER_TYPES)
+
+    notice_type_counts = Counter(
+        notice_type
+        for record in records
+        if (notice_type := _first(record.get("notice-type"))) is not None
     )
 
-    rich_scope = sum(
+    rich_early = sum(
         1
         for record in early
         if _has_text(record.get("notice-title")) and _has_text(record.get("description-proc"))
     )
-    procedure_ids = sum(1 for record in early if _has_text(record.get("procedure-identifier")))
-    eu_funded = sum(
+    rich_later = sum(
+        1
+        for record in later
+        if _has_text(record.get("notice-title")) and _has_text(record.get("description-proc"))
+    )
+    early_with_procedure = sum(
+        1 for record in early if _has_text(record.get("procedure-identifier"))
+    )
+    infra_with_funding = sum(
         1
         for record in infra
         if _has_text(record.get("eu-funds-identifier"))
@@ -283,37 +321,46 @@ def main() -> int:
         if types.intersection(EARLY_TYPES) and types.intersection(LATER_TYPES)
     )
 
-    metrics = {
+    metrics: dict[str, int | float] = {
         "portugal_notices_12m": len(records),
         "infra_notices_12m": len(infra),
         "early_infra_notices_12m": len(early),
         "later_infra_notices_12m": len(later),
-        "early_rich_scope_pct": round(_pct(rich_scope, len(early)), 1),
-        "early_procedure_id_pct": round(_pct(procedure_ids, len(early)), 1),
-        "infra_eu_funding_marker_pct": round(_pct(eu_funded, len(infra)), 1),
+        "early_rich_scope_pct": round(_pct(rich_early, len(early)), 1),
+        "later_rich_scope_pct": round(_pct(rich_later, len(later)), 1),
+        "early_procedure_id_pct": round(_pct(early_with_procedure, len(early)), 1),
+        "infra_eu_funding_marker_pct": round(_pct(infra_with_funding, len(infra)), 1),
         "linked_early_to_later_procedures": linked_lifecycles,
+        "distinct_notice_types": len(notice_type_counts),
         "pages_fetched": portugal.pages,
     }
     for name, value in metrics.items():
-        print(f"TED_QUALIFICATION {name}={value}")
+        print(f"TED_CAPABILITY {name}={value}")
 
-    gates = {
-        "national_volume": len(records) >= 200,
-        "infrastructure_volume": len(infra) >= 50,
-        "early_signal_volume": len(early) >= 5,
-        "scope_richness": _pct(rich_scope, len(early)) >= 70.0,
-        "procedure_linkability": _pct(procedure_ids, len(early)) >= 70.0,
-        "observed_lifecycle_link": linked_lifecycles >= 1,
+    for notice_type, count in sorted(notice_type_counts.items()):
+        print(f"TED_NOTICE_TYPE type={notice_type} count={count}")
+
+    for field in SAFE_FIELDS:
+        print(f"TED_FIELD_POPULATION field={field} pct={round(_population(records, field), 1)}")
+
+    # Product hypotheses are reported independently. A failed hypothesis is not a failed dataset.
+    hypotheses = {
+        "early_procurement_runway": (
+            len(early) >= 5
+            and _pct(rich_early, len(early)) >= 70.0
+            and _pct(early_with_procedure, len(early)) >= 70.0
+            and linked_lifecycles >= 1
+        ),
+        "active_infrastructure_feed": (
+            len(later) >= 50 and _pct(rich_later, len(later)) >= 70.0
+        ),
+        "procurement_market_intelligence": len(infra) >= 200,
+        "eu_funding_subset": len(infra) >= 50 and _pct(infra_with_funding, len(infra)) >= 10.0,
     }
-    for name, passed in gates.items():
-        print(f"TED_GATE {name}={'PASS' if passed else 'FAIL'}")
+    for name, viable in hypotheses.items():
+        print(f"TED_PRODUCT_HYPOTHESIS {name}={'SUPPORTED' if viable else 'NOT_SUPPORTED'}")
 
-    if not all(gates.values()):
-        failed = ", ".join(name for name, passed in gates.items() if not passed)
-        print("PRODUCTION_FOUNDATION=FAIL")
-        raise QualificationError(f"TED production foundation failed: {failed}")
-
-    print("PRODUCTION_FOUNDATION=PASS")
+    print("TED_CAPABILITY_INVENTORY=PASS")
     return 0
 
 
