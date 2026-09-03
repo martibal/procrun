@@ -7,7 +7,7 @@ from this result.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 
 from procrun.candidates import build_match_candidates
@@ -57,6 +57,21 @@ class RunwayResult:
     project_classifier_version: str = PROJECT_CLASSIFIER_VERSION
 
 
+def _with_primary_component_span(extracted: ExtractedComponent) -> ExtractedComponent:
+    if not extracted.evidence_spans:
+        raise RunwayInvariantError("extracted component lacks source evidence span")
+    primary = extracted.evidence_spans[0]
+    component = extracted.component.model_copy(
+        update={
+            "scope_evidence": primary.text,
+            "scope_evidence_start": primary.start,
+            "scope_evidence_end": primary.end,
+            "scope_source_field": "project_scope_text",
+        }
+    )
+    return replace(extracted, component=component)
+
+
 def assess_project_runway(
     project: FundingProject,
     *,
@@ -67,7 +82,11 @@ def assess_project_runway(
 ) -> RunwayResult:
     """Run extraction, candidate construction, matching and project aggregation fail-closed."""
 
-    extraction = extract_components(project, domains)
+    raw_extraction = extract_components(project, domains)
+    extraction = replace(
+        raw_extraction,
+        components=tuple(_with_primary_component_span(item) for item in raw_extraction.components),
+    )
     if extraction.operation_code != project.operation_code:
         raise RunwayInvariantError("extraction/project operation code mismatch")
     if not extraction.components:
