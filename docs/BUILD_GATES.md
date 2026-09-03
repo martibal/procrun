@@ -29,11 +29,15 @@ TED Search API remains APPROVED for field-bounded procurement evidence and marke
 
 No natural-person data may be collected, stored or processed in the intelligence plane. Account, billing and support data live in a separate control plane and may not enter analytical ledger/model context.
 
-## A4 — Canonical product object
+## A4 — Canonical product object and state ontology
 
-`funded project -> source-evidenced component -> procurement evidence -> conservative match -> OPEN/PARTIAL/CLOSED/UNRESOLVED -> supplier runway`
+`funded project -> source-evidenced component -> procurement evidence -> conservative component state -> project aggregate state -> supplier runway`
 
-A TED-only opportunity feed is not the canonical product.
+Component states are exactly `OPEN`, `CLOSED`, `UNRESOLVED`.
+
+Project states are exactly `OPEN`, `PARTIAL`, `CLOSED`, `UNRESOLVED`.
+
+`PARTIAL` is a project-level aggregate state under the current implementation, not a component state. A TED-only opportunity feed is not the canonical product.
 
 ## A5 — Evidence integrity / zero unsupported inference
 
