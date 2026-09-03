@@ -17,9 +17,9 @@ def test_readme_points_to_v2_foundation() -> None:
 def test_v2_product_identity_is_locked() -> None:
     spec = _read("docs/PRODUCT_FOUNDATION_V2.md")
     assert "ProcRun turns public procurement notices into supplier-specific product demand." in spec
-    assert "active infrastructure opportunity feed | SUPPORTED" in spec
-    assert "early procurement runway | NOT SUPPORTED" in spec
-    assert "comprehensive EU-funding subset | NOT SUPPORTED" in spec
+    assert "Active infrastructure opportunity feed | SUPPORTED" in spec
+    assert "Early procurement runway | NOT SUPPORTED" in spec
+    assert "Comprehensive EU-funding subset | NOT SUPPORTED" in spec
     assert "ProcRun Portugal — €149/month" in spec
 
 
