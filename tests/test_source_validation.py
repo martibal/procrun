@@ -4,8 +4,8 @@ import pytest
 
 from procrun.source_contracts import SourceNotApprovedError, require_live_source
 from procrun.source_validation import (
-    MechanismValidationStatus,
     SOURCE_UNIVERSE_VALIDATION,
+    MechanismValidationStatus,
     SourceMechanismNotValidatedError,
     require_product_ready_funded_source,
     require_validated_funded_source,
