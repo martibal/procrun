@@ -26,6 +26,7 @@ from procrun.matching import (
     MatchCandidate,
     classify_component,
 )
+from procrun.scope_boundary import component_scope_boundary_resolved
 
 RUNWAY_ORCHESTRATION_VERSION = "runway-v1"
 PROJECT_CLASSIFIER_VERSION = "project-state-v1"
@@ -141,7 +142,11 @@ def assess_project_runway(
 
         raw_evidence = tuple(evidence_by_component.get(component.component_id, ()))
         candidates = build_match_candidates(project, component, raw_evidence)
-        boundary_resolved = coverage.boundary_resolved and deterministic_scope_complete
+        boundary_resolved = (
+            coverage.boundary_resolved
+            and deterministic_scope_complete
+            and component_scope_boundary_resolved(project, extracted)
+        )
         match = classify_component(
             component,
             cutoff_date,
