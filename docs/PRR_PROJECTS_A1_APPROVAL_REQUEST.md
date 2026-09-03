@@ -1,52 +1,37 @@
-# PRR Projects — A1 source-owner clarification request
+# PRR Projects — no-contact A1 closure rule
 
-Status: **OPEN EXTERNAL DEPENDENCY**
+Status: **HUMAN-DEPENDENT APPROVAL PATH RETIRED**
 Date: 2026-09-03
 
-## Why this request exists
+This file replaces the former source-owner clarification request.
 
-ProcRun has an absolute intelligence-plane rule: no natural-person data may be received, stored or processed. Filtering after download is not permitted. The funded-project source therefore cannot be activated from portal-level assumptions or sample inspection.
+ProcRun validation is constrained to public, independently inspectable evidence and machine-verifiable behaviour. No email, call, interview, survey, bespoke clarification, consultant opinion, legal opinion or other human-dependent approval may be used to close a product/data gate.
 
-The preferred candidate is `Dataset Estrutura de Missão PRR - Projetos`, published by Estrutura de Missão Recuperar Portugal through dados.gov.pt.
+## Current source decision
 
-Public evidence already supports that:
+`Dataset Estrutura de Missão PRR - Projetos` remains CONDITIONAL and live retrieval remains prohibited.
 
-- the dataset is an official PRR project dataset and is maintained on an ongoing basis;
-- dados.gov.pt provides machine-readable access infrastructure and State-data reuse terms;
-- dados.gov.pt publication guidance requires anonymised/publication-safe data;
-- PRR Projects is separated from PRR Entities in the catalogue.
+Public evidence currently does not establish all of the following for the exact production distribution:
 
-However, dados.gov.pt terms also contemplate legally permitted publication of personal data. Portal-level policy therefore cannot by itself prove ProcRun's stronger source-specific invariant for every retained free-text field.
+- explicit commercial reuse/derivative rights;
+- an approved recurring machine route;
+- pre-receipt zero-natural-person safety for every retained structured and free-text field;
+- a frozen schema/allowlist and drift mechanism;
+- sufficient coverage/temporal provenance for the product claim.
 
-## Exact clarification required from the source owner
+## Valid closure path
 
-A1 can turn green only after an authoritative response answers all questions below for the **Projects** dataset specifically.
+The PRR candidate may be reconsidered only if new **publicly available authoritative material** or a newly published machine route independently proves the missing requirements. No request may be sent to create that evidence.
 
-1. What is the stable machine-readable distribution/API route intended for automated reuse of `Dataset Estrutura de Missão PRR - Projetos`?
-2. Is the output schema for that route documented or otherwise stable/versioned?
-3. Before publication, is the Projects distribution guaranteed not to contain data identifying a natural person in any field ProcRun would retain?
-4. Does that guarantee explicitly include free-text project fields such as project title/name and project description/scope/summary, not only structured identifiers?
-5. Can the source owner confirm that the following intended analytical surface is safe under that guarantee: project code/identifier, project title, project scope/description, project dates, approved funding/value, programme/component/investment classification, and non-person geographic fields?
-6. If any of those fields can contain natural-person data under any valid publication scenario, is there a documented server-side projection or separate Projects distribution that excludes such fields before transmission?
-7. Please confirm the reuse licence applicable to this exact Projects dataset/distribution for commercial value-added reuse, because the catalogue currently displays the dataset licence as unspecified.
+Alternatively, ProcRun may qualify a different funded-project source that satisfies the same A1 contract entirely from public evidence.
 
-## Approval rule
+## Permanent prohibitions
 
-A response is sufficient only if it establishes the exact route + rights + pre-receipt data-safety boundary. Statements such as "normally contains no personal data", sample inspection, or a recommendation to download and filter locally are insufficient.
+- no source-owner or authority contact;
+- no paid expert/legal consultation as a substitute for source evidence;
+- no customer/supplier interviews or surveys;
+- no private assurances;
+- no `download then filter` privacy workaround;
+- no inference that silence, public hosting or portal membership implies permission or zero-PII safety.
 
-On sufficient confirmation, one reviewed change must:
-
-- freeze the exact route;
-- freeze the exact schema and retained allowlist;
-- record the authoritative response/citation;
-- update `src/procrun/source_contracts.py` from CONDITIONAL to APPROVED;
-- implement the fail-closed collector;
-- add schema-drift and prohibited-field regression tests;
-- update `SOURCE_STATUS.md` and A1/A20;
-- pass CI before web work begins.
-
-## Intended recipient
-
-Estrutura de Missão Recuperar Portugal — official general contact published by the source owner.
-
-The request should be sent without attaching or transmitting any dataset rows.
+See `docs/A1_PRR_SOURCE_CLARIFICATION.md` for the canonical A1 requirements.
