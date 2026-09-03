@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 DOC = Path("docs/POLAND_NATIONAL_ROUTE_FINDINGS.md")
 
 
