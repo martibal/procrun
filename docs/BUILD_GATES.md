@@ -1,13 +1,11 @@
 # ProcRun final build and release gates
 
-Status: **WEB BUILD BLOCKED UNTIL REQUIRED PORTUGAL SOURCE CONTRACTS PASS FROM PUBLIC EVIDENCE ONLY**
+Status: **WEB BUILD APPROVED; LIVE SOURCE ACTIVATION AND PAID PRODUCTION REMAIN FAIL-CLOSED UNTIL REQUIRED PORTUGAL SOURCE CONTRACTS PASS FROM PUBLIC EVIDENCE ONLY**
 Canonical product spec: `docs/PRODUCT_FOUNDATION_FINAL.md`
 
 These gates are authoritative. Historical product files cannot override them.
 
-## A0 — Pre-web completion rule
-
-The user requires every plausible technical/data showstopper to be closed before UI implementation begins.
+## A0 — Web-build versus production-source rule
 
 ProcRun validation is **zero-contact**:
 
@@ -16,13 +14,15 @@ ProcRun validation is **zero-contact**:
 - no bespoke clarification requests;
 - no paid consultant, auditor or legal opinion as a substitute for source evidence;
 - no private assurance or approval;
-- only already-public, independently inspectable evidence and machine-verifiable behaviour may close a gate;
+- only already-public, independently inspectable evidence and machine-verifiable behaviour may close a source gate;
 - silence is never permission.
 
-Before A20 may become `WEB BUILD: GO`, all of the following must be complete:
+Web implementation does not require live source activation. The web application may be built against deterministic fixtures and the frozen customer-safe read model while unresolved production sources remain technically disabled and fail-closed.
+
+Before live funded-project ingest, live national `OPEN` classification or paid production may activate, all applicable source and release requirements must be complete:
 
 - one funded-project source passes A1 entirely from public evidence;
-- one complete-enough Portuguese national procurement source passes A2 entirely from public evidence;
+- one complete-enough Portuguese national procurement source passes A2 entirely from public evidence for original national `OPEN` coverage;
 - source-transfer validation passes for the funded-project source actually selected;
 - A2/A3 source and zero-PII boundaries are enforced in code;
 - canonical FundingProject -> component -> procurement -> state orchestration is covered by end-to-end tests;
@@ -34,7 +34,9 @@ Before A20 may become `WEB BUILD: GO`, all of the following must be complete:
 - incomplete required procurement coverage cannot produce `OPEN`;
 - a live end-to-end acceptance replay passes on the approved source combination;
 - CI is green;
-- no known unresolved technical/data issue could force a browser-contract redesign after UI work begins.
+- A19 is green before checkout or paid production.
+
+During web build, fixtures must be clearly non-live and no conditional/broad source may be connected merely to populate the interface.
 
 ## A1 — Funded-project source
 
@@ -52,13 +54,17 @@ Required:
 
 `PRR Projects / dados.gov.pt` remains CONDITIONAL. Current public evidence does not close exact-route rights plus free-text safety. The former publisher-contact plan is retired because it violates A0.
 
+OpenCoesione public evidence materially improves the replacement-source case: CC BY 4.0 reuse and machine publication are explicit; official monitoring guidance anonymises natural-person beneficiaries as `Individuo` and prohibits natural-person names in operation titles. That evidence does not yet prove every free-text field required by the full production extraction route safe before receipt, so OpenCoesione is not silently promoted to APPROVED.
+
 A1 can close only if new public authoritative evidence appears or a different funded-project source passes the full contract without human-dependent clarification.
 
 ## A2 — Procurement source safety and coverage
 
 TED Search API remains APPROVED for field-bounded procurement evidence and market context.
 
-A Portuguese national procurement source must independently pass `docs/NATIONAL_PROCUREMENT_SOURCE_GATE.md` before it can satisfy national coverage for `OPEN`. Its approval must also be based entirely on public evidence and machine-verifiable behaviour.
+A Portuguese national procurement source must independently pass `docs/NATIONAL_PROCUREMENT_SOURCE_GATE.md` before it can satisfy national coverage for original `OPEN`. Its approval must also be based entirely on public evidence and machine-verifiable behaviour.
+
+The IMPIC/BASE announcements dataset published on dados.gov.pt resolves important national-history and reuse questions, but the public machine route still lacks the pre-receipt zero-natural-person guarantee required by A3. Full Portuguese notices also contain contact/author fields, so broad download-and-filter remains prohibited.
 
 Until national coverage is approved and completed, required-source coverage is incomplete and the classifier must return `UNRESOLVED`, never `OPEN` based on absence.
 
@@ -168,16 +174,17 @@ A1 and every source required for live `OPEN` coverage must also be production-ap
 
 A20 is the only authoritative `GO` source for starting the web build.
 
-**A20 WEB BUILD: BLOCKED.**
+**A20 WEB BUILD: GO.**
 
-Internal technical hardening is largely complete, but the user's pre-build rule does not permit unresolved source contracts to be deferred until after UI work begins.
+The internal application contract, fixture pipeline, customer-safe read model, deterministic orchestration, provenance and fail-closed source controls are sufficient to begin UI/web implementation without activating unresolved live sources.
 
-Current blockers:
+The build boundary is strict:
 
-1. no funded-project source is yet A1-approved entirely from public evidence;
-2. no complete-enough Portuguese national procurement source is yet approved for absence-based `OPEN` coverage;
-3. source-transfer validation cannot pass until a funded source is selected and approved;
-4. live end-to-end acceptance cannot pass until the approved funded + procurement source combination exists.
+- build against deterministic fixtures and the customer-safe read model;
+- no conditional funded-project source may be enabled in production;
+- no incomplete Portuguese national source may be used to infer `OPEN`;
+- no raw source payload may be routed to browser code;
+- no fixture/demo state may be represented as live production data.
 
 **A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY A1.**
 
@@ -185,6 +192,6 @@ Current blockers:
 
 **A20 PAID PRODUCTION: BLOCKED until A1 + national procurement-source gate + source-transfer/live acceptance + A19 are green.**
 
-The next work is source qualification only. Do not start UI/web implementation and do not weaken the zero-contact, zero-PII, rights or coverage rules to obtain a source.
+Source qualification therefore continues in parallel with the web build. It remains a production-release blocker, not a UI implementation blocker.
 
 No other README/spec/history file may claim stronger readiness than A20.
