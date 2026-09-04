@@ -24,7 +24,7 @@ def test_ted_is_live_approved_only_when_all_compliance_gates_are_green() -> None
     assert contract.max_requests_per_minute == 600
 
 
-def test_opencoesione_exact_route_is_registered_and_approved() -> None:
+def test_opencoesione_exact_pilot_route_is_registered_and_approved() -> None:
     contract = require_live_source("opencoesione_2021_2027_operations", as_of=date(2026, 9, 4))
     assert contract.status is SourceStatus.APPROVED
     assert contract.rights_status is SourceStatus.APPROVED
@@ -32,7 +32,8 @@ def test_opencoesione_exact_route_is_registered_and_approved() -> None:
     assert contract.data_safety_status is SourceStatus.APPROVED
     assert contract.commercial_reuse_allowed is True
     assert contract.automated_access_allowed is True
-    assert "beneficiari_2021-2027.zip" in contract.retrieval_route
+    assert "beneficiari_PR_FESR_LOMBARDIA.zip" in contract.retrieval_route
+    assert any("all-program ZIP" in item for item in contract.obligations)
     assert any("general OpenCoesione API" in item for item in contract.obligations)
 
 
