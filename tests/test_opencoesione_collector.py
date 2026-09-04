@@ -55,6 +55,7 @@ def test_known_valid_row_is_accepted() -> None:
     assert len(batch.operations) == 1
     operation = batch.operations[0]
     assert operation.operation_id == "OP-1"
+    assert operation.cup == "CUP1"
     assert operation.operation_name == "Water upgrade"
     assert operation.operation_summary == "New pumps and controls"
 
@@ -86,16 +87,28 @@ def test_bad_row_rejects_entire_batch() -> None:
         parse_operation_list_zip(_zip_csv(rows=[good, bad]), source_url="x")
 
 
-def test_canonical_mapping_never_retains_beneficiary_identity() -> None:
+def test_canonical_mapping_uses_cup_for_ted_linkage_and_never_retains_identity() -> None:
     batch = parse_operation_list_zip(
         _zip_csv(), source_url="https://example.test/source.zip"
     )
     projects = to_funding_projects(batch)
     assert len(projects) == 1
     project = projects[0]
-    assert project.operation_code == "OP-1"
+    assert project.operation_code == "CUP1"
     assert project.project_title == "Water upgrade"
     assert project.project_scope_text == "New pumps and controls"
+    assert project.region == "Lombardia"
+    assert project.nuts_code == "ITC4"
     serialized = project.model_dump_json()
     assert "LEGAL123" not in serialized
     assert "Comune X" not in serialized
+
+
+def test_canonical_mapping_falls_back_to_local_id_when_cup_is_absent() -> None:
+    row = _valid_row()
+    row[3] = ""
+    batch = parse_operation_list_zip(
+        _zip_csv(rows=[row]), source_url="https://example.test/source.zip"
+    )
+    project = to_funding_projects(batch)[0]
+    assert project.operation_code == "OP-1"
