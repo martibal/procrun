@@ -176,9 +176,10 @@ systemctl is-enabled --quiet procrun-backup.timer
 echo "PROCRUN_PRODUCTION_ACCEPTANCE=PASS commit=$COMMIT"
 '@
     $Remote = $Remote.Replace("__COMMIT__", $Commit)
+    $RemoteLf = $Remote -replace "`r`n", "`n"
     $OldPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
-    $Remote | ssh @SshOptions "root@$IpAddress" "bash -s"
+    $RemoteLf | ssh @SshOptions "root@$IpAddress" "bash -s"
     $RemoteExit = $LASTEXITCODE
     $ErrorActionPreference = $OldPreference
     if ($RemoteExit -ne 0) {
