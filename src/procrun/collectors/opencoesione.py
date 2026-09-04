@@ -10,12 +10,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Final
-from urllib.parse import urlparse
-
-import httpx
 
 from procrun.domain import FundingProject, TemporalProvenance
-from procrun.source_contracts import require_live_source
 
 OPENCOESIONE_SOURCE_ID: Final = "opencoesione_2021_2027_operations"
 OPENCOESIONE_PROGRAM_URL: Final = (
@@ -173,10 +169,23 @@ def parse_operation_list_zip(payload: bytes, *, source_url: str) -> OpenCoesione
         operation_id = row["CodiceLocaleProgetto_OperationLocalIdentifier"].strip()
         operation_name = row["TitoloProgetto_OperationName"].strip()
         operation_summary = row["SintesiProgetto_OperationSummary"].strip()
-        if not operation_id or not operation_name or not operation_summary:
+        if not operation_id:
             raise OpenCoesioneRowError(
-                f"row {row_number} lacks operation id/name/summary; whole batch rejected"
+                f"row {row_number} lacks operation id; whole batch rejected"
             )
+        if not operation_name and not operation_summary:
+            raise OpenCoesioneRowError(
+                f"row {row_number} lacks both operation name and summary; whole batch rejected"
+            )
+
+        # The official operation list can omit one of title/summary on an otherwise valid row.
+        # Keep the canonical model total without inventing text: when exactly one is present,
+        # reuse that exact published source text as the deterministic fallback for the missing one.
+        if not operation_name:
+            operation_name = operation_summary
+        if not operation_summary:
+            operation_summary = operation_name
+
         updated_on = _parse_date(
             row["DataAggiornamento_LastUpdate"], field="list_updated_on", required=True
         )
@@ -257,44 +266,3 @@ def to_funding_projects(batch: OpenCoesioneBatch) -> tuple[FundingProject, ...]:
             )
         )
     return tuple(projects)
-
-
-def _validate_final_url(url: str) -> None:
-    expected = urlparse(OPENCOESIONE_PROGRAM_URL)
-    actual = urlparse(url)
-    if (actual.scheme, actual.hostname, actual.path) != (
-        expected.scheme,
-        expected.hostname,
-        expected.path,
-    ):
-        raise OpenCoesioneSchemaError(f"approved source redirected outside frozen route: {url}")
-
-
-def collect_open_coesione(
-    *, client: httpx.Client | None = None, timeout_seconds: float = 60.0
-) -> OpenCoesioneBatch:
-    """Fetch the frozen PR FESR Lombardia route and fail closed on transport/schema drift."""
-    contract = require_live_source(OPENCOESIONE_SOURCE_ID)
-    if OPENCOESIONE_PROGRAM_URL not in contract.retrieval_route:
-        raise OpenCoesioneSchemaError("runtime source contract does not pin the pilot route")
-    owns_client = client is None
-    active_client = client or httpx.Client(
-        timeout=timeout_seconds,
-        follow_redirects=True,
-        headers={"User-Agent": "ProcRun/0.1 public-open-data-ingest"},
-    )
-    try:
-        response = active_client.get(OPENCOESIONE_PROGRAM_URL)
-        response.raise_for_status()
-        _validate_final_url(str(response.url))
-        content_type = response.headers.get("content-type", "").lower()
-        if not any(token in content_type for token in ("zip", "octet-stream")):
-            raise OpenCoesioneSchemaError(
-                f"unexpected content type for approved ZIP route: {content_type or '<missing>'}"
-            )
-        if not response.content:
-            raise OpenCoesioneSchemaError("approved ZIP route returned an empty response")
-        return parse_operation_list_zip(response.content, source_url=str(response.url))
-    finally:
-        if owns_client:
-            active_client.close()
