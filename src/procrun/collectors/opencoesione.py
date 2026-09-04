@@ -1,8 +1,4 @@
-"""Fail-closed collector for an approved OpenCoesione 2021-2027 programme operation list.
-
-The current live-transfer pilot is the publicly linked PR FESR Lombardia ZIP/CSV. The
-all-program ZIP is deliberately not used because clean CI retrieval returned HTTP 403.
-"""
+"""Fail-closed collector for the approved OpenCoesione 2021-2027 operation-list route."""
 
 from __future__ import annotations
 
@@ -14,9 +10,11 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Final
+from urllib.parse import urlparse
 
 import httpx
 
+from procrun.domain import FundingProject, TemporalProvenance
 from procrun.source_contracts import require_live_source
 
 OPENCOESIONE_SOURCE_ID: Final = "opencoesione_2021_2027_operations"
@@ -51,6 +49,7 @@ SOURCE_ONLY_HEADERS: Final[frozenset[str]] = frozenset(
         "Nome Beneficiario/Beneficiary name",
     }
 )
+ADMITTED_HEADERS: Final[frozenset[str]] = frozenset(EXPECTED_HEADERS) - SOURCE_ONLY_HEADERS
 
 
 class OpenCoesioneSchemaError(RuntimeError):
@@ -119,6 +118,15 @@ def _parse_decimal(value: str, *, field: str) -> Decimal | None:
     return parsed
 
 
+def _whole_euros(value: Decimal | None) -> int | None:
+    if value is None:
+        return None
+    integral = value.to_integral_value()
+    if integral != value:
+        raise OpenCoesioneRowError(f"funding value is not whole-euro compatible: {value!r}")
+    return int(integral)
+
+
 def _extract_single_csv(payload: bytes) -> bytes:
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as archive:
@@ -133,6 +141,7 @@ def _extract_single_csv(payload: bytes) -> bytes:
 
 
 def parse_operation_list_zip(payload: bytes, *, source_url: str) -> OpenCoesioneBatch:
+    """Validate the complete schema before returning any admitted operation."""
     try:
         csv_text = _extract_single_csv(payload).decode("utf-8-sig")
     except UnicodeDecodeError as exc:
@@ -218,10 +227,49 @@ def parse_operation_list_zip(payload: bytes, *, source_url: str) -> OpenCoesione
     )
 
 
+def to_funding_projects(batch: OpenCoesioneBatch) -> tuple[FundingProject, ...]:
+    """Map only admitted non-person fields into the canonical FundingProject contract."""
+    projects: list[FundingProject] = []
+    for operation in batch.operations:
+        projects.append(
+            FundingProject(
+                operation_code=operation.operation_id,
+                first_seen_at=batch.observed_at,
+                temporal_provenance=TemporalProvenance.RESOLVED,
+                project_title=operation.operation_name,
+                project_start=operation.start_date,
+                project_end=operation.end_date,
+                approved_funding_eur=_whole_euros(operation.eligible_expenditure_eur),
+                executed_funding_eur=None,
+                project_scope_text=operation.operation_summary,
+                fund=operation.fund,
+                programme="PR FESR Lombardia 2021-2027",
+                objective=operation.specific_objective,
+                theme=operation.intervention_category,
+                region="Lombardia",
+                municipality=None,
+                nuts_code=None,
+                source_url=operation.source_url,
+            )
+        )
+    return tuple(projects)
+
+
+def _validate_final_url(url: str) -> None:
+    expected = urlparse(OPENCOESIONE_PROGRAM_URL)
+    actual = urlparse(url)
+    if (actual.scheme, actual.hostname, actual.path) != (
+        expected.scheme,
+        expected.hostname,
+        expected.path,
+    ):
+        raise OpenCoesioneSchemaError(f"approved source redirected outside frozen route: {url}")
+
+
 def collect_open_coesione(
     *, client: httpx.Client | None = None, timeout_seconds: float = 60.0
 ) -> OpenCoesioneBatch:
-    """Fetch the frozen PR FESR Lombardia pilot route and fail closed on drift."""
+    """Fetch the frozen PR FESR Lombardia route and fail closed on transport/schema drift."""
     contract = require_live_source(OPENCOESIONE_SOURCE_ID)
     if OPENCOESIONE_PROGRAM_URL not in contract.retrieval_route:
         raise OpenCoesioneSchemaError("runtime source contract does not pin the pilot route")
@@ -229,16 +277,19 @@ def collect_open_coesione(
     active_client = client or httpx.Client(
         timeout=timeout_seconds,
         follow_redirects=True,
-        headers={"User-Agent": "ProcRun/0.1 (public-open-data-ingest)"},
+        headers={"User-Agent": "ProcRun/0.1 public-open-data-ingest"},
     )
     try:
         response = active_client.get(OPENCOESIONE_PROGRAM_URL)
         response.raise_for_status()
+        _validate_final_url(str(response.url))
         content_type = response.headers.get("content-type", "").lower()
         if not any(token in content_type for token in ("zip", "octet-stream")):
             raise OpenCoesioneSchemaError(
                 f"unexpected content type for approved ZIP route: {content_type or '<missing>'}"
             )
+        if not response.content:
+            raise OpenCoesioneSchemaError("approved ZIP route returned an empty response")
         return parse_operation_list_zip(response.content, source_url=str(response.url))
     finally:
         if owns_client:
