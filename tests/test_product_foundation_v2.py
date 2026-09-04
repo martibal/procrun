@@ -68,10 +68,14 @@ def test_opencoesione_a1_and_collector_are_implemented_but_live_stays_gated() ->
     qualification = _read("docs/OPENCOESIONE_A1_QUALIFICATION.md")
     contracts = _read("src/procrun/source_contracts.py")
     collector = _read("src/procrun/collectors/opencoesione.py")
+    live_transport = _read("src/procrun/collectors/opencoesione_live.py")
     assert "A1 SOURCE QUALIFICATION: PASS" in gates
     assert "A20 OPENCOESIONE A1 SOURCE QUALIFICATION: APPROVED" in gates
     assert "A20 OPENCOESIONE COLLECTOR + FROZEN SCHEMA: IMPLEMENTED, FAIL-CLOSED" in gates
-    assert "BLOCKED ONLY BY LIVE SOURCE-TRANSFER + END-TO-END ACCEPTANCE + GREEN CI" in gates
+    assert (
+        "A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY LIVE SOURCE-TRANSFER + "
+        "END-TO-END ACCEPTANCE + GREEN CI"
+    ) in gates
     assert (
         "APPROVED SOURCE CONTRACT — EXACT 2021-2027 EU COHESION OPERATION-LIST ROUTE ONLY"
         in qualification
@@ -80,6 +84,9 @@ def test_opencoesione_a1_and_collector_are_implemented_but_live_stays_gated() ->
     assert '"opencoesione_2021_2027_operations"' in contracts
     assert "EXPECTED_HEADERS" in collector
     assert "to_funding_projects" in collector
+    assert "OPENCOESIONE_PROGRAM_URL" in live_transport
+    assert "parse_operation_list_zip" in live_transport
+    assert "OPENCOESIONE_PUBLICATION_PAGE" in live_transport
 
 
 def test_opencoesione_privacy_and_scope_contract_is_frozen() -> None:
@@ -98,11 +105,18 @@ def test_opencoesione_privacy_and_scope_contract_is_frozen() -> None:
         assert required in qualification
 
 
-def test_build_is_active_and_go() -> None:
+def test_web_build_is_blocked_until_delivery_ready() -> None:
     readme = _read("README.md")
     gates = _read("docs/BUILD_GATES.md")
-    assert "CONTINUE THE WEB BUILD" in readme
-    assert "A20 WEB BUILD: GO" in gates
+    sequencing = _read("docs/DELIVERY_READINESS_GATE.md")
+    assert "DO NOT CONTINUE WEB DEVELOPMENT" in readme
+    assert "WEB BUILD BLOCKED UNTIL FULL DELIVERY-READINESS IS GREEN" in readme
+    assert "A20 WEB BUILD: BLOCKED" in gates
+    assert "A20 PRODUCT LAUNCH READINESS: BLOCKED" in gates
+    assert "Web implementation is the final build phase" in sequencing
+    assert "launch-ready except for the web interface itself" in sequencing
+    assert "CONTINUE THE WEB BUILD" not in readme
+    assert "A20 WEB BUILD: GO" not in gates
 
 
 def test_customer_routes_follow_product() -> None:
