@@ -54,18 +54,39 @@ def test_source_categories_and_prr_final_status() -> None:
     assert "Category A — eligible for no-contact qualification" in status
     assert "Category B — permanently ineligible" in status
     assert "PRR Projects on dados.gov.pt | B | PERMANENTLY BLOCKED" in status
-    assert "OpenCoesione" in status
-    assert "Category A candidate" in status
+    assert "OpenCoesione 2021-2027 EU cohesion operation-list CSV | A | APPROVED SOURCE CONTRACT" in status
+    assert "General OpenCoesione API / broad Projects database" in status
     assert "Poland" in status
     assert "Category B / rejected" in status
 
 
-def test_funded_project_live_ingest_stays_fail_closed() -> None:
+def test_opencoesione_a1_is_approved_but_live_ingest_stays_fail_closed() -> None:
     gates = _read("docs/BUILD_GATES.md")
+    qualification = _read("docs/OPENCOESIONE_A1_QUALIFICATION.md")
     contracts = _read("src/procrun/source_contracts.py")
-    assert "A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY A1" in gates
+    assert "A1 SOURCE QUALIFICATION: PASS" in gates
+    assert "A20 OPENCOESIONE A1 SOURCE QUALIFICATION: APPROVED" in gates
+    assert "A20 LIVE FUNDED-PROJECT INGEST: BLOCKED ONLY BY COLLECTOR REGISTRATION" in gates
+    assert "APPROVED SOURCE CONTRACT — EXACT 2021-2027 EU COHESION OPERATION-LIST ROUTE ONLY" in qualification
+    assert "general OpenCoesione API" in qualification
+    assert "live activation" in qualification.lower()
     assert '"prr_projects_dados_gov"' in contracts
     assert "live retrieval is prohibited" in contracts
+
+
+def test_opencoesione_privacy_and_scope_contract_is_frozen() -> None:
+    qualification = _read("docs/OPENCOESIONE_A1_QUALIFICATION.md")
+    for required in (
+        "TITOLO_PROGETTO",
+        "SINTESI_PROG",
+        "name, tax code, telephone number or email address",
+        "beneficiary names on this surface are published only for legal persons",
+        "CC BY 4.0",
+        "bimonthly",
+        "all national and regional 2021-2027 programmes financed with EU funds",
+        "fail closed",
+    ):
+        assert required in qualification
 
 
 def test_build_is_go() -> None:
