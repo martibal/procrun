@@ -19,7 +19,7 @@ def test_zero_contact_and_zero_pii_are_locked() -> None:
     gates = _read("docs/BUILD_GATES.md")
     national = _read("docs/NATIONAL_PROCUREMENT_SOURCE_GATE.md")
     assert "permanent\nbyggeforutsetning" in readme
-    assert "zero-contact" in gates
+    assert "no human-dependent validation path" in gates
     assert "Silence is never permission" in national
     assert "download then filter" in readme
     assert "No natural-person data may be collected, stored or processed" in gates
@@ -54,31 +54,29 @@ def test_source_categories_and_prr_final_status() -> None:
     assert "Category A — eligible for no-contact qualification" in status
     assert "Category B — permanently ineligible" in status
     assert "PRR Projects on dados.gov.pt | B | PERMANENTLY BLOCKED" in status
-    assert (
-        "OpenCoesione 2021-2027 EU cohesion operation-list CSV | A | "
-        "APPROVED SOURCE CONTRACT"
-    ) in status
-    assert "General OpenCoesione API / broad Projects database" in status
+    assert "OpenCoesione PR FESR Lombardia 2021-2027 operation-list ZIP/CSV | A | APPROVED / IMPLEMENTED" in status
+    assert "Broader OpenCoesione API / Projects / Soggetti routes" in status
     assert "Poland" in status
-    assert "Category B / rejected" in status
+    assert "| B | REJECTED" in status
 
 
-def test_opencoesione_a1_is_approved_but_live_ingest_stays_fail_closed() -> None:
+def test_opencoesione_a1_and_collector_are_implemented_but_live_stays_gated() -> None:
     gates = _read("docs/BUILD_GATES.md")
     qualification = _read("docs/OPENCOESIONE_A1_QUALIFICATION.md")
     contracts = _read("src/procrun/source_contracts.py")
+    collector = _read("src/procrun/collectors/opencoesione.py")
     assert "A1 SOURCE QUALIFICATION: PASS" in gates
     assert "A20 OPENCOESIONE A1 SOURCE QUALIFICATION: APPROVED" in gates
-    assert "A20 LIVE FUNDED-PROJECT INGEST: BLOCKED ONLY BY COLLECTOR REGISTRATION" in gates
+    assert "A20 OPENCOESIONE COLLECTOR + FROZEN SCHEMA: IMPLEMENTED, FAIL-CLOSED" in gates
+    assert "BLOCKED ONLY BY LIVE SOURCE-TRANSFER + END-TO-END ACCEPTANCE + GREEN CI" in gates
     assert (
         "APPROVED SOURCE CONTRACT — EXACT 2021-2027 EU COHESION OPERATION-LIST ROUTE ONLY"
         in qualification
     )
     assert "general OpenCoesione API" in qualification
-    assert "remaining activation gates are technical" in qualification.lower()
     assert '"opencoesione_2021_2027_operations"' in contracts
-    assert '"prr_projects_dados_gov"' in contracts
-    assert "live retrieval is prohibited" in contracts
+    assert "EXPECTED_HEADERS" in collector
+    assert "to_funding_projects" in collector
 
 
 def test_opencoesione_privacy_and_scope_contract_is_frozen() -> None:
