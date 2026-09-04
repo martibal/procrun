@@ -1,17 +1,17 @@
 # ProcRun — final product foundation
 
-Status: **READY FOR PRODUCT BUILD; TED-SCOPED MVP PROCUREMENT PATH APPROVED; LIVE FUNDED-PROJECT INGEST SUBJECT TO A1**
+Status: **DELIVERY HARDENING ONLY; WEB BUILD BLOCKED UNTIL FULL NON-WEB DELIVERY-READINESS IS GREEN**
 Date: 2026-09-04
 
 This document is the canonical product definition. Phase 0B and Phase 0C remain valid failed tests of the retired TED-only demand-extraction hypothesis; they do not invalidate TED as an approved procurement-evidence source.
 
 ## 1. Product definition
 
-ProcRun is a supplier-side infrastructure procurement product. The long-term runway mechanism remains:
+ProcRun is a supplier-side infrastructure procurement product. The canonical runway mechanism remains:
 
 `approved funded project -> source-evidenced purchasable components -> approved procurement evidence -> conservative matching -> component state -> project state -> customer runway`
 
-The MVP may ship TED procurement functionality before a funded-project source is approved. Funded-project features remain fixture-only until A1 passes.
+The product must not enter customer-facing web implementation until all non-web launch dependencies are production-ready. The web interface is the final build phase, not a parallel workstream.
 
 ProcRun is not a general tender portal, CRM, bid writer, buyer-intelligence suite or AI GO/NO-GO scorer.
 
@@ -43,7 +43,7 @@ The product must never shorten this into a complete-Portuguese-coverage claim.
 
 ### Project states
 
-When funded-project ingest is eventually approved, project states remain `OPEN`, `PARTIAL`, `CLOSED`, `UNRESOLVED`; any OPEN-derived aggregate inherits the same explicit TED coverage qualifier.
+When live funded-project ingest is active, project states remain `OPEN`, `PARTIAL`, `CLOSED`, `UNRESOLVED`; any OPEN-derived aggregate inherits the same explicit TED coverage qualifier.
 
 False or over-broad OPEN is the highest-cost classification error.
 
@@ -55,9 +55,9 @@ TED Search API is APPROVED for field-bounded procurement evidence, market contex
 
 ### 4.2 Funded-project source
 
-A live funded-project source must satisfy A1 before use. PRR Projects and Mais Transparência are Category B and permanently closed to the intelligence plane under the current zero-contact/zero-PII rules.
+OpenCoesione is APPROVED only for the exact bounded 2021-2027 EU-cohesion operation-list publication family. PRR Projects and Mais Transparência remain Category B and permanently closed to the intelligence plane.
 
-OpenCoesione is the leading Category A replacement candidate because official monitoring documentation explicitly constrains project title and summary against sensitive natural-person information and uses codified CUP-based monitoring structures. It still requires exact-route qualification before activation.
+The exact OpenCoesione collector is implemented fail-closed, but live source-transfer from the current GitHub-hosted runtime is not accepted because the source returns HTTP 403 before ZIP/schema validation. This runtime transport problem must be solved through another automated no-contact execution path while preserving the same source contract and zero-PII rules.
 
 The `FundingProject` interface remains source-agnostic.
 
@@ -71,7 +71,7 @@ Part L RSS is a passive future enhancement only if INCM later publishes authorit
 
 ### FundingProject
 
-Required once a source is approved: stable source ID, project title, approved scope text, dates where available, approved funding/value fields, programme/classification where available, observation timestamp and immutable version/hash. No beneficiary/contact/person identity is part of the analytical contract.
+Stable source ID, project title, approved scope text, dates where available, approved funding/value fields, programme/classification where available, observation timestamp and immutable version/hash. No beneficiary/contact/person identity is part of the analytical contract.
 
 ### PurchaseComponent
 
@@ -91,19 +91,21 @@ The hierarchy in `MATCHING_RULES.md` remains canonical. Tier A/B may close only 
 
 Deterministic extraction is primary. A local model may inspect only already-approved text and propose a frozen category plus an exact source span. It cannot create evidence or state.
 
-## 7. Customer workflow
+## 7. Final customer workflow target
 
-Authenticated routes remain:
+After the delivery-readiness gate is fully green, authenticated routes may be implemented as:
 
 - `/app` — opportunities/runway feed;
-- `/app/projects/[id]` — funded-project detail when that source is approved, fixture-only before then;
+- `/app/projects/[id]` — funded-project detail;
 - `/app/components/[id]` — component evidence/history;
 - `/app/market` — TED procurement market context;
 - `/app/profile` — supplier profile;
 - `/app/saved` — saved opportunities;
 - `/app/account` — account/billing.
 
-Public routes remain `/`, `/product`, `/methodology`, `/pricing`, `/login`, with `/terms` and `/privacy` required before paid release.
+Public routes remain `/`, `/product`, `/methodology`, `/pricing`, `/login`, with `/terms` and `/privacy` required for launch.
+
+Any earlier fixture/shell web implementation is frozen and non-authoritative until the full delivery gate is green.
 
 ## 8. Customer-facing coverage copy
 
@@ -115,22 +117,18 @@ No customer-facing text may imply complete Portuguese procurement coverage.
 
 ## 9. Supplier relevance and market context
 
-Supplier relevance remains deterministic/profile-based and explainable. TED may power procurement activity/time/value/category views with missingness disclosures. Saved opportunities, market intelligence and customer-safe CSV export may operate on the approved TED path independently of funded-project ingest.
+Supplier relevance remains deterministic/profile-based and explainable. TED may power procurement activity/time/value/category views with missingness disclosures. Saved opportunities, market intelligence and customer-safe CSV export must be production-ready at the non-web service/read-model layer before web development begins.
 
 ## 10. Website claims
 
-Allowed for the TED-scoped MVP:
+Allowed once the final web phase begins:
 
 - source-evidenced TED procurement matches;
 - explicit TED-scoped absence conclusions;
 - historical cutoff/version reproducibility;
 - supplier relevance based on approved structured evidence;
-- transparent coverage limitations.
-
-Allowed only after a funded-project source passes A1:
-
-- funded-project scope translated into source-evidenced purchasable components;
-- funded-project/component runway claims.
+- transparent coverage limitations;
+- funded-project scope and runway only after live OpenCoesione delivery acceptance is green.
 
 Not allowed:
 
@@ -146,7 +144,7 @@ Not allowed:
 
 ## 11. Packaging
 
-Launch package remains **ProcRun Portugal — €149/month** unless later commercial evidence changes it. The release may expose only features whose source contracts are approved. Funded-project screens remain synthetic/fixture-only until A1 passes and must never be represented as live.
+Launch package remains **ProcRun Portugal — €149/month** unless later commercial evidence changes it. Packaging does not override source or delivery gates.
 
 ## 12. Phase 0B/0C treatment
 
@@ -155,15 +153,16 @@ Phase 0B and Phase 0C remain FAIL for the retired TED-only *demand-extraction pr
 ## 13. Production implementation order
 
 1. preserve TED source contract and TED-scoped OPEN regression tests;
-2. build web shell/read model against deterministic fixtures;
-3. wire approved TED ingest/evidence, market context, saved opportunities and CSV export;
-4. expose TED scope explicitly in every OPEN customer surface;
-5. continue OpenCoesione/external Category A funded-source qualification in parallel;
-6. activate funded-project collector only after A1 + source-transfer/live acceptance pass;
-7. complete A19 before checkout.
+2. complete OpenCoesione live transport from an approved automated no-contact runtime;
+3. prove live OpenCoesione -> canonical FundingProject -> component -> procurement evidence -> assessment -> customer-safe read-model end-to-end flow;
+4. complete persistence, saved/export, drift detection and operational runbooks;
+5. complete all non-web A19 launch controls, billing/control-plane contracts, attribution and legal-content requirements;
+6. run repo-wide consistency/no-contact/regression/CI acceptance until all non-web gates are green;
+7. only then set `A20 WEB BUILD: GO` and start/resume customer-facing web implementation;
+8. after the web is finished, perform only final interface/presentation validation and launch. No unresolved backend/source/delivery dependency may remain at that point.
 
 ## 14. Authoritative build decision
 
 Only `BUILD_GATES.md` A20 can declare build readiness.
 
-**Decision: BUILD now. TED-scoped live procurement classification is an approved MVP path. Live funded-project ingestion remains fail-closed until a Category A source passes A1.**
+**Decision: DO NOT BUILD WEB YET. Complete the entire non-web launch delivery chain first. Web becomes the final implementation phase only after A20 can truthfully state that the product is otherwise launch-ready.**
