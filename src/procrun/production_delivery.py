@@ -354,7 +354,7 @@ def persist_live_results(
 def write_customer_safe_jsonl(path: Path, models: tuple[RunwayProject, ...]) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = "".join(
-        json.dumps(model.model_dump(mode="json"), sort_keys=True, separators=(",", ",")) + "\n"
+        json.dumps(model.model_dump(mode="json"), sort_keys=True, separators=(",", ":")) + "\n"
         for model in models
     )
     output_sha256 = content_sha256([model.model_dump(mode="json") for model in models])
