@@ -17,13 +17,14 @@ from typing import Final
 
 import httpx
 
+from procrun.source_contracts import require_live_source
+
 OPENCOESIONE_SOURCE_ID: Final = "opencoesione_2021_2027_operations"
 OPENCOESIONE_COMPLETE_LIST_URL: Final = (
     "https://opencoesione.gov.it/it/opendata/beneficiari/2021-2027/"
     "beneficiari_2021-2027.zip"
 )
 
-# Exact documented 2021-2027 operation-list surface from OpenCoesione/RGS guidance.
 EXPECTED_HEADERS: Final[tuple[str, ...]] = (
     "Fondo/Fund",
     "Obiettivo Specifico/Specific Objective",
@@ -44,9 +45,6 @@ EXPECTED_HEADERS: Final[tuple[str, ...]] = (
     "Data aggiornamento elenco operazioni/Date of last update of the list of operations",
 )
 
-# These two fields are part of the source schema but are never admitted to ProcRun's
-# FundingProject object. The approved publication states beneficiary names on this surface
-# are legal-person names; ProcRun still has no analytical need to retain beneficiary identity.
 SOURCE_ONLY_HEADERS: Final[frozenset[str]] = frozenset(
     {
         "Codice fiscale Beneficiario/Beneficiary fiscal code",
@@ -108,8 +106,6 @@ def _parse_decimal(value: str, *, field: str) -> Decimal | None:
     value = value.strip().replace(" ", "")
     if not value:
         return None
-    # Open public-data CSVs may use comma decimal notation. Thousands separators are not
-    # guessed: ambiguous values fail rather than being silently reinterpreted.
     if value.count(",") == 1 and "." not in value:
         value = value.replace(",", ".")
     if value.count(",") or value.count(".") > 1:
@@ -247,7 +243,13 @@ def collect_open_coesione(
     source_url: str = OPENCOESIONE_COMPLETE_LIST_URL,
     timeout_seconds: float = 60.0,
 ) -> OpenCoesioneBatch:
-    """Fetch the approved route and fail closed before admitting any row on drift."""
+    """Fetch only the registered approved route and fail closed on any drift."""
+    contract = require_live_source(OPENCOESIONE_SOURCE_ID)
+    if source_url != OPENCOESIONE_COMPLETE_LIST_URL:
+        raise OpenCoesioneSchemaError("collector route differs from the frozen approved source URL")
+    if OPENCOESIONE_COMPLETE_LIST_URL not in contract.retrieval_route:
+        raise OpenCoesioneSchemaError("runtime source contract does not pin the approved route")
+
     owns_client = client is None
     active_client = client or httpx.Client(
         timeout=timeout_seconds,
