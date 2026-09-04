@@ -1,0 +1,19 @@
+[Unit]
+Description=ProcRun PostgreSQL backup and restore verification
+After=postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/procrun/current
+ExecStart=/usr/bin/bash scripts/backup_and_verify.sh
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/backups/procrun /var/lib/postgresql
+
+[Install]
+WantedBy=multi-user.target
