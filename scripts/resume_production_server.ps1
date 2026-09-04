@@ -123,6 +123,61 @@ try {
 set -euo pipefail
 COMMIT="__COMMIT__"
 RELEASE="/opt/procrun/releases/$COMMIT"
+
+# Recover idempotently from an interrupted/partial initial cloud-init bootstrap.
+if ! getent group procrun >/dev/null 2>&1; then
+  groupadd --system procrun
+fi
+if ! id -u procrun >/dev/null 2>&1; then
+  useradd --system --gid procrun --home-dir /var/lib/procrun --no-create-home --shell /usr/sbin/nologin procrun
+fi
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y python3 python3-venv python3-pip postgresql postgresql-client ufw ca-certificates curl jq rsync openssl
+systemctl enable --now postgresql
+
+install -d -o procrun -g procrun -m 0750 /opt/procrun
+install -d -o procrun -g procrun -m 0750 /var/lib/procrun
+install -d -o procrun -g procrun -m 0750 /var/lib/procrun/published
+install -d -o root -g procrun -m 0750 /var/backups/procrun
+install -d -o root -g procrun -m 0750 /etc/procrun
+
+if [ ! -s /etc/procrun/procrun.env ]; then
+  DB_PASS="$(openssl rand -hex 24)"
+  printf 'PROCRUN_DATABASE_URL=postgresql://procrun:%s@127.0.0.1:5432/procrun\n' "$DB_PASS" > /etc/procrun/procrun.env
+  chmod 0640 /etc/procrun/procrun.env
+  chown root:procrun /etc/procrun/procrun.env
+
+  if runuser -u postgres -- psql -Atqc "SELECT 1 FROM pg_roles WHERE rolname='procrun'" | grep -qx 1; then
+    runuser -u postgres -- psql -v ON_ERROR_STOP=1 -c "ALTER ROLE procrun LOGIN PASSWORD '$DB_PASS';"
+  else
+    runuser -u postgres -- psql -v ON_ERROR_STOP=1 -c "CREATE ROLE procrun LOGIN PASSWORD '$DB_PASS';"
+  fi
+  if ! runuser -u postgres -- psql -Atqc "SELECT 1 FROM pg_database WHERE datname='procrun'" | grep -qx 1; then
+    runuser -u postgres -- createdb -O procrun procrun
+  fi
+else
+  chown root:procrun /etc/procrun/procrun.env
+  chmod 0640 /etc/procrun/procrun.env
+  if ! runuser -u postgres -- psql -Atqc "SELECT 1 FROM pg_roles WHERE rolname='procrun'" | grep -qx 1; then
+    echo "Existing /etc/procrun/procrun.env found but PostgreSQL role 'procrun' is missing; refusing to rotate credentials implicitly." >&2
+    exit 1
+  fi
+  if ! runuser -u postgres -- psql -Atqc "SELECT 1 FROM pg_database WHERE datname='procrun'" | grep -qx 1; then
+    runuser -u postgres -- createdb -O procrun procrun
+  fi
+fi
+
+PGCONF="$(runuser -u postgres -- psql -Atqc 'show config_file')"
+sed -ri "s/^#?listen_addresses\s*=.*/listen_addresses = '127.0.0.1'/" "$PGCONF"
+systemctl restart postgresql
+
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow OpenSSH
+ufw --force enable
+
 install -d -o procrun -g procrun -m 0750 "$RELEASE"
 tar -xzf /tmp/procrun-release.tar.gz -C "$RELEASE"
 rm -f /tmp/procrun-release.tar.gz
