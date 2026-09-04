@@ -8,17 +8,17 @@ def _read(path: str) -> str:
 
 
 def test_phase0_failures_are_preserved() -> None:
-    b = _read("docs/PHASE0B_TED_DEMAND_RESULT.md")
-    c = _read("docs/PHASE0C_CPV_NORMALIZATION_RESULT.md")
-    assert "Result: FAIL" in b
-    assert "Result: **FAIL**" in c
+    phase_b = _read("docs/PHASE0B_TED_DEMAND_RESULT.md")
+    phase_c = _read("docs/PHASE0C_CPV_NORMALIZATION_RESULT.md")
+    assert "Result: FAIL" in phase_b
+    assert "Result: **FAIL**" in phase_c
 
 
 def test_zero_contact_and_zero_pii_are_locked() -> None:
     readme = _read("README.md")
     gates = _read("docs/BUILD_GATES.md")
     national = _read("docs/NATIONAL_PROCUREMENT_SOURCE_GATE.md")
-    assert "without interviews, surveys, outreach" in readme
+    assert "permanent byggeforutsetning" in readme
     assert "zero-contact" in gates
     assert "Silence is never permission" in national
     assert "download then filter" in readme
@@ -54,7 +54,10 @@ def test_source_categories_and_prr_final_status() -> None:
     assert "Category A — eligible for no-contact qualification" in status
     assert "Category B — permanently ineligible" in status
     assert "PRR Projects on dados.gov.pt | B | PERMANENTLY BLOCKED" in status
-    assert "OpenCoesione 2021-2027 EU cohesion operation-list CSV | A | APPROVED SOURCE CONTRACT" in status
+    assert (
+        "OpenCoesione 2021-2027 EU cohesion operation-list CSV | A | "
+        "APPROVED SOURCE CONTRACT"
+    ) in status
     assert "General OpenCoesione API / broad Projects database" in status
     assert "Poland" in status
     assert "Category B / rejected" in status
@@ -67,9 +70,13 @@ def test_opencoesione_a1_is_approved_but_live_ingest_stays_fail_closed() -> None
     assert "A1 SOURCE QUALIFICATION: PASS" in gates
     assert "A20 OPENCOESIONE A1 SOURCE QUALIFICATION: APPROVED" in gates
     assert "A20 LIVE FUNDED-PROJECT INGEST: BLOCKED ONLY BY COLLECTOR REGISTRATION" in gates
-    assert "APPROVED SOURCE CONTRACT — EXACT 2021-2027 EU COHESION OPERATION-LIST ROUTE ONLY" in qualification
+    assert (
+        "APPROVED SOURCE CONTRACT — EXACT 2021-2027 EU COHESION OPERATION-LIST ROUTE ONLY"
+        in qualification
+    )
     assert "general OpenCoesione API" in qualification
-    assert "live activation" in qualification.lower()
+    assert "remaining activation gates are technical" in qualification.lower()
+    assert '"opencoesione_2021_2027_operations"' in contracts
     assert '"prr_projects_dados_gov"' in contracts
     assert "live retrieval is prohibited" in contracts
 
@@ -80,19 +87,20 @@ def test_opencoesione_privacy_and_scope_contract_is_frozen() -> None:
         "TITOLO_PROGETTO",
         "SINTESI_PROG",
         "name, tax code, telephone number or email address",
-        "beneficiary names on this surface are published only for legal persons",
+        "only for legal persons",
+        "data-provider instruction and publication rule, not a technical database constraint",
         "CC BY 4.0",
         "bimonthly",
         "all national and regional 2021-2027 programmes financed with EU funds",
-        "fail closed",
+        "fail-closed",
     ):
         assert required in qualification
 
 
-def test_build_is_go() -> None:
+def test_build_is_active_and_go() -> None:
     readme = _read("README.md")
     gates = _read("docs/BUILD_GATES.md")
-    assert "START THE WEB BUILD" in readme
+    assert "CONTINUE THE WEB BUILD" in readme
     assert "A20 WEB BUILD: GO" in gates
 
 

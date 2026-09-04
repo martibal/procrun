@@ -56,7 +56,9 @@ SOURCE_CONTRACTS = {
         source_id="ted_search_api",
         status=SourceStatus.APPROVED,
         retrieval_route="POST /v3/notices/search with explicit fields projection",
-        reason="Public TED documentation provides the server-side field boundary required by ProcRun.",
+        reason=(
+            "Public TED documentation provides the server-side field boundary required by ProcRun."
+        ),
         rights_status=SourceStatus.APPROVED,
         access_status=SourceStatus.APPROVED,
         data_safety_status=SourceStatus.APPROVED,
@@ -158,7 +160,9 @@ SOURCE_CONTRACTS = {
         source_id="pt2030_project_search",
         status=SourceStatus.BLOCKED,
         retrieval_route="Mais Transparencia Portugal 2030 project search/detail surface",
-        reason="Category B human-authored project surface; permanently closed to intelligence ingest.",
+        reason=(
+            "Category B human-authored project surface; permanently closed to intelligence ingest."
+        ),
         rights_status=SourceStatus.BLOCKED,
         access_status=SourceStatus.BLOCKED,
         data_safety_status=SourceStatus.BLOCKED,
@@ -230,7 +234,9 @@ SOURCE_CONTRACTS = {
         source_id="base_announcements_bulk",
         status=SourceStatus.BLOCKED,
         retrieval_route="dados.gov.pt Portal BASE announcements annual JSON/XLSX",
-        reason="Rights are open but the broad transport lacks the required pre-receipt safety boundary.",
+        reason=(
+            "Rights are open but the broad transport lacks the required pre-receipt safety boundary."
+        ),
         rights_status=SourceStatus.APPROVED,
         access_status=SourceStatus.APPROVED,
         data_safety_status=SourceStatus.BLOCKED,
@@ -238,7 +244,8 @@ SOURCE_CONTRACTS = {
         automated_access_allowed=True,
         license_basis="Dataset-specific dados.gov.pt public-domain licence.",
         legal_basis_urls=(
-            "https://dados.gov.pt/pt/datasets/contratos-publicos-portal-base-impic-anuncios-de-2012-a-2026/",
+            "https://dados.gov.pt/pt/datasets/"
+            "contratos-publicos-portal-base-impic-anuncios-de-2012-a-2026/",
         ),
         terms_reviewed_on=_REVIEWED_ON,
         terms_review_due_on=_REVIEW_DUE_ON,
@@ -301,7 +308,9 @@ def require_live_source(source_id: str, *, as_of: date | None = None) -> SourceC
     except KeyError as exc:
         raise SourceNotApprovedError(f"unknown source contract: {source_id}") from exc
     if contract.status is not SourceStatus.APPROVED:
-        raise SourceNotApprovedError(f"source {source_id} is {contract.status}; live retrieval is prohibited")
+        raise SourceNotApprovedError(
+            f"source {source_id} is {contract.status}; live retrieval is prohibited"
+        )
     if any(
         status is not SourceStatus.APPROVED
         for status in (contract.rights_status, contract.access_status, contract.data_safety_status)
@@ -312,7 +321,8 @@ def require_live_source(source_id: str, *, as_of: date | None = None) -> SourceC
     effective_date = as_of or date.today()
     if effective_date > contract.terms_review_due_on:
         raise SourceComplianceExpiredError(
-            f"source {source_id} compliance review expired on {contract.terms_review_due_on.isoformat()}"
+            f"source {source_id} compliance review expired on "
+            f"{contract.terms_review_due_on.isoformat()}"
         )
     return contract
 
@@ -327,7 +337,9 @@ def public_attributions(source_ids: Iterable[str]) -> tuple[str, ...]:
             raise SourceNotApprovedError(f"unknown source contract: {source_id}") from exc
         if contract.attribution_required:
             if contract.attribution_text is None:
-                raise SourceNotApprovedError(f"source {source_id} requires attribution but has none")
+                raise SourceNotApprovedError(
+                    f"source {source_id} requires attribution but has none"
+                )
             if contract.attribution_text not in seen:
                 statements.append(contract.attribution_text)
                 seen.add(contract.attribution_text)

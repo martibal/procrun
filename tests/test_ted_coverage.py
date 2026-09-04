@@ -2,7 +2,12 @@ from datetime import date
 
 import pytest
 
-from procrun.coverage import CoverageScope, UnsupportedCoverageScopeError, make_open_assessment, ted_open_wording
+from procrun.coverage import (
+    CoverageScope,
+    UnsupportedCoverageScopeError,
+    make_open_assessment,
+    ted_open_wording,
+)
 from procrun.domain import ComponentState
 
 
