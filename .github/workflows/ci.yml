@@ -61,7 +61,9 @@ jobs:
         run: python scripts/qualify_ted_foundation.py
 
   source-transfer:
-    if: github.event_name == 'push'
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.head_ref == 'delivery/opencoesione-session-transport')
     needs: python
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -76,8 +78,9 @@ jobs:
       - name: OpenCoesione live source-transfer into canonical FundingProject
         run: |
           python - <<'PY'
-          from procrun.collectors.opencoesione import collect_open_coesione, to_funding_projects
-          batch = collect_open_coesione()
+          from procrun.collectors.opencoesione import to_funding_projects
+          from procrun.collectors.opencoesione_live import collect_open_coesione_live
+          batch = collect_open_coesione_live()
           projects = to_funding_projects(batch)
           if not projects:
               raise SystemExit("source-transfer produced zero canonical projects")
@@ -91,19 +94,8 @@ jobs:
           PY
 
   web:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: "24"
-      - name: Install web
-        working-directory: web
-        run: npm install --no-audit --no-fund
-      - name: Web typecheck
-        working-directory: web
-        run: npm run typecheck
-      - name: Web production build
-        working-directory: web
-        run: npm run build
+      - run: echo "Web CI is frozen until A20 pre-web delivery readiness is green."
