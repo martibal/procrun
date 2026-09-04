@@ -1,5 +1,6 @@
 param(
-    [string]$ServerName = "procrun-prod"
+    [string]$ServerName = "procrun-prod",
+    [string]$SshPrivateKey = (Join-Path $HOME ".ssh\procrun_hetzner")
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,6 +14,9 @@ foreach ($Command in @("python", "git", "hcloud", "ssh", "scp")) {
 }
 if (-not $env:HCLOUD_TOKEN) {
     throw "HCLOUD_TOKEN must be set in the current PowerShell session."
+}
+if (-not (Test-Path -LiteralPath $SshPrivateKey -PathType Leaf)) {
+    throw "ProcRun SSH private key not found: $SshPrivateKey"
 }
 
 & python $ComplianceGate --service hetzner_cloud
@@ -71,7 +75,13 @@ try {
     }
     finally { Pop-Location }
 
-    $SshOptions = @("-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=15")
+    $SshOptions = @(
+        "-i", $SshPrivateKey,
+        "-o", "IdentitiesOnly=yes",
+        "-o", "BatchMode=yes",
+        "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "ConnectTimeout=15"
+    )
     $Ready = $false
     for ($i = 1; $i -le 40; $i++) {
         $OldPreference = $ErrorActionPreference
@@ -82,7 +92,8 @@ try {
         if ($SshExit -eq 0) { $Ready = $true; break }
         Start-Sleep -Seconds 10
     }
-    if (-not $Ready) { throw "Server did not reach a completed cloud-init state." }
+    if (-not $Ready) { throw "Server did not reach a completed cloud-init state."
+    }
 
     & scp @SshOptions $TempArchive "root@${IpAddress}:/tmp/procrun-release.tar.gz"
     if ($LASTEXITCODE -ne 0) { throw "Release upload failed." }
