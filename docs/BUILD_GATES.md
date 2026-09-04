@@ -1,197 +1,78 @@
 # ProcRun final build and release gates
 
-Status: **WEB BUILD APPROVED; LIVE SOURCE ACTIVATION AND PAID PRODUCTION REMAIN FAIL-CLOSED UNTIL REQUIRED PORTUGAL SOURCE CONTRACTS PASS FROM PUBLIC EVIDENCE ONLY**
+Status: **WEB BUILD APPROVED; TED-SCOPED LIVE PROCUREMENT CLASSIFICATION APPROVED; FUNDED-PROJECT INGEST REMAINS FAIL-CLOSED UNTIL A1 PASSES**
 Canonical product spec: `docs/PRODUCT_FOUNDATION_FINAL.md`
 
 These gates are authoritative. Historical product files cannot override them.
 
-## A0 — Web-build versus production-source rule
+## A0 — Validation rule
 
-ProcRun validation is **zero-contact**:
-
-- no interviews, surveys or customer/supplier outreach;
-- no authority, source-owner or public-body contact;
-- no bespoke clarification requests;
-- no paid consultant, auditor or legal opinion as a substitute for source evidence;
-- no private assurance or approval;
-- only already-public, independently inspectable evidence and machine-verifiable behaviour may close a source gate;
-- silence is never permission.
-
-Web implementation does not require live source activation. The web application may be built against deterministic fixtures and the frozen customer-safe read model while unresolved production sources remain technically disabled and fail-closed.
-
-Before live funded-project ingest, live national `OPEN` classification or paid production may activate, all applicable source and release requirements must be complete:
-
-- one funded-project source passes A1 entirely from public evidence;
-- one complete-enough Portuguese national procurement source passes A2 entirely from public evidence for original national `OPEN` coverage;
-- source-transfer validation passes for the funded-project source actually selected;
-- A2/A3 source and zero-PII boundaries are enforced in code;
-- canonical FundingProject -> component -> procurement -> state orchestration is covered by end-to-end tests;
-- customer-safe read models are frozen and tested;
-- component/project state ontology is internally consistent;
-- deterministic hashes/version identifiers are available at the read boundary;
-- database migrations apply from an empty PostgreSQL database and append-only invariants are tested;
-- collectors fail closed on unknown fields, incomplete pagination, stale review, unapproved source or schema drift;
-- incomplete required procurement coverage cannot produce `OPEN`;
-- a live end-to-end acceptance replay passes on the approved source combination;
-- CI is green;
-- A19 is green before checkout or paid production.
-
-During web build, fixtures must be clearly non-live and no conditional/broad source may be connected merely to populate the interface.
+ProcRun validation is zero-contact: no interviews, surveys, outreach, authority/source-owner contact, customer contact, bespoke clarification, paid consultant/auditor/legal opinion or private assurance may close a source gate. Only already-public independently inspectable evidence and machine-verifiable behaviour may do so. Silence is never permission.
 
 ## A1 — Funded-project source
 
-A funded-project source may be approved only when RIGHTS, ACCESS, TRANSPORT, FREE-TEXT SAFETY, SCHEMA and COVERAGE are all established for the exact production route.
+Live funded-project ingest requires an approved Category A source with RIGHTS, ACCESS, TRANSPORT, FREE-TEXT SAFETY, SCHEMA and COVERAGE established for the exact production route.
 
-Required:
+PRR Projects and Mais Transparência are Category B and permanently closed to the intelligence plane under the current rules. They are not waiting for clarification.
 
-- explicit commercial reuse/derivative rights;
-- publicly permitted automated recurring retrieval;
-- no natural-person data can enter the intelligence plane before receipt;
-- every retained free-text field has the same pre-receipt guarantee;
-- no `download then filter` workaround;
-- frozen schema/allowlist with fail-closed drift handling;
-- sufficient funded-project coverage and temporal provenance.
+OpenCoesione is the leading Category A replacement candidate. Official monitoring documentation explicitly constrains project title and summary against sensitive natural-person information and provides codified CUP-based monitoring structures, but exact machine-route qualification and source-transfer/live acceptance must pass before activation.
 
-`PRR Projects / dados.gov.pt` remains CONDITIONAL. Current public evidence does not close exact-route rights plus free-text safety. The former publisher-contact plan is retired because it violates A0.
+## A2 — Procurement source and MVP coverage
 
-OpenCoesione public evidence materially improves the replacement-source case: CC BY 4.0 reuse and machine publication are explicit; official monitoring guidance anonymises natural-person beneficiaries as `Individuo` and prohibits natural-person names in operation titles. That evidence does not yet prove every free-text field required by the full production extraction route safe before receipt, so OpenCoesione is not silently promoted to APPROVED.
+TED Search API is APPROVED for field-bounded procurement evidence, market context and MVP negative-search classification.
 
-A1 can close only if new public authoritative evidence appears or a different funded-project source passes the full contract without human-dependent clarification.
+The permanent MVP `OPEN` definition is:
 
-## A2 — Procurement source safety and coverage
+> **No relevant procurement found in TED as of DATE.**
 
-TED Search API remains APPROVED for field-bounded procurement evidence and market context.
+This is not a claim that no procurement exists outside TED, including purely national or below-threshold Portuguese procedures. Every customer-facing OPEN state must expose the TED coverage boundary.
 
-A Portuguese national procurement source must independently pass `docs/NATIONAL_PROCUREMENT_SOURCE_GATE.md` before it can satisfy national coverage for original `OPEN`. Its approval must also be based entirely on public evidence and machine-verifiable behaviour.
-
-The IMPIC/BASE announcements dataset published on dados.gov.pt resolves important national-history and reuse questions, but the public machine route still lacks the pre-receipt zero-natural-person guarantee required by A3. Full Portuguese notices also contain contact/author fields, so broad download-and-filter remains prohibited.
-
-Until national coverage is approved and completed, required-source coverage is incomplete and the classifier must return `UNRESOLVED`, never `OPEN` based on absence.
+BASE/IMPIC, full DRE and Part L RSS are not required to make this bounded claim and remain disabled unless independently approved under A3.
 
 ## A3 — Absolute zero-PII intelligence boundary
 
-No natural-person data may be collected, stored or processed in the intelligence plane. Account, billing and support data live in a separate control plane and may not enter analytical ledger/model context.
+No natural-person data may be collected, stored or processed in the intelligence plane. Account, billing and support data are a separate control plane. Broad-response receipt followed by filtering is prohibited.
 
-## A4 — Canonical product object and state ontology
+## A4 — Evidence/state integrity
 
-`funded project -> source-evidenced component -> procurement evidence -> conservative component state -> project aggregate state -> supplier runway`
+Every positive evidence object retains source identity, exact evidence, observation cutoff, method/version and immutable reference. `OPEN` is a bounded search conclusion, never a source fact. Incomplete TED pagination/retrieval or ambiguous matching yields `UNRESOLVED`.
 
-Component states are exactly `OPEN`, `CLOSED`, `UNRESOLVED`.
+Component states remain `OPEN`, `CLOSED`, `UNRESOLVED`; project aggregate states remain `OPEN`, `PARTIAL`, `CLOSED`, `UNRESOLVED` when funded-project functionality is active. Any OPEN-derived project state inherits the explicit TED qualifier.
 
-Project states are exactly `OPEN`, `PARTIAL`, `CLOSED`, `UNRESOLVED`.
+## A5 — Customer-safe boundary
 
-`PARTIAL` is a project-level aggregate state. A TED-only opportunity feed is not the canonical product.
+Browser/API/export surfaces consume only validated customer-safe read models. No raw source payload, beneficiary/contact/person field or unvalidated model output reaches browser code.
 
-## A5 — Evidence integrity
+## A6 — Product/build scope
 
-Every accepted positive component and procurement match retains exact source evidence, source identifier, observation cutoff, method/version and immutable hash/version reference.
+Web shell, authentication, account/billing skeleton, TED ingest/evidence, component/relevance code, saved opportunities, market context and customer-safe CSV export may be built now. Funded-project live screens remain fixture-only until A1 passes and must be clearly non-live.
 
-No model/rule may invent source text, demand, procurement evidence or state.
+## A7 — Unsupported claims
 
-Blanket claims such as `100% accurate`, `trust blindly` or `zero inference` are prohibited. `100% source-verified` may describe only a positive evidence object that actually satisfies the evidence contract.
+Do not claim complete Portuguese procurement coverage, complete bill of materials, every future purchase, guaranteed lead time, win probability, buyer-person intelligence or source/EU endorsement. TED-scoped absence must never be shortened into national absence.
 
-## A6 — OPEN invariant
+## A8 — Paid release controls
 
-`OPEN` is not a source fact. It means only:
-
-`No relevant procurement found in every required approved indexed source as of DATE.`
-
-Incomplete coverage, review-band evidence or ambiguous component scope yields `UNRESOLVED`.
-
-False OPEN is the highest-cost error.
-
-## A7 — Matching hierarchy
-
-Tier A/B evidence may close a component only under `MATCHING_RULES.md`. Tier C remains review-only. Semantic similarity alone never closes a component. Post-cutoff evidence never rewrites an earlier historical state.
-
-## A8 — Component extraction
-
-Deterministic extraction is primary. Supported domains/categories are frozen and versioned. Unmatched scope is retained and forces conservative abstention where necessary.
-
-## A9 — Local model boundary
-
-A production-approved local model may only propose a frozen category plus an exact source span from already-approved text. Deterministic validation must prove the span exists verbatim. The model cannot set component or procurement state.
-
-The MVP does not depend on model fallback.
-
-## A10 — Ledger/reproducibility
-
-Source observations, extraction, candidate matching and classifications are append-only/versioned. Historical outputs retain cutoff, rule/model versions and SHA-256-linked evidence so results can be reconstructed.
-
-## A11 — Customer-safe read model
-
-Browser/API surfaces consume only the post-validation read model. No raw source response, beneficiary/contact/person field or unvalidated model output reaches the browser.
-
-The read-model schema and deterministic content hash/version are implemented and regression-tested.
-
-## A12 — Supplier relevance
-
-Relevance is deterministic/profile-based and explainable. It may prioritize domain/category/CPV/geography/value preferences but cannot override evidence state and is never presented as win probability.
-
-## A13 — Product UX
-
-The customer-facing app centers on runway, not tender search:
-
-- project/component feed;
-- funded-project detail;
-- component evidence/history;
-- procurement evidence;
-- saved items;
-- market context;
-- profile;
-- customer-safe export;
-- account shell.
-
-## A14 — Trust UX
-
-Every commercial runway item exposes project-scope evidence, procurement evidence where present, state wording, coverage status, observed/as-of timestamp and immutable version reference. Source facts and ProcRun conclusions are visually distinct.
-
-## A15 — Market context integrity
-
-TED market views disclose missingness. Funding aggregates remain disabled until A1 is green. Market context may not silently become the primary TED-only product.
-
-## A16 — Commercial packaging
-
-Launch package: **ProcRun Portugal — €149/month**. No permanent free tier. Sample/demo content must be synthetic or explicitly approved for publication.
-
-## A17 — Unsupported claims
-
-Do not claim complete bill of materials, every future purchase, guaranteed months-ahead lead time, complete procurement coverage, probabilistic GO/NO-GO, win probability, buyer-person intelligence or EU/source endorsement.
-
-## A18 — Cost ceiling
-
-Target recurring core infrastructure spend <= NOK 400/month; warning above NOK 400; architecture review required above NOK 500/month excluding volume-linked payment fees.
+Before checkout, A19 operational/legal controls must be green. Paid TED-scoped functionality does not require a funded-project source, but no funded-project feature may be represented as live until A1 plus source-transfer/live acceptance are green.
 
 ## A19 — Paid release
 
-Before checkout, legal entity/merchant identity, terms, privacy notice, VAT/invoicing, processor inventory/DPAs, source attribution, TLS/secrets/least privilege, backup/restore and control-plane separation must be demonstrably green from applicable public requirements and implemented controls.
+Before checkout: legal entity/merchant identity, terms, privacy notice, VAT/invoicing, processor inventory/DPAs, source attribution, TLS/secrets/least privilege, backup/restore and control-plane separation must be demonstrably green from applicable public requirements and implemented controls. No external legal review is an allowed gate-closing mechanism.
 
-No external legal review is an allowed gate-closing mechanism under A0.
-
-A1 and every source required for live `OPEN` coverage must also be production-approved.
-
-## A20 — Authoritative web-build readiness
+## A20 — Authoritative readiness
 
 A20 is the only authoritative `GO` source for starting the web build.
 
 **A20 WEB BUILD: GO.**
 
-The internal application contract, fixture pipeline, customer-safe read model, deterministic orchestration, provenance and fail-closed source controls are sufficient to begin UI/web implementation without activating unresolved live sources.
+**A20 LIVE PORTUGAL OPEN CLASSIFICATION: APPROVED (TED-SCOPED).**
 
-The build boundary is strict:
+Exact definition: **No relevant procurement found in TED as of DATE.** This does not establish absence outside TED.
 
-- build against deterministic fixtures and the customer-safe read model;
-- no conditional funded-project source may be enabled in production;
-- no incomplete Portuguese national source may be used to infer `OPEN`;
-- no raw source payload may be routed to browser code;
-- no fixture/demo state may be represented as live production data.
+**A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY A1 CATEGORY-A SOURCE QUALIFICATION.**
 
-**A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY A1.**
+**A20 TED-SCOPED PRODUCT RELEASE: TECHNICALLY SOURCE-ELIGIBLE; CHECKOUT STILL REQUIRES A19 + GREEN CI.**
 
-**A20 LIVE PORTUGAL OPEN CLASSIFICATION: BLOCKED BY NATIONAL SOURCE COVERAGE.**
+Funded-project source qualification continues in parallel and is an expansion gate, not a blocker for the TED-scoped MVP.
 
-**A20 PAID PRODUCTION: BLOCKED until A1 + national procurement-source gate + source-transfer/live acceptance + A19 are green.**
-
-Source qualification therefore continues in parallel with the web build. It remains a production-release blocker, not a UI implementation blocker.
-
-No other README/spec/history file may claim stronger readiness than A20.
+No other README/spec/history file may claim broader coverage than this A20 decision.
