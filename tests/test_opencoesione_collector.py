@@ -94,6 +94,34 @@ def test_bad_row_rejects_entire_batch() -> None:
         parse_operation_list_zip(_zip_csv(rows=[good, bad]), source_url="x")
 
 
+def test_missing_summary_uses_exact_title_as_source_evidenced_fallback() -> None:
+    row = _valid_row()
+    row[5] = ""
+    operation = parse_operation_list_zip(
+        _zip_csv(rows=[row]), source_url="https://example.test/source.zip"
+    ).operations[0]
+    assert operation.operation_name == "Water upgrade"
+    assert operation.operation_summary == "Water upgrade"
+
+
+def test_missing_title_uses_exact_summary_as_source_evidenced_fallback() -> None:
+    row = _valid_row()
+    row[4] = ""
+    operation = parse_operation_list_zip(
+        _zip_csv(rows=[row]), source_url="https://example.test/source.zip"
+    ).operations[0]
+    assert operation.operation_name == "New pumps and controls"
+    assert operation.operation_summary == "New pumps and controls"
+
+
+def test_missing_title_and_summary_still_rejects_entire_batch() -> None:
+    row = _valid_row()
+    row[4] = ""
+    row[5] = ""
+    with pytest.raises(OpenCoesioneRowError, match="both operation name and summary"):
+        parse_operation_list_zip(_zip_csv(rows=[row]), source_url="x")
+
+
 def test_canonical_mapping_uses_cup_for_ted_linkage_and_never_retains_identity() -> None:
     batch = parse_operation_list_zip(
         _zip_csv(), source_url="https://example.test/source.zip"
