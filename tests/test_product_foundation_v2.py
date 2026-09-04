@@ -18,7 +18,7 @@ def test_zero_contact_and_zero_pii_are_locked() -> None:
     readme = _read("README.md")
     gates = _read("docs/BUILD_GATES.md")
     national = _read("docs/NATIONAL_PROCUREMENT_SOURCE_GATE.md")
-    assert "permanent byggeforutsetning" in readme
+    assert "permanent\nbyggeforutsetning" in readme
     assert "zero-contact" in gates
     assert "Silence is never permission" in national
     assert "download then filter" in readme
