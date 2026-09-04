@@ -18,23 +18,26 @@ from procrun.collectors.opencoesione_live import (
 
 def _valid_row() -> list[str]:
     return [
-        "FESR",
-        "OBJ",
+        "PRL",
+        "PR FESR Lombardia 2021-2027",
         "OP-1",
         "CUP1",
-        "LEGAL123",
-        "Comune X",
         "Water upgrade",
         "New pumps and controls",
-        "2026-01-01",
-        "2027-12-31",
+        "2026-08-31",
+        "LEGAL123",
+        "Comune X",
         "1000000",
         "800000",
-        "0.6",
-        "00100",
-        "IT",
+        "FESR",
+        "2021-2027",
         "Water",
-        "2026-08-31",
+        "OBJ",
+        "2026-01-01",
+        "2027-12-31",
+        "0.6",
+        "IT",
+        "00100",
     ]
 
 
