@@ -6,6 +6,8 @@ import pytest
 from procrun.collectors.ted import (
     TED_PROJECTED_FIELDS,
     TedContractError,
+    TedTransportError,
+    _post_with_throttle_retry,
     canonicalize_ted_notice,
     collect_ted_notices,
 )
@@ -195,3 +197,44 @@ def test_fractional_eur_value_is_not_silently_rounded() -> None:
     )
 
     assert canonical["estimated_value_eur"] is None
+
+
+def test_throttle_retry_reuses_identical_request_and_then_succeeds() -> None:
+    calls: list[bytes] = []
+    statuses = [429, 429, 200]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.content)
+        status = statuses.pop(0)
+        if status == 429:
+            return httpx.Response(status, headers={"retry-after": "0"}, request=request)
+        return httpx.Response(
+            status,
+            json={"notices": [], "timedOut": False},
+            headers={"content-type": "application/json"},
+            request=request,
+        )
+
+    sleeps: list[float] = []
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = _post_with_throttle_retry(
+            client, {"query": "buyer-country=ITA"}, sleep=sleeps.append
+        )
+
+    assert result.status_code == 200
+    assert len(calls) == 3
+    assert calls[0] == calls[1] == calls[2]
+    assert sleeps == [2.0, 4.0]
+
+
+def test_throttle_retry_exhaustion_remains_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    import procrun.collectors.ted as ted_module
+
+    monkeypatch.setattr(ted_module, "TED_MAX_THROTTLE_RETRIES", 2)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, request=request)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(TedTransportError, match="remained throttled"):
+            _post_with_throttle_retry(client, {"query": "buyer-country=ITA"}, sleep=lambda _: None)
