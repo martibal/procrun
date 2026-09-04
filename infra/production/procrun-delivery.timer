@@ -1,0 +1,11 @@
+[Unit]
+Description=Run ProcRun live delivery daily
+
+[Timer]
+OnCalendar=*-*-* 06:15:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+Unit=procrun-delivery.service
+
+[Install]
+WantedBy=timers.target
