@@ -105,7 +105,9 @@ SOURCE_CONTRACTS = {
         data_safety_status=SourceStatus.APPROVED,
         commercial_reuse_allowed=True,
         automated_access_allowed=True,
-        license_basis="OpenCoesione CC BY 4.0 licence and 2021-2027 per-program operation-list publication.",
+        license_basis=(
+            "OpenCoesione CC BY 4.0 licence and 2021-2027 per-program operation-list publication."
+        ),
         legal_basis_urls=(
             "https://opencoesione.gov.it/en/licenza/",
             "https://opencoesione.gov.it/it/beneficiari_operazioni_2021_2027/",
@@ -117,10 +119,12 @@ SOURCE_CONTRACTS = {
         attribution_required=True,
         attribution_text=(
             "Source: OpenCoesione / MEF-RGS-IGRUE, PR FESR Lombardia 2021-2027 operation list, "
-            "CC BY 4.0. ProcRun-derived analysis is not an official OpenCoesione or Italian-government output."
+            "CC BY 4.0. ProcRun-derived analysis is not an official OpenCoesione or Italian-"
+            "government output."
         ),
         obligations=(
-            "Use only the frozen PR FESR Lombardia per-program ZIP/CSV pilot route until other programme routes pass transfer acceptance.",
+            "Use only the frozen PR FESR Lombardia per-program ZIP/CSV pilot route until other "
+            "programme routes pass transfer acceptance.",
             "Validate the complete frozen header contract before admitting any row.",
             "Fail closed on missing, renamed, reordered or additional fields.",
             "Do not ingest the all-program ZIP while clean automated retrieval returns HTTP 403.",
@@ -161,7 +165,9 @@ SOURCE_CONTRACTS = {
         source_id="pt2030_project_search",
         status=SourceStatus.BLOCKED,
         retrieval_route="Mais Transparencia Portugal 2030 project search/detail surface",
-        reason="Category B human-authored project surface; permanently closed to intelligence ingest.",
+        reason=(
+            "Category B human-authored project surface; permanently closed to intelligence ingest."
+        ),
         rights_status=SourceStatus.BLOCKED,
         access_status=SourceStatus.BLOCKED,
         data_safety_status=SourceStatus.BLOCKED,
@@ -233,7 +239,9 @@ SOURCE_CONTRACTS = {
         source_id="base_announcements_bulk",
         status=SourceStatus.BLOCKED,
         retrieval_route="dados.gov.pt Portal BASE announcements annual JSON/XLSX",
-        reason="Rights are open but the broad transport lacks the required pre-receipt safety boundary.",
+        reason=(
+            "Rights are open but the broad transport lacks the required pre-receipt safety boundary."
+        ),
         rights_status=SourceStatus.APPROVED,
         access_status=SourceStatus.APPROVED,
         data_safety_status=SourceStatus.BLOCKED,
@@ -241,7 +249,8 @@ SOURCE_CONTRACTS = {
         automated_access_allowed=True,
         license_basis="Dataset-specific dados.gov.pt public-domain licence.",
         legal_basis_urls=(
-            "https://dados.gov.pt/pt/datasets/contratos-publicos-portal-base-impic-anuncios-de-2012-a-2026/",
+            "https://dados.gov.pt/pt/datasets/"
+            "contratos-publicos-portal-base-impic-anuncios-de-2012-a-2026/",
         ),
         terms_reviewed_on=_REVIEWED_ON,
         terms_review_due_on=_REVIEW_DUE_ON,
