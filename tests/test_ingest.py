@@ -44,6 +44,18 @@ def test_missing_first_seen_never_uses_project_start_as_proxy() -> None:
     assert project.temporal_provenance is TemporalProvenance.UNRESOLVED
 
 
+def _ted_record(publication_date: str, *, award_date: str | None = None) -> dict[str, object]:
+    record: dict[str, object] = {
+        "notice_id": "notice-date",
+        "publication_date": publication_date,
+        "title": "Rail works",
+        "source_url": "https://example.invalid/notice/notice-date",
+    }
+    if award_date is not None:
+        record["award_date"] = award_date
+    return record
+
+
 def test_normalize_ted_record_from_safe_projection() -> None:
     evidence = normalize_ted_record(
         {
@@ -67,15 +79,29 @@ def test_normalize_ted_record_from_safe_projection() -> None:
     assert evidence.project_reference == "PACS-FC-TEST"
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("2026-08-20", date(2026, 8, 20)),
+        ("2021-11-24+01:00", date(2021, 11, 24)),
+        ("2021-11-25-05:00", date(2021, 11, 25)),
+        ("2023-12-18Z", date(2023, 12, 18)),
+    ],
+)
+def test_normalize_ted_date_variants_preserve_published_calendar_date(
+    raw: str, expected: date
+) -> None:
+    evidence = normalize_ted_record(
+        _ted_record(raw),
+        evidence_id="ev-date",
+        component_id="component-rail",
+    )
+    assert evidence.publication_date == expected
+
+
 def test_normalize_ted_date_only_value_with_offset_preserves_calendar_date() -> None:
     evidence = normalize_ted_record(
-        {
-            "notice_id": "notice-offset",
-            "publication_date": "2021-11-24+01:00",
-            "award_date": "2021-11-25-05:00",
-            "title": "Rail works",
-            "source_url": "https://example.invalid/notice/notice-offset",
-        },
+        _ted_record("2021-11-24+01:00", award_date="2021-11-25-05:00"),
         evidence_id="ev-offset",
         component_id="component-rail",
     )
@@ -83,15 +109,20 @@ def test_normalize_ted_date_only_value_with_offset_preserves_calendar_date() -> 
     assert evidence.award_date == date(2021, 11, 25)
 
 
-def test_normalize_ted_rejects_non_date_offset_formats() -> None:
-    with pytest.raises(ValueError):
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "24/11/2021+01:00",
+        "2021-11-24T00:00:00Z",
+        "2021-11-24 UTC",
+        "2021-11-24+0100",
+        "2021-11-24Zextra",
+    ],
+)
+def test_normalize_ted_rejects_non_date_formats(raw: str) -> None:
+    with pytest.raises(ValueError, match="invalid TED date value"):
         normalize_ted_record(
-            {
-                "notice_id": "notice-bad-date",
-                "publication_date": "24/11/2021+01:00",
-                "title": "Rail works",
-                "source_url": "https://example.invalid/notice/notice-bad-date",
-            },
+            _ted_record(raw),
             evidence_id="ev-bad-date",
             component_id="component-rail",
         )
