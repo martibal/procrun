@@ -4,7 +4,7 @@ ProcRun is an evidence-first infrastructure procurement runway product for suppl
 
 ## Canonical decision
 
-**Status: WEB BUILD BLOCKED UNTIL THE REQUIRED PORTUGAL SOURCE CONTRACTS CAN BE CLOSED ENTIRELY FROM PUBLIC EVIDENCE.**
+**Status: WEB BUILD APPROVED. LIVE FUNDED-PROJECT INGEST AND NATIONAL OPEN CLASSIFICATION REMAIN FAIL-CLOSED UNTIL THEIR PUBLIC-EVIDENCE SOURCE CONTRACTS PASS.**
 
 Canonical specification: [`docs/PRODUCT_FOUNDATION_FINAL.md`](docs/PRODUCT_FOUNDATION_FINAL.md).
 Authoritative build/release decision: [`docs/BUILD_GATES.md`](docs/BUILD_GATES.md), gate **A20**.
@@ -37,7 +37,8 @@ Only already-public, independently inspectable evidence and machine-verifiable b
 
 - **TED Search API:** APPROVED for field-bounded procurement evidence and market context.
 - **PRR Projects / dados.gov.pt:** CONDITIONAL. Current public evidence does not close exact-route rights plus pre-receipt free-text safety; no human clarification may be requested.
-- **Portuguese national procurement coverage:** still requires an approved pre-receipt-safe, complete-enough public source before `OPEN` can be trusted.
+- **Portuguese national procurement coverage:** still requires an approved pre-receipt-safe, complete-enough public source before original national `OPEN` can be trusted.
+- **OpenCoesione:** useful public evidence establishes CC BY 4.0 reuse, machine access, natural-person beneficiary anonymisation in the monitored operation-list contract, and a no-natural-person-name rule for operation titles; it does not yet supply a public zero-person guarantee for every free-text field required by the full ProcRun extraction route.
 - Broad PT2030/beneficiary/BASE routes remain blocked unless an exact safe public route is independently approved.
 
 ProcRun never uses `download then filter` as a privacy mechanism.
@@ -56,13 +57,15 @@ See:
 
 ## Current engineering instruction
 
-**DO NOT START THE WEB BUILD YET.**
+**START THE WEB BUILD.**
 
-The internal application contract is ready, but the user's pre-build rule requires every potential source/data showstopper to be closed before UI implementation begins. The remaining work is therefore source qualification only:
+Web implementation is now explicitly decoupled from live-source activation. Build only against fixtures and the frozen customer-safe read model until production sources are approved. No raw or conditional source may be connected to the browser-facing path merely to make the UI look live.
+
+The remaining source work continues in parallel and remains release-blocking:
 
 1. qualify one funded-project source entirely from public evidence;
 2. qualify one complete-enough Portuguese national procurement source entirely from public evidence;
 3. run the required source-transfer/live acceptance validation;
-4. change A20 to `WEB BUILD: GO` only after those gates and CI are green.
+4. require green CI and A19 before paid production.
 
 Do not re-pivot to a TED-only supplier-demand feed, do not weaken Phase 0B/0C results, and do not weaken the zero-PII or no-contact boundaries to obtain a source.
