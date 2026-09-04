@@ -34,7 +34,7 @@ TED_ALLOWED_FIELDS = frozenset(
     }
 )
 
-_DATE_WITH_OFFSET = re.compile(r"^(\d{4}-\d{2}-\d{2})[+-]\d{2}:\d{2}$")
+_DATE_TEXT = re.compile(r"^(\d{4}-\d{2}-\d{2})(?:Z|[+-]\d{2}:\d{2})?$")
 
 
 def _parse_date(value: Any) -> date | None:
@@ -46,13 +46,14 @@ def _parse_date(value: Any) -> date | None:
         return value
 
     text = str(value)
-    offset_match = _DATE_WITH_OFFSET.fullmatch(text)
-    if offset_match is not None:
-        # TED can serialize date-only fields with an offset suffix. The source field is still a
-        # calendar date, so preserve that published calendar date rather than applying timezone
-        # conversion that could move it across a day boundary.
-        text = offset_match.group(1)
-    return date.fromisoformat(text)
+    match = _DATE_TEXT.fullmatch(text)
+    if match is None:
+        raise ValueError(f"invalid TED date value: {text!r}")
+
+    # TED serializes date-only fields as either bare YYYY-MM-DD or the same calendar date
+    # with a timezone designator (Z / +/-HH:MM). This field is not a timestamp. Preserve the
+    # published calendar date and never timezone-convert it across a day boundary.
+    return date.fromisoformat(match.group(1))
 
 
 def _optional_text(value: Any) -> str | None:
