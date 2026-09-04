@@ -13,7 +13,8 @@ def test_readme_defers_web_readiness_to_a20() -> None:
     assert "gate **A20**" in readme
     assert "funded project -> source-evidenced purchasable components" in readme
     assert "TED-only v2 pivot is retired" in readme
-    assert "DO NOT START THE WEB BUILD YET" in readme
+    assert "START THE WEB BUILD" in readme
+    assert "live-source activation" in readme
 
 
 def test_phase0b_failure_is_preserved() -> None:
@@ -56,7 +57,7 @@ def test_absolute_intelligence_privacy_boundary_is_preserved() -> None:
     readme = _read("README.md")
     gates = _read("docs/BUILD_GATES.md")
     source_status = _read("docs/SOURCE_STATUS.md")
-    assert "zero-natural-person" in readme
+    assert "zero-PII" in readme
     assert "No natural-person data may be collected, stored or processed" in gates
     assert "Do not receive a broad response containing prohibited fields" in source_status
     assert "download-then-filter" in source_status
@@ -90,19 +91,20 @@ def test_a20_is_single_authoritative_web_build_gate() -> None:
     gates = _read("docs/BUILD_GATES.md")
     spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
     assert "A20 is the only authoritative `GO` source" in gates
-    assert "A20 WEB BUILD: BLOCKED" in gates
+    assert "A20 WEB BUILD: GO" in gates
     assert "A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY A1" in gates
     assert "A20 LIVE PORTUGAL OPEN CLASSIFICATION: BLOCKED BY NATIONAL SOURCE COVERAGE" in gates
     assert "A20 PAID PRODUCTION: BLOCKED" in gates
     assert "Only `BUILD_GATES.md` A20 can declare build readiness" in spec
 
 
-def test_preweb_blockers_are_source_contracts_not_internal_pipeline() -> None:
+def test_web_build_does_not_weaken_live_source_gates() -> None:
     gates = _read("docs/BUILD_GATES.md")
     status = _read("docs/PREWEB_SHOWSTOPPER_STATUS.md")
+    assert "web implementation does not require live source activation" in gates
     assert "one funded-project source passes A1 entirely from public evidence" in gates
     assert "one complete-enough Portuguese national procurement source" in gates
-    assert "WEB BUILD BLOCKED — TWO PUBLIC-EVIDENCE SOURCE GATES REMAIN" in status
+    assert "WEB BUILD GO; LIVE SOURCE ACTIVATION REMAINS FAIL-CLOSED" in status
     assert "live end-to-end acceptance" in status
 
 
