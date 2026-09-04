@@ -228,12 +228,17 @@ def parse_operation_list_zip(payload: bytes, *, source_url: str) -> OpenCoesione
 
 
 def to_funding_projects(batch: OpenCoesioneBatch) -> tuple[FundingProject, ...]:
-    """Map only admitted non-person fields into the canonical FundingProject contract."""
+    """Map only admitted non-person fields into the canonical FundingProject contract.
+
+    CUP is the canonical operation code when present because it is the external project identifier
+    that may also appear in TED's EU-funds reference fields.  The OpenCoesione local operation ID
+    remains available on the source operation and is used as the immutable source-record identity.
+    """
     projects: list[FundingProject] = []
     for operation in batch.operations:
         projects.append(
             FundingProject(
-                operation_code=operation.operation_id,
+                operation_code=operation.cup or operation.operation_id,
                 first_seen_at=batch.observed_at,
                 temporal_provenance=TemporalProvenance.RESOLVED,
                 project_title=operation.operation_name,
@@ -248,7 +253,7 @@ def to_funding_projects(batch: OpenCoesioneBatch) -> tuple[FundingProject, ...]:
                 theme=operation.intervention_category,
                 region="Lombardia",
                 municipality=None,
-                nuts_code=None,
+                nuts_code="ITC4",
                 source_url=operation.source_url,
             )
         )
