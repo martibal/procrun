@@ -55,7 +55,7 @@ if ($LASTEXITCODE -ne 0 -or -not $IpAddress) {
     throw "Existing server IP address could not be resolved."
 }
 
-# The initial create attempt stopped before this step, so ensure provider backups are enabled now.
+# Ensure provider backups are enabled before any deployment changes.
 $OldPreference = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 $BackupOutput = & hcloud server enable-backup $ServerName 2>&1
@@ -82,17 +82,38 @@ try {
         "-o", "StrictHostKeyChecking=accept-new",
         "-o", "ConnectTimeout=15"
     )
+
     $Ready = $false
-    for ($i = 1; $i -le 40; $i++) {
+    $CloudInitStatus = $null
+    for ($i = 1; $i -le 12; $i++) {
         $OldPreference = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
-        & ssh @SshOptions "root@$IpAddress" "cloud-init status --wait >/dev/null 2>&1"
-        $SshExit = $LASTEXITCODE
+        $StatusOutput = & ssh @SshOptions "root@$IpAddress" "cloud-init status 2>&1"
+        $StatusExit = $LASTEXITCODE
         $ErrorActionPreference = $OldPreference
-        if ($SshExit -eq 0) { $Ready = $true; break }
+        $CloudInitStatus = ($StatusOutput | Out-String).Trim()
+
+        if ($CloudInitStatus -match "status:\s*done") {
+            $Ready = $true
+            break
+        }
+        if ($CloudInitStatus -match "status:\s*(error|degraded|disabled)") {
+            break
+        }
+        if ($StatusExit -ne 0 -and $CloudInitStatus -notmatch "status:\s*(running|not run)") {
+            break
+        }
         Start-Sleep -Seconds 10
     }
-    if (-not $Ready) { throw "Server did not reach a completed cloud-init state."
+
+    if (-not $Ready) {
+        Write-Host "=== cloud-init status ==="
+        if ($CloudInitStatus) { Write-Host $CloudInitStatus }
+        $OldPreference = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        & ssh @SshOptions "root@$IpAddress" "echo '=== cloud-init status --long ==='; cloud-init status --long 2>&1 || true; echo '=== cloud-init result ==='; cat /var/lib/cloud/data/result.json 2>/dev/null || true; echo '=== cloud-init log tail ==='; tail -n 120 /var/log/cloud-init-output.log 2>/dev/null || true"
+        $ErrorActionPreference = $OldPreference
+        throw "Server cloud-init is not in a clean completed state. A20 stays BLOCKED."
     }
 
     & scp @SshOptions $TempArchive "root@${IpAddress}:/tmp/procrun-release.tar.gz"
