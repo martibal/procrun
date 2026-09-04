@@ -22,6 +22,9 @@ OPENCOESIONE_PROGRAM_URL: Final = (
     "https://opencoesione.gov.it/it/opendata/beneficiari/2021-2027/"
     "beneficiari_PR_FESR_LOMBARDIA.zip"
 )
+OPENCOESIONE_REFERER: Final = (
+    "https://opencoesione.gov.it/it/beneficiari_operazioni_2021_2027/"
+)
 
 EXPECTED_HEADERS: Final[tuple[str, ...]] = (
     "Fondo/Fund",
@@ -277,7 +280,15 @@ def collect_open_coesione(
     active_client = client or httpx.Client(
         timeout=timeout_seconds,
         follow_redirects=True,
-        headers={"User-Agent": "ProcRun/0.1 public-open-data-ingest"},
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/151.0 Safari/537.36"
+            ),
+            "Accept": "application/zip,application/octet-stream;q=0.9,*/*;q=0.1",
+            "Accept-Language": "en-US,en;q=0.8,it;q=0.6",
+            "Referer": OPENCOESIONE_REFERER,
+        },
     )
     try:
         response = active_client.get(OPENCOESIONE_PROGRAM_URL)
