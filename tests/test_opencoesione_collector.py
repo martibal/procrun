@@ -39,7 +39,9 @@ def _zip_csv(
     rows: list[list[str]] | None = None,
 ) -> bytes:
     rows = rows or [_valid_row()]
-    text = ";".join(headers) + "\n" + "\n".join(";".join(row) for row in rows) + "\n"
+    header_line = ";".join(headers)
+    row_lines = "\n".join(";".join(row) for row in rows)
+    text = f"{header_line}\n{row_lines}\n"
     out = BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("beneficiari_2021-2027.csv", text.encode("utf-8"))
