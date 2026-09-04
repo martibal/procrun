@@ -54,7 +54,10 @@ def test_source_categories_and_prr_final_status() -> None:
     assert "Category A — eligible for no-contact qualification" in status
     assert "Category B — permanently ineligible" in status
     assert "PRR Projects on dados.gov.pt | B | PERMANENTLY BLOCKED" in status
-    assert "OpenCoesione PR FESR Lombardia 2021-2027 operation-list ZIP/CSV | A | APPROVED / IMPLEMENTED" in status
+    assert (
+        "OpenCoesione PR FESR Lombardia 2021-2027 operation-list ZIP/CSV | A | "
+        "APPROVED / IMPLEMENTED"
+    ) in status
     assert "Broader OpenCoesione API / Projects / Soggetti routes" in status
     assert "Poland" in status
     assert "| B | REJECTED" in status
