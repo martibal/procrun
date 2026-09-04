@@ -61,7 +61,7 @@ jobs:
         run: python scripts/qualify_ted_foundation.py
 
   source-transfer:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.head_ref == 'fix/opencoesione-403-transport'
     needs: python
     runs-on: ubuntu-latest
     timeout-minutes: 10
