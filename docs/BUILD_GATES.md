@@ -1,6 +1,6 @@
 # ProcRun final build and release gates
 
-Status: **WEB BUILD APPROVED; TED-SCOPED LIVE PROCUREMENT CLASSIFICATION APPROVED; FUNDED-PROJECT INGEST REMAINS FAIL-CLOSED UNTIL A1 PASSES**
+Status: **WEB BUILD APPROVED; TED-SCOPED LIVE PROCUREMENT CLASSIFICATION APPROVED; OPENCOESIONE A1 SOURCE QUALIFICATION PASSED; FUNDED-PROJECT LIVE ACTIVATION AWAITS COLLECTOR/TRANSFER ACCEPTANCE**
 Canonical product spec: `docs/PRODUCT_FOUNDATION_FINAL.md`
 
 These gates are authoritative. Historical product files cannot override them.
@@ -15,7 +15,22 @@ Live funded-project ingest requires an approved Category A source with RIGHTS, A
 
 PRR Projects and Mais Transparência are Category B and permanently closed to the intelligence plane under the current rules. They are not waiting for clarification.
 
-OpenCoesione is the leading Category A replacement candidate. Official monitoring documentation explicitly constrains project title and summary against sensitive natural-person information and provides codified CUP-based monitoring structures, but exact machine-route qualification and source-transfer/live acceptance must pass before activation.
+**A1 SOURCE QUALIFICATION: PASS for the exact OpenCoesione 2021-2027 EU-cohesion operation-list CSV route.**
+
+The approval is deliberately narrow. It applies to the purpose-published `Lista beneficiari e operazioni 2021-2027` CSV operation-list surface for national and regional programmes financed with EU cohesion funds. It does not approve the general OpenCoesione API, broad Projects/Soggetti database, project-detail HTML or arbitrary additional text fields.
+
+Authoritative public evidence establishes:
+
+- CC BY 4.0 reuse including commercial reuse with attribution;
+- open CSV publication intended for reuse/processing/extraction without human approval;
+- operation-list beneficiary names published only for legal persons;
+- RGS rules that `TITOLO_PROGETTO` and `SINTESI_PROG` must not contain sensitive information attributable to natural persons, including name, tax code, telephone or email;
+- a documented regulatory minimum field surface;
+- coverage of all national and regional 2021-2027 programmes financed with EU funds represented by the publication, updated bimonthly.
+
+Canonical qualification record: `docs/OPENCOESIONE_A1_QUALIFICATION.md`.
+
+Source qualification does not by itself activate network retrieval. Live OpenCoesione ingest remains fail-closed until the exact source-contract registry entry, route/programme manifest, frozen header allowlist, drift tests, source-transfer validation, live end-to-end acceptance and CI are green.
 
 ## A2 — Procurement source and MVP coverage
 
@@ -45,15 +60,15 @@ Browser/API/export surfaces consume only validated customer-safe read models. No
 
 ## A6 — Product/build scope
 
-Web shell, authentication, account/billing skeleton, TED ingest/evidence, component/relevance code, saved opportunities, market context and customer-safe CSV export may be built now. Funded-project live screens remain fixture-only until A1 passes and must be clearly non-live.
+Web shell, authentication, account/billing skeleton, TED ingest/evidence, component/relevance code, saved opportunities, market context and customer-safe CSV export may be built now. Funded-project live screens remain fixture-only until the OpenCoesione activation acceptance steps pass and must be clearly non-live.
 
 ## A7 — Unsupported claims
 
-Do not claim complete Portuguese procurement coverage, complete bill of materials, every future purchase, guaranteed lead time, win probability, buyer-person intelligence or source/EU endorsement. TED-scoped absence must never be shortened into national absence.
+Do not claim complete Portuguese procurement coverage, complete Italian public-investment coverage, complete bill of materials, every future purchase, guaranteed lead time, win probability, buyer-person intelligence or source/EU endorsement. TED-scoped absence must never be shortened into national absence. OpenCoesione coverage must remain explicitly limited to the approved 2021-2027 EU-cohesion operation-list universe.
 
 ## A8 — Paid release controls
 
-Before checkout, A19 operational/legal controls must be green. Paid TED-scoped functionality does not require a funded-project source, but no funded-project feature may be represented as live until A1 plus source-transfer/live acceptance are green.
+Before checkout, A19 operational/legal controls must be green. Paid TED-scoped functionality does not require funded-project live activation. No funded-project feature may be represented as live until the OpenCoesione collector/transfer/live acceptance gates are green.
 
 ## A19 — Paid release
 
@@ -69,10 +84,12 @@ A20 is the only authoritative `GO` source for starting the web build.
 
 Exact definition: **No relevant procurement found in TED as of DATE.** This does not establish absence outside TED.
 
-**A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY A1 CATEGORY-A SOURCE QUALIFICATION.**
+**A20 OPENCOESIONE A1 SOURCE QUALIFICATION: APPROVED (EXACT 2021-2027 EU-COHESION OPERATION-LIST ROUTE).**
+
+**A20 LIVE FUNDED-PROJECT INGEST: BLOCKED ONLY BY COLLECTOR REGISTRATION + FROZEN-SCHEMA TESTS + SOURCE-TRANSFER/LIVE ACCEPTANCE + GREEN CI.**
 
 **A20 TED-SCOPED PRODUCT RELEASE: TECHNICALLY SOURCE-ELIGIBLE; CHECKOUT STILL REQUIRES A19 + GREEN CI.**
 
-Funded-project source qualification continues in parallel and is an expansion gate, not a blocker for the TED-scoped MVP.
+The remaining OpenCoesione work is implementation/acceptance, not source-lawfulness discovery. It proceeds in parallel with the web build and does not block the TED-scoped MVP.
 
 No other README/spec/history file may claim broader coverage than this A20 decision.
