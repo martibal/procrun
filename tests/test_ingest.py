@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from procrun.domain import TemporalProvenance
 from procrun.ingest.portugal2030 import normalize_project_record
 from procrun.ingest.ted import normalize_ted_record
@@ -63,3 +65,33 @@ def test_normalize_ted_record_from_safe_projection() -> None:
     assert evidence.cpv_codes == ("45200000",)
     assert evidence.contracting_authority_name is None
     assert evidence.project_reference == "PACS-FC-TEST"
+
+
+def test_normalize_ted_date_only_value_with_offset_preserves_calendar_date() -> None:
+    evidence = normalize_ted_record(
+        {
+            "notice_id": "notice-offset",
+            "publication_date": "2021-11-24+01:00",
+            "award_date": "2021-11-25-05:00",
+            "title": "Rail works",
+            "source_url": "https://example.invalid/notice/notice-offset",
+        },
+        evidence_id="ev-offset",
+        component_id="component-rail",
+    )
+    assert evidence.publication_date == date(2021, 11, 24)
+    assert evidence.award_date == date(2021, 11, 25)
+
+
+def test_normalize_ted_rejects_non_date_offset_formats() -> None:
+    with pytest.raises(ValueError):
+        normalize_ted_record(
+            {
+                "notice_id": "notice-bad-date",
+                "publication_date": "24/11/2021+01:00",
+                "title": "Rail works",
+                "source_url": "https://example.invalid/notice/notice-bad-date",
+            },
+            evidence_id="ev-bad-date",
+            component_id="component-rail",
+        )
