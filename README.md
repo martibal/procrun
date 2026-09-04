@@ -19,10 +19,19 @@ ProcRun is an evidence-first infrastructure procurement product for suppliers.
 
 ## Canonical decision
 
-**Status: WEB BUILD ACTIVE. TED-SCOPED LIVE PROCUREMENT CLASSIFICATION APPROVED. OPENCOESIONE 2021-2027 EXACT OPERATION-LIST SOURCE CONTRACT APPROVED; LIVE ACTIVATION IS CODE/TRANSFER-GATED.**
+**Status: WEB BUILD BLOCKED UNTIL FULL DELIVERY-READINESS IS GREEN. TED-SCOPED LIVE PROCUREMENT CLASSIFICATION APPROVED. OPENCOESIONE 2021-2027 EXACT OPERATION-LIST SOURCE CONTRACT APPROVED, BUT LIVE SOURCE-TRANSFER IS NOT YET GREEN.**
 
 Canonical specification: [`docs/PRODUCT_FOUNDATION_FINAL.md`](docs/PRODUCT_FOUNDATION_FINAL.md).
 Authoritative build/release decision: [`docs/BUILD_GATES.md`](docs/BUILD_GATES.md), gate **A20**.
+Sequencing rule: [`docs/DELIVERY_READINESS_GATE.md`](docs/DELIVERY_READINESS_GATE.md).
+
+## Permanent sequencing rule
+
+**Web implementation is the final build phase. It must not start or continue until the complete non-web delivery chain is launch-ready.**
+
+At the moment web build receives `GO`, the product must already be ready for launch except for the web interface itself. There may be no unresolved source, live-ingest, pipeline, coverage, persistence/export, operational, billing/control-plane or release-control dependency waiting behind the web build.
+
+Any fixture-based or shell web work created before this rule was restored is non-authoritative and frozen. It does not satisfy the web-build gate and is not permission to continue web development.
 
 ## Approved sources
 
@@ -31,7 +40,7 @@ Authoritative build/release decision: [`docs/BUILD_GATES.md`](docs/BUILD_GATES.m
 - **Portugal PRR / Mais Transparência / PT2030 / Portal BASE current routes:** Category B / PERMANENTLY BLOCKED for intelligence ingestion.
 - **Poland public EU-funds project surfaces reviewed:** Category B / REJECTED.
 
-No approved source has any future human-contact dependency. Remaining activation work is code, schema validation, drift detection, source-transfer/live acceptance and CI.
+No approved source has any future human-contact dependency.
 
 ## MVP coverage contract
 
@@ -49,18 +58,26 @@ Phase 0B/0C remain FAIL for the retired TED-only demand-extraction hypothesis; t
 
 Only already-public, independently inspectable evidence and machine-verifiable behaviour may close a source gate. Silence is never permission. ProcRun never uses `download then filter` as a privacy mechanism. Human-dependent approval is not a fallback path.
 
-## Funded-project expansion
+## Funded-project delivery path
 
-The long-term mechanism remains:
+The canonical mechanism remains:
 
 `approved funded project -> source-evidenced purchasable components -> indexed procurement evidence -> conservative component state -> project aggregate state -> remaining procurement runway`
 
-OpenCoesione is the approved Category A funded-project source contract for the exact 2021-2027 operation-list publication family. The currently pinned live-transfer route is PR FESR Lombardia; customer-facing Italian funded-project data remains non-live until source-transfer/end-to-end acceptance and green CI pass.
+OpenCoesione is the approved Category A funded-project source contract for the exact 2021-2027 operation-list publication family. The currently pinned PR FESR Lombardia route is **not live-accepted** because the current GitHub-hosted runtime receives HTTP 403 before ZIP/schema validation. This is a delivery blocker until an automated no-contact runtime successfully performs the exact same frozen-route source-transfer and the canonical live end-to-end chain passes.
 
 ## Current engineering instruction
 
-**CONTINUE THE WEB BUILD AND COMPLETE OPENCOESIONE LIVE ACCEPTANCE.**
+**DO NOT CONTINUE WEB DEVELOPMENT. COMPLETE THE FULL NON-WEB DELIVERY CHAIN FIRST.**
 
-The Next.js application shell lives under `web/` and consumes only the customer-safe fixture/read-model adapter. TED-scoped OPEN wording is frozen in Python (`procrun.coverage`) and in the web read model. Raw collector responses are not browser/API inputs.
+Required before `A20 WEB BUILD` may change to GO:
 
-Checkout remains subject to A19 and green CI. No customer-facing text may imply complete Portuguese procurement coverage or complete Italian public-investment coverage.
+1. OpenCoesione live source-transfer succeeds from an approved automated runtime without weakening the frozen route/schema/zero-PII contract;
+2. funded-project canonical end-to-end processing succeeds on live data through the customer-safe read boundary;
+3. TED-scoped OPEN remains enforced in production code and all relevant exports/read contracts;
+4. persistence, saved/export and operational delivery paths are launch-ready;
+5. billing/control-plane and A19 release controls that do not depend on final web presentation are launch-ready;
+6. drift/schema/compliance/no-contact/regression/CI gates are green;
+7. repo status documents agree that the only remaining launch work is the web interface.
+
+Only after all seven conditions are green may customer-facing web implementation resume.
