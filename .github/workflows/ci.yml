@@ -40,6 +40,8 @@ jobs:
         run: |
           python scripts/check_compliance_gate.py --dependencies
           python scripts/check_compliance_gate.py --service github_development
+      - name: Permanent no-contact path audit
+        run: python scripts/audit_no_contact_paths.py
       - name: Shell syntax
         run: bash -n scripts/*.sh
       - name: PowerShell syntax
@@ -71,12 +73,19 @@ jobs:
           cache: pip
       - name: Install Python
         run: python -m pip install -c requirements-runtime.lock -e .
-      - name: OpenCoesione PR FESR Lombardia live source-transfer
+      - name: OpenCoesione live source-transfer into canonical FundingProject
         run: |
           python - <<'PY'
-          from procrun.collectors.opencoesione import collect_open_coesione
+          from procrun.collectors.opencoesione import collect_open_coesione, to_funding_projects
           batch = collect_open_coesione()
+          projects = to_funding_projects(batch)
+          if not projects:
+              raise SystemExit("source-transfer produced zero canonical projects")
+          serialized = "\n".join(project.model_dump_json() for project in projects[:20])
+          if "beneficiary" in serialized.casefold():
+              raise SystemExit("beneficiary field leaked into canonical FundingProject output")
           print(f"accepted_operations={len(batch.operations)}")
+          print(f"canonical_projects={len(projects)}")
           print(f"list_updated_on={batch.list_updated_on.isoformat()}")
           print(f"source_sha256={batch.source_sha256}")
           PY

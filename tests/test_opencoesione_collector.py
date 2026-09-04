@@ -8,6 +8,7 @@ from procrun.collectors.opencoesione import (
     OpenCoesioneRowError,
     OpenCoesioneSchemaError,
     parse_operation_list_zip,
+    to_funding_projects,
 )
 
 
@@ -38,7 +39,9 @@ def _zip_csv(
     rows: list[list[str]] | None = None,
 ) -> bytes:
     rows = rows or [_valid_row()]
-    text = ";".join(headers) + "\n" + "\n".join(";".join(row) for row in rows) + "\n"
+    header_line = ";".join(headers)
+    row_lines = "\n".join(";".join(row) for row in rows)
+    text = f"{header_line}\n{row_lines}\n"
     out = BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("beneficiari_2021-2027.csv", text.encode("utf-8"))
@@ -68,9 +71,31 @@ def test_missing_field_fails_closed_before_admission() -> None:
         parse_operation_list_zip(_zip_csv(EXPECTED_HEADERS[:-1]), source_url="x")
 
 
+def test_reordered_schema_fails_closed() -> None:
+    reordered = list(EXPECTED_HEADERS)
+    reordered[0], reordered[1] = reordered[1], reordered[0]
+    with pytest.raises(OpenCoesioneSchemaError, match="order_changed=True"):
+        parse_operation_list_zip(_zip_csv(tuple(reordered)), source_url="x")
+
+
 def test_bad_row_rejects_entire_batch() -> None:
     good = _valid_row()
     bad = good.copy()
     bad[2] = ""
     with pytest.raises(OpenCoesioneRowError):
         parse_operation_list_zip(_zip_csv(rows=[good, bad]), source_url="x")
+
+
+def test_canonical_mapping_never_retains_beneficiary_identity() -> None:
+    batch = parse_operation_list_zip(
+        _zip_csv(), source_url="https://example.test/source.zip"
+    )
+    projects = to_funding_projects(batch)
+    assert len(projects) == 1
+    project = projects[0]
+    assert project.operation_code == "OP-1"
+    assert project.project_title == "Water upgrade"
+    assert project.project_scope_text == "New pumps and controls"
+    serialized = project.model_dump_json()
+    assert "LEGAL123" not in serialized
+    assert "Comune X" not in serialized

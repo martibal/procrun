@@ -3,9 +3,15 @@ utgående kontakt med noe menneske, organ, kilde-eier eller myndighet — verken
 fremtidig oppgave. Dette er ikke en midlertidig begrensning som venter på unntak. Det er en permanent
 byggeforutsetning.**
 
-Alt som er godkjent i dag er godkjent utelukkende fra offentlig publiserte dokumenter, lisenssider og tekniske spesifikasjoner — aldri fra et svar, en bekreftelse, en tillatelse eller en vurdering innhentet fra et menneske. Der denne standarden ikke kunne innfris, er kilden formelt lukket eller avvist — ikke satt på vent.
+Alt som er godkjent i dag er godkjent utelukkende fra offentlig publiserte dokumenter, lisenssider og
+tekniske spesifikasjoner — aldri fra et svar, en bekreftelse, en tillatelse eller en vurdering innhentet fra
+et menneske. Der denne standarden ikke kunne innfris (Portugal PRR og tilknyttede kilder), er kilden
+formelt og permanent lukket — ikke satt på vent.
 
-Hvis en fremtidig kildevurdering lander på at menneskelig kontakt er eneste vei til godkjenning, er konklusjonen **avvis kilden**, aldri å sende en henvendelse.
+Ingen fremtidig oppgave i dette prosjektet skal noensinne innebære: e-post, skjema, kontaktside,
+telefon, intervju, betalt konsulent-/juristvurdering rettet mot en kildeeier, eller noen annen kanal der et
+menneske må svare før arbeidet kan fortsette. Hvis en fremtidig kildevurdering lander på at kontakt er
+eneste vei til godkjenning, er konklusjonen **avvis kilden**, ikke **send en henvendelse**.
 
 # ProcRun
 
@@ -13,7 +19,7 @@ ProcRun is an evidence-first infrastructure procurement product for suppliers.
 
 ## Canonical decision
 
-**Status: WEB BUILD ACTIVE. TED-SCOPED LIVE PROCUREMENT CLASSIFICATION APPROVED. OPENCOESIONE 2021-2027 EXACT OPERATION-LIST SOURCE CONTRACT APPROVED; COLLECTOR/LIVE ACCEPTANCE IS CODE-GATED.**
+**Status: WEB BUILD ACTIVE. TED-SCOPED LIVE PROCUREMENT CLASSIFICATION APPROVED. OPENCOESIONE 2021-2027 EXACT OPERATION-LIST SOURCE CONTRACT APPROVED; LIVE ACTIVATION IS CODE/TRANSFER-GATED.**
 
 Canonical specification: [`docs/PRODUCT_FOUNDATION_FINAL.md`](docs/PRODUCT_FOUNDATION_FINAL.md).
 Authoritative build/release decision: [`docs/BUILD_GATES.md`](docs/BUILD_GATES.md), gate **A20**.
@@ -21,7 +27,7 @@ Authoritative build/release decision: [`docs/BUILD_GATES.md`](docs/BUILD_GATES.m
 ## Approved sources
 
 - **TED Search API:** APPROVED from public API documentation, server-side field projection, legal notice and Commission Decision 2011/833/EU.
-- **OpenCoesione 2021-2027 operation-list ZIP/CSV:** APPROVED for the exact bounded operation-list publication from public OpenCoesione/RGS documentation and CC BY 4.0 terms. The broad OpenCoesione API and project/entity surfaces are not approved.
+- **OpenCoesione 2021-2027 operation-list ZIP/CSV:** APPROVED for the exact bounded publication from public OpenCoesione/RGS documentation and CC BY 4.0 terms. The broad OpenCoesione API and project/entity surfaces are not approved.
 - **Portugal PRR / Mais Transparência / PT2030 / Portal BASE current routes:** Category B / PERMANENTLY BLOCKED for intelligence ingestion.
 - **Poland public EU-funds project surfaces reviewed:** Category B / REJECTED.
 
@@ -49,7 +55,7 @@ The long-term mechanism remains:
 
 `approved funded project -> source-evidenced purchasable components -> indexed procurement evidence -> conservative component state -> project aggregate state -> remaining procurement runway`
 
-OpenCoesione is the approved Category A funded-project source contract for the exact 2021-2027 operation-list route. Its collector is fail-closed and must pass source-transfer/live acceptance before customer-facing Italian funded-project data is represented as live.
+OpenCoesione is the approved Category A funded-project source contract for the exact 2021-2027 operation-list publication family. The currently pinned live-transfer route is PR FESR Lombardia; customer-facing Italian funded-project data remains non-live until source-transfer/end-to-end acceptance and green CI pass.
 
 ## Current engineering instruction
 
@@ -57,4 +63,4 @@ OpenCoesione is the approved Category A funded-project source contract for the e
 
 The Next.js application shell lives under `web/` and consumes only the customer-safe fixture/read-model adapter. TED-scoped OPEN wording is frozen in Python (`procrun.coverage`) and in the web read model. Raw collector responses are not browser/API inputs.
 
-Checkout remains subject to A19 and green CI. No customer-facing text may imply complete Portuguese procurement coverage.
+Checkout remains subject to A19 and green CI. No customer-facing text may imply complete Portuguese procurement coverage or complete Italian public-investment coverage.
