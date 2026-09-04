@@ -4,6 +4,7 @@ The live client must request only the fields qualified and approved through TED'
 projection. A broader notice response is not an acceptable input to the intelligence pipeline.
 """
 
+import re
 from datetime import date, datetime
 from typing import Any
 
@@ -33,6 +34,8 @@ TED_ALLOWED_FIELDS = frozenset(
     }
 )
 
+_DATE_WITH_OFFSET = re.compile(r"^(\d{4}-\d{2}-\d{2})[+-]\d{2}:\d{2}$")
+
 
 def _parse_date(value: Any) -> date | None:
     if value in (None, ""):
@@ -41,7 +44,15 @@ def _parse_date(value: Any) -> date | None:
         return value.date()
     if isinstance(value, date):
         return value
-    return date.fromisoformat(str(value))
+
+    text = str(value)
+    offset_match = _DATE_WITH_OFFSET.fullmatch(text)
+    if offset_match is not None:
+        # TED can serialize date-only fields with an offset suffix. The source field is still a
+        # calendar date, so preserve that published calendar date rather than applying timezone
+        # conversion that could move it across a day boundary.
+        text = offset_match.group(1)
+    return date.fromisoformat(text)
 
 
 def _optional_text(value: Any) -> str | None:
