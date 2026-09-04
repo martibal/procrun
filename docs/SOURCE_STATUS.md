@@ -33,26 +33,51 @@ Category B sources are not `waiting for clarification`. They are closed to the i
 | Mais Transparência project detail HTML | B | PERMANENTLY BLOCKED | Human-authored project detail plus beneficiary surface |
 | PT2030 operations bulk workbook | B | PERMANENTLY BLOCKED | Broad route; no download-then-filter |
 | Portal BASE / APIBase2 | B for current route | BLOCKED | Identity-bearing/broad response; no safe projection |
-| OpenCoesione monitored project route | A-CANDIDATE | QUALIFICATION CANDIDATE | Public monitoring rules explicitly constrain project title and summary against sensitive natural-person information; exact route/schema/coverage still requires source-contract qualification |
+| OpenCoesione 2021-2027 EU cohesion operation-list CSV | A | APPROVED SOURCE CONTRACT | Exact bounded Italian funded-operation route; live activation still requires collector registration, frozen-schema tests, source-transfer validation and live acceptance |
+| General OpenCoesione API / broad Projects database | B for ProcRun transport | BLOCKED | Broader response surface is not required and is not approved by the operation-list decision |
 | Poland public project-register/story surfaces reviewed 2026-09-04 | B | REJECTED | Public project material is human-authored narrative; no exact pre-receipt zero-person machine route established |
 
 ## PRR final decision
 
 PRR Projects and equivalent Mais Transparência project surfaces are **Category B — permanently closed for the intelligence plane under the current rules**. They are no longer preferred candidates and no human clarification path exists.
 
-The canonical `FundingProject` interface remains source-agnostic so a future Category A source can implement it without changing downstream component, evidence or read-model contracts.
+The canonical `FundingProject` interface remains source-agnostic so an approved Category A source can implement it without changing downstream component, evidence or read-model contracts.
 
-## Alternative-country funded-project assessment
+## Italy — OpenCoesione exact approved route
 
-### Italy — OpenCoesione: Category A candidate, not yet production-approved
+The exact approved source contract is documented in `docs/OPENCOESIONE_A1_QUALIFICATION.md`.
 
-Public OpenCoesione/RGS monitoring documentation materially changes the free-text assessment. The current monitoring vademecum defines the project registry structure `AP00` with `TITOLO_PROGETTO` and `SINTESI_PROG` and explicitly instructs that neither field may contain sensitive information attributable to natural persons, including name, tax code, telephone or email. Earlier official monitoring guidance also specifies natural-person beneficiaries as `Individuo` and prohibits natural-person names in operation titles.
+The approved transport is **not** the general OpenCoesione API or broad relational project database. It is the purpose-published 2021-2027 EU-cohesion `Lista beneficiari e operazioni` CSV publication surface.
 
-The same monitoring protocol is highly structured around CUP and codified project/financial/procedural structures; current RGS documentation includes the `AFFIDAMENTO_TRAMITE_CIG` field in the obligation structure, showing a codified project-to-procurement relationship surface.
+Public evidence closes the six A1 dimensions for that exact route:
 
-**Conclusion:** OpenCoesione is the first replacement route that passes the Category A/B *eligibility* screen for the project text needed by ProcRun. It is not silently production-approved: the exact machine distribution, commercial reuse, automated access, retained field allowlist, coverage and drift contract must still be frozen and tested before live ingest.
+- **RIGHTS:** OpenCoesione data are CC BY 4.0; OpenCoesione explicitly permits reuse, modification, redistribution and commercial reuse with attribution.
+- **ACCESS:** the operation lists are publicly published as open CSV specifically for reuse, processing and extraction; no human approval or authenticated API is required for this route.
+- **TRANSPORT:** the route is a bounded regulatory operation-list publication and does not require receipt of the broad Projects/Soggetti database followed by filtering.
+- **FREE-TEXT SAFETY:** RGS monitoring rules state that `TITOLO_PROGETTO` and `SINTESI_PROG` must not contain sensitive information attributable to natural persons, expressly including name, tax code, phone number and email. The operation-list publication states beneficiary names are published only for legal persons.
+- **SCHEMA:** the operation-list publication has a defined regulatory minimum field set and linked metadata; production implementation must freeze the exact CSV header allowlist and fail closed on drift.
+- **COVERAGE:** OpenCoesione states that the complete list covers all national and regional 2021-2027 programmes financed with EU funds and is updated bimonthly.
 
-### Poland — public EU-funds project surfaces: Category B / rejected for this route
+The coverage claim is intentionally narrow: this is the Italian 2021-2027 EU-cohesion operation universe represented by that publication. It is not a claim about all Italian public investment, all FSC/national funding, or all Italian procurement.
+
+**A1 public-evidence qualification: PASS for the exact OpenCoesione 2021-2027 EU-cohesion operation-list CSV route.**
+
+### Activation state
+
+Source qualification and live activation are separate gates. The source is now approved on the documentary/public-evidence contract, but live ingest remains disabled until all of the following are implemented and green:
+
+1. source-contract registry entry for the exact operation-list route;
+2. fixed programme-universe manifest / approved URL family;
+3. content-type and frozen-header validation before row processing;
+4. fail-closed handling for any unknown/additional/missing field or route change;
+5. source observation timestamp, list-update date and content hash provenance;
+6. source-transfer validation against the canonical `FundingProject` contract;
+7. live end-to-end acceptance;
+8. green CI.
+
+Beneficiary identity is not part of the ProcRun analytical contract and must not be retained even where the source publishes a legal-person beneficiary.
+
+## Poland — public EU-funds project surfaces: Category B / rejected for this route
 
 The reviewed Polish public EU-funds project pages expose narrative human-authored project goals/descriptions and beneficiary information. Public open-data standards encourage reusable structured publication, but the reviewed project surfaces do not establish an exact machine route with a pre-publication zero-natural-person guarantee for all project text ProcRun would need.
 
@@ -76,6 +101,6 @@ No natural-person data may enter the intelligence plane. Account/billing/support
 
 ## Activation procedure
 
-A Category A funded-project candidate becomes APPROVED only through one reviewed change containing authoritative rights/access/data-safety evidence, frozen route/schema/allowlist, fail-closed collector tests, review-expiry policy, source-transfer validation where applicable, updated A1/A20 state and green CI.
+A Category A source becomes live-usable only through one reviewed implementation change containing the approved documentary contract, frozen route/schema/allowlist, fail-closed collector tests, review-expiry policy, source-transfer validation where applicable, updated A20 state and green CI.
 
-Until then, downstream funded-project features use the canonical interface and fixtures. TED-scoped procurement functionality is independently production-eligible under its existing approved contract.
+Until the OpenCoesione activation steps above pass, downstream funded-project features remain fixture-driven. TED-scoped procurement functionality is independently production-eligible under its existing approved contract.
