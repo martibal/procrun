@@ -1,71 +1,46 @@
 # ProcRun
 
-ProcRun is an evidence-first infrastructure procurement runway product for suppliers.
+ProcRun is an evidence-first infrastructure procurement product for suppliers.
 
 ## Canonical decision
 
-**Status: WEB BUILD APPROVED. LIVE FUNDED-PROJECT INGEST AND NATIONAL OPEN CLASSIFICATION REMAIN FAIL-CLOSED UNTIL THEIR PUBLIC-EVIDENCE SOURCE CONTRACTS PASS.**
+**Status: WEB BUILD APPROVED. TED-SCOPED LIVE PROCUREMENT CLASSIFICATION APPROVED. LIVE FUNDED-PROJECT INGEST REMAINS FAIL-CLOSED UNTIL A CATEGORY-A SOURCE PASSES A1.**
 
 Canonical specification: [`docs/PRODUCT_FOUNDATION_FINAL.md`](docs/PRODUCT_FOUNDATION_FINAL.md).
 Authoritative build/release decision: [`docs/BUILD_GATES.md`](docs/BUILD_GATES.md), gate **A20**.
 
-The canonical mechanism is funded-project first:
+## MVP coverage contract
 
-`approved funded project -> source-evidenced purchasable components -> indexed procurement evidence -> conservative component state -> project aggregate state -> remaining procurement runway`
+TED Search API is APPROVED for field-bounded procurement evidence, market context and the MVP negative-search boundary.
 
-TED remains an approved procurement-evidence and market-context source. The TED-only v2 pivot is retired as the primary product mechanism; its Phase 0B/0C failures remain preserved and must never be relabelled as PASS.
+For the MVP, `OPEN` means exactly:
 
-## Product contract
+> **No relevant procurement found in TED as of DATE.**
 
-Primary promise:
+This is not a guarantee that no procurement exists outside TED, including purely national or below-threshold Portuguese procedures. Every customer-facing OPEN state must preserve that scope.
 
-> **See what an approved infrastructure project is expected to buy, what ProcRun can prove has already entered procurement, and what remains without a verified procurement match as of the stated date.**
-
-Trust promise:
-
-> **No invented demand. Every positive component and procurement match is tied to exact source evidence. Ambiguity abstains.**
-
-`OPEN` is never treated as a source fact. It means only that no relevant procurement was found in every required approved source as of the stated cutoff.
+Phase 0B/0C remain FAIL for the retired TED-only demand-extraction hypothesis; those failures are not rewritten.
 
 ## Non-negotiable validation constraint
 
 ProcRun is developed and validated without interviews, surveys, outreach, requests for clarification, authority/source-owner contact, customer contact, paid expert/legal consultation, or any other human-dependent approval path.
 
-Only already-public, independently inspectable evidence and machine-verifiable behaviour may close a product/data gate. Silence is never permission.
+Only already-public, independently inspectable evidence and machine-verifiable behaviour may close a source gate. Silence is never permission. ProcRun never uses `download then filter` as a privacy mechanism.
 
-## Source status
+## Funded-project expansion
 
-- **TED Search API:** APPROVED for field-bounded procurement evidence and market context.
-- **PRR Projects / dados.gov.pt:** CONDITIONAL. Current public evidence does not close exact-route rights plus pre-receipt free-text safety; no human clarification may be requested.
-- **Portuguese national procurement coverage:** still requires an approved pre-receipt-safe, complete-enough public source before original national `OPEN` can be trusted.
-- **OpenCoesione:** useful public evidence establishes CC BY 4.0 reuse, machine access, natural-person beneficiary anonymisation in the monitored operation-list contract, and a no-natural-person-name rule for operation titles; it does not yet supply a public zero-person guarantee for every free-text field required by the full ProcRun extraction route.
-- Broad PT2030/beneficiary/BASE routes remain blocked unless an exact safe public route is independently approved.
+The long-term mechanism remains:
 
-ProcRun never uses `download then filter` as a privacy mechanism.
+`approved funded project -> source-evidenced purchasable components -> indexed procurement evidence -> conservative component state -> project aggregate state -> remaining procurement runway`
 
-## Existing engineering
+PRR Projects and Mais Transparência are now Category B and permanently closed to the intelligence plane under current rules; they are not waiting for clarification.
 
-The component engine, matching hierarchy, exact-evidence provenance, append-only ledger, canonical runway orchestration and customer-safe read model are implemented and regression-tested.
-
-See:
-
-- [`docs/COMPONENT_ENGINE.md`](docs/COMPONENT_ENGINE.md)
-- [`docs/MATCHING_RULES.md`](docs/MATCHING_RULES.md)
-- [`docs/LOCAL_MODEL_CONTRACT.md`](docs/LOCAL_MODEL_CONTRACT.md)
-- [`docs/LEDGER.md`](docs/LEDGER.md)
-- [`docs/PREWEB_SHOWSTOPPER_STATUS.md`](docs/PREWEB_SHOWSTOPPER_STATUS.md)
+OpenCoesione is the leading Category A replacement candidate. Official monitoring documentation constrains project title and summary against sensitive natural-person information, but the exact machine route still requires A1/source-transfer qualification before live ingest.
 
 ## Current engineering instruction
 
-**START THE WEB BUILD.**
+**START THE WEB BUILD AND TED-SCOPED MVP IMPLEMENTATION.**
 
-Web implementation is now explicitly decoupled from live-source activation. Build only against fixtures and the frozen customer-safe read model until production sources are approved. No raw or conditional source may be connected to the browser-facing path merely to make the UI look live.
+Build the web shell against the frozen customer-safe read model. TED ingest/evidence, market context, saved opportunities and customer-safe CSV export may use the approved TED contract. Funded-project screens remain fixtures only and must be clearly non-live until A1 passes.
 
-The remaining source work continues in parallel and remains release-blocking:
-
-1. qualify one funded-project source entirely from public evidence;
-2. qualify one complete-enough Portuguese national procurement source entirely from public evidence;
-3. run the required source-transfer/live acceptance validation;
-4. require green CI and A19 before paid production.
-
-Do not re-pivot to a TED-only supplier-demand feed, do not weaken Phase 0B/0C results, and do not weaken the zero-PII or no-contact boundaries to obtain a source.
+Checkout remains subject to A19 and green CI. No customer-facing text may imply complete Portuguese procurement coverage.
