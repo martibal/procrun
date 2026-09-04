@@ -23,30 +23,35 @@ OPENCOESIONE_PROGRAM_URL: Final = (
     "beneficiari_PR_FESR_LOMBARDIA.zip"
 )
 
+# Frozen from the live official PR FESR Lombardia 2021-2027 CSV on 2026-09-04.
+# Exact names and exact order are intentional: any subsequent change fails before row admission.
 EXPECTED_HEADERS: Final[tuple[str, ...]] = (
-    "Fondo/Fund",
-    "Obiettivo Specifico/Specific Objective",
-    "Codice locale progetto/Local identifier of operation",
-    "Codice Unico Progetto/Unique project code",
-    "Codice fiscale Beneficiario/Beneficiary fiscal code",
-    "Nome Beneficiario/Beneficiary name",
-    "Denominazione operazione/Operation name",
-    "Sintesi operazione/Operation summary",
-    "Data inizio operazione/Operation start date",
-    "Data fine operazione/Operation end date",
-    "Costo Totale/Total cost",
-    "Spesa ammissibile/Eligible expenditure",
-    "Tasso di cofinanziamento UE/EU co-financing rate",
-    "CAP/Postcode",
-    "Paese/Country",
-    "Categoria di operazione/Category of intervention",
-    "Data aggiornamento elenco operazioni/Date of last update of the list of operations",
+    "CodiceProgramma_ProgrammeID",
+    "Programma_Programme",
+    "CodiceLocaleProgetto_OperationLocalIdentifier",
+    "CodiceUnicoProgetto_UniqueProjectCode",
+    "TitoloProgetto_OperationName",
+    "SintesiProgetto_OperationSummary",
+    "DataAggiornamento_LastUpdate",
+    "CodiceFiscaleBeneficiario_BeneficiaryTaxCode",
+    "NomeBeneficiario_BeneficiaryName",
+    "CostoTotale_TotalCost",
+    "CostoAmmesso_TotalEligibleExpenditure",
+    "Fondo_Fund",
+    "Ciclo_Period",
+    "CategoriaOperazione_CategoryIntervention",
+    "ObiettivoSpecifico_SpecificObjective",
+    "DataInizioOperazione_OperationStartDate",
+    "DataFineOperazione_OperationEndDate",
+    "TassoCofinanziamentoUE_EUCofinancingRate",
+    "Paese_Country",
+    "CodicePostale_Postcode",
 )
 
 SOURCE_ONLY_HEADERS: Final[frozenset[str]] = frozenset(
     {
-        "Codice fiscale Beneficiario/Beneficiary fiscal code",
-        "Nome Beneficiario/Beneficiary name",
+        "CodiceFiscaleBeneficiario_BeneficiaryTaxCode",
+        "NomeBeneficiario_BeneficiaryName",
     }
 )
 ADMITTED_HEADERS: Final[frozenset[str]] = frozenset(EXPECTED_HEADERS) - SOURCE_ONLY_HEADERS
@@ -165,49 +170,43 @@ def parse_operation_list_zip(payload: bytes, *, source_url: str) -> OpenCoesione
     for row_number, row in enumerate(reader, start=2):
         if None in row or set(row) != set(EXPECTED_HEADERS):
             raise OpenCoesioneSchemaError(f"row {row_number} violates frozen schema")
-        operation_id = row["Codice locale progetto/Local identifier of operation"].strip()
-        operation_name = row["Denominazione operazione/Operation name"].strip()
-        operation_summary = row["Sintesi operazione/Operation summary"].strip()
+        operation_id = row["CodiceLocaleProgetto_OperationLocalIdentifier"].strip()
+        operation_name = row["TitoloProgetto_OperationName"].strip()
+        operation_summary = row["SintesiProgetto_OperationSummary"].strip()
         if not operation_id or not operation_name or not operation_summary:
             raise OpenCoesioneRowError(
                 f"row {row_number} lacks operation id/name/summary; whole batch rejected"
             )
         updated_on = _parse_date(
-            row[
-                "Data aggiornamento elenco operazioni/Date of last update of the list of operations"
-            ],
-            field="list_updated_on",
-            required=True,
+            row["DataAggiornamento_LastUpdate"], field="list_updated_on", required=True
         )
         assert updated_on is not None
         updates.add(updated_on)
         staged.append(
             OpenCoesioneOperation(
                 operation_id=operation_id,
-                cup=row["Codice Unico Progetto/Unique project code"].strip() or None,
+                cup=row["CodiceUnicoProgetto_UniqueProjectCode"].strip() or None,
                 operation_name=operation_name,
                 operation_summary=operation_summary,
                 start_date=_parse_date(
-                    row["Data inizio operazione/Operation start date"], field="start_date"
+                    row["DataInizioOperazione_OperationStartDate"], field="start_date"
                 ),
                 end_date=_parse_date(
-                    row["Data fine operazione/Operation end date"], field="end_date"
+                    row["DataFineOperazione_OperationEndDate"], field="end_date"
                 ),
-                total_cost_eur=_parse_decimal(row["Costo Totale/Total cost"], field="total_cost"),
+                total_cost_eur=_parse_decimal(row["CostoTotale_TotalCost"], field="total_cost"),
                 eligible_expenditure_eur=_parse_decimal(
-                    row["Spesa ammissibile/Eligible expenditure"], field="eligible_expenditure"
+                    row["CostoAmmesso_TotalEligibleExpenditure"], field="eligible_expenditure"
                 ),
                 eu_cofinancing_rate=_parse_decimal(
-                    row["Tasso di cofinanziamento UE/EU co-financing rate"],
+                    row["TassoCofinanziamentoUE_EUCofinancingRate"],
                     field="eu_cofinancing_rate",
                 ),
-                fund=row["Fondo/Fund"].strip() or None,
-                specific_objective=row["Obiettivo Specifico/Specific Objective"].strip() or None,
-                postcode=row["CAP/Postcode"].strip() or None,
-                country=row["Paese/Country"].strip() or None,
-                intervention_category=row[
-                    "Categoria di operazione/Category of intervention"
-                ].strip()
+                fund=row["Fondo_Fund"].strip() or None,
+                specific_objective=row["ObiettivoSpecifico_SpecificObjective"].strip() or None,
+                postcode=row["CodicePostale_Postcode"].strip() or None,
+                country=row["Paese_Country"].strip() or None,
+                intervention_category=row["CategoriaOperazione_CategoryIntervention"].strip()
                 or None,
                 list_updated_on=updated_on,
                 source_url=source_url,
