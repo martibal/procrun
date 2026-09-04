@@ -17,7 +17,7 @@ from procrun.domain import (
     PurchaseComponent,
 )
 
-MATCH_RULE_VERSION = "phase-b-conservative-v2-exact-evidence"
+MATCH_RULE_VERSION = "phase-b-conservative-v3-explicit-open-scope"
 
 
 class MatchTier(StrEnum):
@@ -132,8 +132,6 @@ def evaluate_candidate(candidate: MatchCandidate, cutoff_date: date) -> Candidat
         disposition = CandidateDisposition.REJECTED
         reason = "procurement evidence is after the historical cutoff"
     elif tier in {MatchTier.A, MatchTier.B} and not _has_exact_evidence(candidate.evidence):
-        # REVIEW rather than REJECTED is deliberate. An otherwise strong candidate lacking the
-        # customer-verifiable source span must suppress OPEN until its evidence is resolved.
         disposition = CandidateDisposition.REVIEW
         reason = "Tier A/B structural facts lack the required exact source span"
     elif tier in {MatchTier.A, MatchTier.B}:
@@ -170,8 +168,9 @@ def classify_component(
     coverage_complete: bool,
     component_boundary_resolved: bool,
     coverage_note: str,
+    open_rationale: str | None = None,
 ) -> ComponentMatchResult:
-    """Assign CLOSED/OPEN/UNRESOLVED with false-OPEN protection."""
+    """Assign CLOSED/OPEN/UNRESOLVED with false-OPEN and explicit-scope protection."""
 
     for candidate in candidates:
         if candidate.evidence.component_id != component.component_id:
@@ -211,8 +210,9 @@ def classify_component(
         evidence_ids = ()
     else:
         state = ComponentState.OPEN
-        as_of = cutoff_date.isoformat()
-        rationale = f"No relevant procurement found in approved indexed sources as of {as_of}."
+        if open_rationale is None or not open_rationale.strip():
+            raise ValueError("OPEN requires an explicit source-scoped rationale")
+        rationale = open_rationale
         evidence_ids = ()
 
     return ComponentMatchResult(

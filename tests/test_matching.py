@@ -68,6 +68,7 @@ def classify(
         coverage_complete=coverage_complete,
         component_boundary_resolved=component_boundary_resolved,
         coverage_note="TED iteration completed through cutoff.",
+        open_rationale="No relevant procurement found in TED as of 2026-07-31.",
     )
 
 
@@ -147,6 +148,7 @@ def test_semantic_similarity_alone_cannot_close_or_block_open() -> None:
     result = classify((candidate,))
 
     assert result.assessment.state is ComponentState.OPEN
+    assert result.assessment.rationale == "No relevant procurement found in TED as of 2026-07-31."
     assert result.evaluations[0].tier is MatchTier.D
     assert result.evaluations[0].disposition is CandidateDisposition.REJECTED
 
@@ -194,8 +196,21 @@ def test_post_cutoff_exact_match_does_not_change_historical_open_state() -> None
     result = classify((candidate,))
 
     assert result.assessment.state is ComponentState.OPEN
+    assert result.assessment.rationale == "No relevant procurement found in TED as of 2026-07-31."
     assert result.evaluations[0].pre_cutoff is False
     assert result.evaluations[0].disposition is CandidateDisposition.REJECTED
+
+
+def test_open_without_explicit_scope_rationale_fails_closed() -> None:
+    with pytest.raises(ValueError, match="explicit source-scoped rationale"):
+        classify_component(
+            COMPONENT,
+            CUTOFF,
+            (),
+            coverage_complete=True,
+            component_boundary_resolved=True,
+            coverage_note="complete",
+        )
 
 
 def test_earlier_contract_date_can_establish_pre_cutoff_procurement() -> None:

@@ -28,8 +28,9 @@ from procrun.matching import (
 )
 from procrun.scope_boundary import component_scope_boundary_resolved
 
-RUNWAY_ORCHESTRATION_VERSION = "runway-v1"
+RUNWAY_ORCHESTRATION_VERSION = "runway-v2-explicit-open-scope"
 PROJECT_CLASSIFIER_VERSION = "project-state-v1"
+TED_SOURCE_ID = "ted_search_api"
 
 
 class RunwayInvariantError(ValueError):
@@ -95,6 +96,12 @@ def _with_primary_component_span(extracted: ExtractedComponent) -> ExtractedComp
     return replace(extracted, component=component)
 
 
+def _open_rationale(coverage: ComponentCoverage, cutoff_date: date) -> str | None:
+    if coverage.required_source_ids == frozenset({TED_SOURCE_ID}):
+        return f"No relevant procurement found in TED as of {cutoff_date.isoformat()}."
+    return None
+
+
 def assess_project_runway(
     project: FundingProject,
     *,
@@ -154,6 +161,7 @@ def assess_project_runway(
             coverage_complete=coverage.complete,
             component_boundary_resolved=boundary_resolved,
             coverage_note=coverage.note,
+            open_rationale=_open_rationale(coverage, cutoff_date),
         )
         results.append(
             RunwayComponentResult(
