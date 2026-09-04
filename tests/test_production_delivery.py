@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
@@ -11,6 +12,7 @@ from procrun.production_delivery import (
     build_live_runway_results,
     collect_complete_ted_italy,
     ted_italy_query,
+    write_customer_safe_jsonl,
 )
 from procrun.read_model import build_runway_read_model
 
@@ -123,3 +125,19 @@ def test_exact_cup_plus_component_source_span_closes_component() -> None:
         "Supply of pumps",
         "Pumps for CUP1 water upgrade",
     }
+
+
+def test_customer_safe_jsonl_is_valid_json(tmp_path) -> None:
+    result = build_live_runway_results(
+        _batch(), _ted(records=()), cutoff_date=date(2026, 9, 4)
+    )[0]
+    model = build_runway_read_model(result)
+    output = tmp_path / "runway.jsonl"
+
+    write_customer_safe_jsonl(output, (model,))
+
+    lines = output.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    parsed = json.loads(lines[0])
+    assert parsed["operation_code"] == "CUP1"
+    assert parsed["state"] == "OPEN"
