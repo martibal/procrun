@@ -17,7 +17,10 @@ FORBIDDEN = (
     re.compile(r"request.{0,40}clarification", re.IGNORECASE),
     re.compile(r"send.{0,20}(?:an? )?email", re.IGNORECASE),
     re.compile(r"submit.{0,30}(?:form|request|inquiry|enquiry)", re.IGNORECASE),
-    re.compile(r"(?:ask|contact).{0,30}(?:publisher|authority|source[- ]owner)", re.IGNORECASE),
+    re.compile(
+        r"(?:ask|contact).{0,30}(?:publisher|authority|source[- ]owner)",
+        re.IGNORECASE,
+    ),
 )
 
 SAFE_NEGATIONS = (
@@ -48,7 +51,8 @@ def main() -> None:
                 if any(marker in lowered for marker in SAFE_NEGATIONS):
                     continue
                 if any(pattern.search(line) for pattern in FORBIDDEN):
-                    violations.append(f"{path.relative_to(ROOT)}:{line_number}:{line.strip()}")
+                    relative = path.relative_to(ROOT)
+                    violations.append(f"{relative}:{line_number}:{line.strip()}")
     if violations:
         joined = "\n".join(violations)
         raise SystemExit(f"human-contact qualification path detected:\n{joined}")
