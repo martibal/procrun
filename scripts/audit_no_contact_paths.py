@@ -21,6 +21,7 @@ FORBIDDEN = (
 )
 
 SAFE_NEGATIONS = (
+    "without ",
     "never ",
     "do not ",
     "must not ",
@@ -31,6 +32,7 @@ SAFE_NEGATIONS = (
     "reject",
     "blocked",
     "retired",
+    "invalid",
 )
 
 
