@@ -1,9 +1,9 @@
 """Production transport for the approved OpenCoesione 2021-2027 operation-list route.
 
 The OpenCoesione site may require a normal same-site session before serving the
-public ZIP to automated infrastructure.  This module performs only two GETs on
+public ZIP to automated infrastructure. This module performs only two GETs on
 the already-approved public origin: the publication landing page, followed by
-the frozen Lombardia ZIP route.  It does not broaden the source contract or
+the frozen Lombardia ZIP route. It does not broaden the source contract or
 admit any additional fields.
 """
 
@@ -26,6 +26,10 @@ from procrun.source_contracts import require_live_source
 OPENCOESIONE_PUBLICATION_PAGE: Final = (
     "https://opencoesione.gov.it/it/beneficiari_operazioni_2021_2027/"
 )
+OPENCOESIONE_CANONICAL_ZIP_URL: Final = (
+    "https://opencoesione.gov.it/media/open_data/beneficiari/2021-2027/"
+    "beneficiari_PR_FESR_LOMBARDIA.zip"
+)
 
 _BROWSER_HEADERS: Final[dict[str, str]] = {
     "User-Agent": (
@@ -41,14 +45,17 @@ def _same_origin(url: str) -> bool:
     return parsed.scheme == "https" and parsed.hostname == "opencoesione.gov.it"
 
 
+def _route_identity(url: str) -> tuple[str, str | None, str]:
+    parsed = urlparse(url)
+    return parsed.scheme, parsed.hostname, parsed.path
+
+
 def _validate_zip_final_url(url: str) -> None:
-    expected = urlparse(OPENCOESIONE_PROGRAM_URL)
-    actual = urlparse(url)
-    if (actual.scheme, actual.hostname, actual.path) != (
-        expected.scheme,
-        expected.hostname,
-        expected.path,
-    ):
+    allowed_final_routes = {
+        _route_identity(OPENCOESIONE_PROGRAM_URL),
+        _route_identity(OPENCOESIONE_CANONICAL_ZIP_URL),
+    }
+    if _route_identity(url) not in allowed_final_routes:
         raise OpenCoesioneSchemaError(
             f"approved source redirected outside frozen route: {url}"
         )
