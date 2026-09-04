@@ -10,6 +10,10 @@ from procrun.collectors.opencoesione import (
     parse_operation_list_zip,
     to_funding_projects,
 )
+from procrun.collectors.opencoesione_live import (
+    OPENCOESIONE_CANONICAL_ZIP_URL,
+    _validate_zip_final_url,
+)
 
 
 def _valid_row() -> list[str]:
@@ -112,3 +116,14 @@ def test_canonical_mapping_falls_back_to_local_id_when_cup_is_absent() -> None:
     )
     project = to_funding_projects(batch)[0]
     assert project.operation_code == "OP-1"
+
+
+def test_exact_canonical_zip_redirect_is_allowed() -> None:
+    _validate_zip_final_url(OPENCOESIONE_CANONICAL_ZIP_URL)
+
+
+def test_unknown_zip_redirect_still_fails_closed() -> None:
+    with pytest.raises(OpenCoesioneSchemaError, match="outside frozen route"):
+        _validate_zip_final_url(
+            "https://opencoesione.gov.it/media/open_data/beneficiari/2021-2027/other.zip"
+        )
