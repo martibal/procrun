@@ -1,10 +1,9 @@
-"""Qualify the public OpenCoesione beneficiary metadata without retrieving data rows."""
+"""Guard the public OpenCoesione beneficiary metadata without retrieving data rows."""
 
 from __future__ import annotations
 
 import sys
 import urllib.request
-from pathlib import Path
 
 import xlrd
 
@@ -12,6 +11,14 @@ from procrun.collectors.opencoesione import EXPECTED_HEADERS
 
 PUBLICATION_PAGE = "https://opencoesione.gov.it/it/beneficiari_operazioni_2021_2027/"
 METADATA_URL = "https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls"
+EXPECTED_DOCUMENTED_MISMATCH = (
+    "CostoTotale_TotalCost",
+    "Ciclo_Period",
+    "ObiettivoSpecifico_SpecificObjective",
+    "DataInizioOperazione_OperationStartDate",
+    "DataFineOperazione_OperationEndDate",
+    "Paese_Country",
+)
 
 
 def _download_metadata() -> bytes:
@@ -54,28 +61,27 @@ def _ordered_string_cells(payload: bytes) -> list[str]:
 def main() -> int:
     payload = _download_metadata()
     cells = _ordered_string_cells(payload)
-    positions: list[int] = []
-    missing: list[str] = []
-    for header in EXPECTED_HEADERS:
-        try:
-            positions.append(cells.index(header))
-        except ValueError:
-            missing.append(header)
+    missing = tuple(header for header in EXPECTED_HEADERS if header not in cells)
     print(f"metadata_url={METADATA_URL}")
     print(f"metadata_bytes={len(payload)}")
     print(f"frozen_transport_fields={len(EXPECTED_HEADERS)}")
-    if missing:
-        print("result=FAIL")
-        print("missing_exact_transport_headers=" + repr(missing))
-        print("workbook_strings=" + repr(cells))
+    print("missing_exact_transport_headers=" + repr(missing))
+    if missing != EXPECTED_DOCUMENTED_MISMATCH:
+        print("guard=FAIL")
+        print("reason=public metadata changed relative to documented fail-closed mismatch")
         return 1
-    if positions != sorted(positions) or len(set(positions)) != len(positions):
-        print("result=FAIL")
-        print("reason=frozen headers are not present in exact order")
-        print("positions=" + repr(positions))
-        return 1
-    print("result=PASS")
-    print("reason=all 20 frozen transport headers occur in exact order in official metadata workbook")
+    for required in (
+        "DataInizioProgetto_OperationStartDate",
+        "DataFineProgetto_OperationEndDate",
+        "StatoMembro_Country",
+    ):
+        if required not in cells:
+            print("guard=FAIL")
+            print(f"reason=expected metadata-side name disappeared: {required}")
+            return 1
+    print("guard=PASS")
+    print("qualification=NOT_ACTIVATED")
+    print("reason=official metadata remains non-identical to frozen 20-column runtime contract")
     return 0
 
 
