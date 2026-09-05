@@ -2,7 +2,7 @@
 
 ## Permanent sequencing rule
 
-Web implementation is the final product-development phase, not a parallel workstream.
+Web implementation is the final build phase and the final product-development phase, not a parallel workstream.
 
 The non-web intelligence product must be production-ready before authoritative customer-facing web work begins. That prerequisite is now satisfied.
 
