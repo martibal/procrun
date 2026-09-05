@@ -1,6 +1,7 @@
 # OpenCoesione A1 source qualification
 
-Status: **APPROVED SOURCE FAMILY — RUNTIME ROUTES REQUIRE SEPARATE TECHNICAL ACCEPTANCE**
+Status: **APPROVED SOURCE CONTRACT — EXACT 2021-2027 EU COHESION OPERATION-LIST ROUTE ONLY**
+Runtime activation status: **PR FESR Lombardia 2021-2027 ONLY; OTHER SAME-FAMILY ROUTES REQUIRE SEPARATE TECHNICAL ACCEPTANCE**
 Review date: 2026-09-05
 
 This decision applies only to the bounded public ZIP/CSV operation/beneficiary lists published by OpenCoesione for EU-funded national and regional 2021-2027 programmes. It does **not** approve the general OpenCoesione Projects database, general API responses, subject/entity datasets, project-detail HTML, or any broader route.
