@@ -1,197 +1,92 @@
-# Procurement Runway — source rights, access and third-party compliance
+# ProcRun — source rights, access and third-party compliance
 
-Status date: **2026-09-01**  
+Status date: **2026-09-05**
 Engineering review due: **2026-11-30**
 
-This document records the compliance assumptions that are permitted to influence production code. It is an engineering control, not a legal opinion. Source and provider terms can change independently of the repository; approved reviews therefore expire and must be rechecked.
+This is an engineering compliance control, not a legal opinion. Approved source/provider reviews expire and are rechecked from public documentation only. No human response, source-owner contact, consultant opinion or external legal opinion is an allowed gate-closing mechanism.
 
-## 1. Approval model
+## Approval model
 
-A public source is not production-usable merely because it can be opened in a browser or downloaded without authentication. Procurement Runway separates three gates:
+A live intelligence source must pass all three gates:
 
-1. **RIGHTS** — commercial reuse and the required derivative/value-added use are permitted.
-2. **ACCESS** — automated access is permitted through the exact route used, including rate, registration and authorization requirements.
-3. **DATA SAFETY** — the response can be constrained before receipt so prohibited person/supplier fields never enter the intelligence environment.
+1. **RIGHTS** — required commercial/value-added reuse is permitted.
+2. **ACCESS** — the exact automated route is publicly permitted/available under its frozen conditions.
+3. **DATA SAFETY** — prohibited natural-person data cannot enter the intelligence environment under the approved transport contract.
 
-A source may be `APPROVED` only when all three gates are `APPROVED`. `CONDITIONAL` or `BLOCKED` at any required gate prohibits live production retrieval. The executable registry is `src/procrun/source_contracts.py`.
+`CONDITIONAL` or `BLOCKED` at any required source gate prohibits production retrieval. Executable source contracts live in `src/procrun/source_contracts.py`.
 
-The product has a stricter data-safety rule than many source terms require: **no natural-person data may enter the intelligence pipeline, database, model context, application logs or customer intelligence output.** A route that is lawful to access can still be blocked by ProcRun.
+ProcRun's intelligence plane has an absolute rule: **no natural-person data may enter the intelligence pipeline, database, model context, application logs or customer intelligence output.** Broad receipt followed by filtering is prohibited.
 
-## 2. Current source decisions
+## Production source decisions
 
-| Source / route | Rights | Access | Data safety | Overall | Production decision |
-| --- | --- | --- | --- | --- | --- |
-| TED Search API | APPROVED | APPROVED | APPROVED | APPROVED | Live field-projected procurement source |
-| Mais Transparência project search HTML | CONDITIONAL | CONDITIONAL | CONDITIONAL | CONDITIONAL | Human discovery/reference only; do not scrape as production feed |
-| Mais Transparência project detail HTML | CONDITIONAL | CONDITIONAL | BLOCKED | BLOCKED | Do not ingest |
-| PT2030 operations bulk workbook on dados.gov.pt | CONDITIONAL | APPROVED | BLOCKED | BLOCKED | Do not download into intelligence environment |
-| Portal BASE / IMPIC APIBase2 | CONDITIONAL | CONDITIONAL | BLOCKED | BLOCKED | Do not call in production |
+| Source / route | Overall | Production decision |
+| --- | --- | --- |
+| TED Search API projected route | APPROVED / LIVE | Field-projected procurement evidence and TED-scoped negative-search coverage |
+| OpenCoesione 2021-2027 operation-list, exact approved route family | APPROVED / LIVE | Funded-project source; current live route PR FESR Lombardia |
+| Broad OpenCoesione API / Projects / Soggetti | BLOCKED | Outside approved bounded contract |
+| Mais Transparência project surfaces | BLOCKED | Do not ingest |
+| PT2030 bulk workbook | BLOCKED | Broad identity-bearing transport; no download-then-filter |
+| Portal BASE / APIBase2 current route | BLOCKED | No approved pre-receipt projection |
+| Reviewed Poland public EU-funds project surfaces | REJECTED | No approved exact safe machine route |
 
-### 2.1 TED Search API
+## TED obligations
 
-Official references:
+Official references are frozen in the executable/source qualification records. Production uses the Search API rather than CMS scraping, requests only the approved projected fields, excludes contact/supplier identity before receipt, observes the internal fair-use ceiling, preserves source meaning and does not imply EU endorsement.
 
-- https://docs.ted.europa.eu/api/latest/search.html
-- https://ted.europa.eu/en/legal-notice
-- https://ted.europa.eu/en/news/fair-usage-policy-on-ted
-- https://eur-lex.europa.eu/eli/dec/2011/833/oj
+Frozen customer attribution:
 
-The Search API is explicitly provided for published-notice analysis/reuse and its documentation identifies commercial organisations integrating TED data into value-added platforms as intended users. TED's legal notice states that procurement notices in the Supplement to the Official Journal can be freely reused for commercial or non-commercial purposes unless otherwise noted.
+> Source: Tenders Electronic Daily (TED), Publications Office of the European Union. ProcRun transforms and classifies the source data; the derived analysis is not an official EU publication or endorsement.
 
-Commission Decision 2011/833/EU permits commercial/non-commercial reuse and allows conditions such as source acknowledgement, preservation of original meaning and Commission non-liability.
+For MVP `OPEN` means exactly:
 
-ProcRun obligations:
+> **No relevant procurement found in TED as of DATE.**
 
-- use the public Search API rather than automated scraping of TED CMS pages;
-- request only the frozen projected field list in `collectors/ted.py`;
-- exclude contact-person, email, phone, supplier/winner and other prohibited fields before receipt;
-- stay below the published fair-use ceiling. TED currently states 700 HTTP requests in the last minute; ProcRun freezes an internal maximum of 600 requests/minute and should normally operate far below it;
-- acknowledge TED/EU as source on customer-facing methodology/source surfaces;
-- identify that Procurement Runway transforms/classifies the source data;
-- do not imply EU endorsement;
-- do not distort the original source meaning;
-- do not rely on reuse rights for identifiable-person/third-party material outside the approved projection.
+## OpenCoesione obligations
 
-Frozen future public attribution:
+The exact approved 2021-2027 EU-cohesion operation-list publication family is used under CC BY 4.0. The current production route is PR FESR Lombardia. The RGS publication instruction for project title/summary and the legal-person beneficiary rule form part of the frozen source contract; they are publication/provider rules, not claimed database-level impossibility guarantees. Any observed contract/schema violation fails the batch closed.
 
-> Source: Tenders Electronic Daily (TED), Publications Office of the European Union. Procurement Runway transforms and classifies the source data; the derived analysis is not an official EU publication or endorsement.
+Beneficiary tax code/name are source-only fields and never enter canonical/customer-safe intelligence objects.
 
-### 2.2 dados.gov.pt and PT2030 operations
+Frozen customer attribution:
 
-Official references:
+> Source: OpenCoesione, Lista beneficiari e operazioni 2021-2027, used under CC BY 4.0. ProcRun transforms and classifies the source data; the derived analysis is not an official OpenCoesione, Italian-government or EU publication or endorsement.
 
-- https://dados.gov.pt/pt/termos-de-utilizacao
-- https://dados.gov.pt/fr/datasets/datasets-pt2030-03-lista-de-operacoes-pt2030/
-
-The portal terms state that data uploaded by State bodies is published under CC BY 4.0 by default unless otherwise specified. The current PT2030 operations dataset page, however, displays **"Licença não especificada"**.
-
-ProcRun therefore does **not** turn this specific dataset into unconditional `RIGHTS=APPROVED` merely by applying the portal-wide default. Before commercial reliance on that dataset, the source-specific licence basis must be clarified and frozen.
-
-Independently of rights, the current resource is a broad workbook whose field surface can include beneficiary/entity/tax information. Under the pre-receipt zero-PII policy, download-then-filter is prohibited. This route is therefore `DATA SAFETY=BLOCKED` and may not be downloaded into the intelligence environment.
-
-If a future field-bounded official route is approved under CC BY 4.0, customer-facing attribution must identify the source, link the applicable licence, and state that Procurement Runway has transformed/derived the data.
-
-### 2.3 Mais Transparência
-
-Official reference:
-
-- https://transparencia.gov.pt/termos-e-condicoes
-
-The portal terms state that portal contents are owned by ARTE or included with permission from the relevant rights holders, and the terms can change at any time. The portal is valuable as a human reference, but it does not provide the same clear production reuse contract as an approved underlying open-data/API route.
-
-Production rule:
-
-- do not build the commercial ingestion path by scraping portal HTML;
-- do not archive full pages;
-- use the portal only for manual research until a separately approved, field-bounded official transport is established.
-
-The full project-detail route is additionally blocked because beneficiary content appears in the same response.
-
-### 2.4 Portal BASE / IMPIC
-
-Official references:
-
-- https://www.base.gov.pt/Base4/pt/o-portal/base/
-- https://www.base.gov.pt/Base4/pt/documentacao/formas-de-obter-dados-sobre-os-contratos-publicos/
-- https://www.base.gov.pt/APIBase2
-- https://www.base.gov.pt/Base4/pt/noticias/2025/api-para-consulta-de-dados-do-portal-base/
-- https://www.base.gov.pt/Base4/media/aezdh4bi/portaria-318-b_2023_portal-base.pdf
-
-Portaria 318-B/2023 states that public BASE data may be automatically extracted free of charge in open formats. Large-volume API extraction is conditional on registration and prior IMPIC authorization. BASE documentation says the API returns the same fields as the dados.gov files.
-
-The documented API response includes `adjudicatarios` with identifiers/names, and the API does not document server-side output projection. BASE also warns that some published contract documents have contained personal data that should have been removed.
-
-Current decision:
-
-- APIBase2 remains `DATA SAFETY=BLOCKED`;
-- no API call is permitted merely because an IMPIC token/authorization becomes available;
-- any future IMPIC authorization terms must be retained and reviewed for the commercial use case;
-- a future BASE route can be reconsidered only if prohibited fields can be excluded **before receipt**.
-
-## 3. Evidence/attribution handling
-
-Every production source contract must retain:
-
-- exact retrieval route;
-- legal/terms reference URLs;
-- rights/access/data-safety statuses;
-- terms review date and review-due date;
-- attribution requirement/text where applicable;
-- operational obligations such as rate limits, authorization and no-scraping requirements.
-
-`require_live_source()` enforces this before a live collector runs. Approved source reviews fail closed after their due date.
-
-Customer-facing outputs must expose source/provenance links and the bounded coverage statement. `OPEN` must never be worded as proof that procurement does not exist.
-
-## 4. External service contracts
+## External services
 
 The executable registry is `src/procrun/compliance.py`.
 
-### GitHub — APPROVED for development/CI
+- **GitHub:** approved for source repository and CI. No production intelligence payload, customer data or secrets are committed.
+- **Hetzner Cloud:** approved for the dedicated production intelligence runtime and backups under the frozen service contract.
+- **Hugging Face:** approved only for the pinned benchmark-model download; hosted inference with project/customer data is not approved. The model is not required by the production MVP.
+- **Stripe:** conditional future customer-control-plane service. It is deliberately a **web-phase** concern, not a pre-web blocker. Production activation requires the actual account/business to be accepted, then-current terms/restricted-business rules checked from public/account-visible material, payment/customer identity isolated from the intelligence plane, and the actual subscription/VAT/privacy flow implemented and tested.
+- **Cloudflare:** optional/conditional; not part of the accepted non-web architecture. If introduced during web deployment, its exact features/privacy/logging impact must be reviewed before production activation.
 
-Terms: https://docs.github.com/en/site-policy/github-terms/github-terms-of-service
+## Software licences
 
-Allowed role: private source repository and CI/test execution. Production intelligence payloads, customer data, secrets and model weights must not be committed. Exact production data remains on the EU-hosted system.
+See `THIRD_PARTY_NOTICES.md` and `src/procrun/compliance.py`. Runtime dependencies are exact-version pinned in `requirements-runtime.lock`; CI fails closed when required reviews expire. Current deployment is server-side SaaS. Any future on-prem/container distribution requires a new distribution-licence/SBOM review.
 
-### Hetzner Cloud — APPROVED for normal hosting/benchmarking
+## Intelligence plane versus customer control plane
 
-Terms: https://www.hetzner.com/legal/terms-and-conditions/
+The non-web intelligence plane is production-accepted. Its customer-safe boundary is `src/procrun/read_model.py` (`customer-runway-v1`). Browser/API code may not read raw source payloads, beneficiary identity, buyer/contact identity, unvalidated candidates, model prompts or the internal ledger directly.
 
-Allowed role: EU VPS hosting and ephemeral benchmark hosts. Normal commercial hosting only; prohibited activities such as cryptomining, abusive scanning or attack traffic are outside the product. Independent/offsite backup remains mandatory. Benchmark provisioning fails closed when the provider review expires.
+The customer website creates a separate control plane. The following are mandatory **web-phase launch controls**, not prerequisites for starting web development:
 
-### Hugging Face — APPROVED only for pinned model download
+1. legal/merchant identity presentation appropriate to the actual seller;
+2. customer Terms/subscription terms and Privacy Notice;
+3. processor/subprocessor inventory for providers actually selected by the web implementation, with applicable provider DPAs/terms recorded from available documentation/account controls;
+4. Stripe/payment activation if Stripe is used, including subscription/refund/VAT/invoicing behavior;
+5. rendered source attribution/methodology and exact TED coverage wording;
+6. no analytics, session replay or advertising SDK by default;
+7. essential authentication/session cookies only unless a later explicit consent design approves more;
+8. logging configured so customer network/account data does not enter the intelligence data plane;
+9. customer/account/payment data stored separately from the immutable procurement intelligence ledger and never supplied to a model;
+10. TLS, secret management, least privilege, customer-control-plane backup/recovery where applicable and documented incident/failure behavior;
+11. final authentication/authorization, checkout/access, security-header, privacy and rendered-content validation before paid public launch.
 
-Terms: https://huggingface.co/terms-of-service
+No item above requires or permits source-owner/authority/customer outreach as a qualification mechanism. If an external service cannot be approved without a human response specifically obtained to close a ProcRun qualification gate, ProcRun does not use that service/path.
 
-Allowed role: download the exact public Qwen GGUF artifact pinned in `model_registry.py`. Hosted Hugging Face inference with project/customer data is not approved. Arbitrary model downloads require a new licence/model-registry review. Model bytes are checked by exact size and SHA-256 before inference.
+## Change control
 
-### Stripe — CONDITIONAL / future control plane
+A source/provider/model/dependency may not be silently promoted. Any change introducing a new intelligence source/service or changing a reviewed route must update the executable registry where applicable, retain current public terms/licence references, document commercial reuse/access/data-safety, record attribution and review dates, and preserve fail-closed regression coverage.
 
-Terms: https://stripe.com/legal/ssa/no
-
-Stripe is not part of the current intelligence pipeline. Activation is prohibited until the actual business/account is accepted, then-current prohibited/restricted-business rules are checked, VAT/payment/refund/subscription flows are designed for the actual legal entity, privacy/data-processing review is complete, and payment/customer identity is kept outside the intelligence ledger/model context.
-
-### Cloudflare — CONDITIONAL / optional
-
-Terms: https://www.cloudflare.com/terms/
-
-Cloudflare is not required by the locked architecture. If introduced later for DNS/CDN/DDoS, the exact plan/features and privacy/logging impact must be re-reviewed before activation.
-
-## 5. Software/model licences
-
-See `THIRD_PARTY_NOTICES.md` and `src/procrun/compliance.py`.
-
-The service is currently server-side SaaS. No ProcRun proprietary source licence is granted by this repository.
-
-Direct production Python dependencies are exact-version pinned. The production runtime dependency closure is frozen in `requirements-runtime.lock` so transitive package drift cannot silently change the reviewed software surface.
-
-Important components include PostgreSQL (PostgreSQL License), Qwen3-4B-GGUF Q4_K_M (Apache-2.0; benchmark candidate only), llama.cpp (MIT), httpx/httpcore (BSD-3-Clause), Psycopg/Psycopg Binary (LGPL-3.0-only), Pydantic/Pydantic Core (MIT), AnyIO (MIT), certifi (MPL-2.0), h11 (MIT), idna (BSD-3-Clause), annotated-types (MIT), typing-inspection (MIT) and typing-extensions (PSF-2.0).
-
-If the product is later distributed on-premise as software/containers rather than only operated as a hosted service, all distribution/copyleft/notice obligations must be reviewed again and a complete SBOM/licence bundle generated.
-
-## 6. Website/customer control-plane launch gate
-
-The future customer website creates a different data-protection surface from the zero-PII intelligence plane. Before paid launch, the control plane must have its own documented architecture and legal review.
-
-Required pre-launch items:
-
-1. legal entity/merchant identity and business contact details finalized;
-2. customer Terms of Service / subscription terms;
-3. Privacy Notice covering account, billing, support and unavoidable network processing;
-4. processor/subprocessor inventory and appropriate DPAs where required;
-5. Stripe/payment account approval and VAT/invoicing design;
-6. source attribution/methodology page with then-current approved source notices;
-7. no analytics, session replay or advertising SDK by default;
-8. essential authentication/session cookies only unless a later consent design explicitly approves more;
-9. application/reverse-proxy logging configured so client IP is not persisted in the ProcRun application data plane;
-10. customer/account data stored separately from the immutable procurement intelligence ledger and never supplied to the local model;
-11. TLS, secret management, least privilege, backups/restore test and documented incident path;
-12. short external legal review of then-current Portuguese source rights/attribution and customer-facing terms before commercial release.
-
-This launch gate cannot be bypassed by source approval. Data-source legality and customer-account compliance are separate concerns.
-
-## 7. Review/change-control rules
-
-A source/provider/model/dependency may not be silently promoted because it is convenient. Any change introducing a new external source/service or changing a reviewed route must include, as applicable: updated executable registry entry; current terms/licence URLs; explicit commercial-reuse and automated-access status; PII/field-surface audit; attribution obligation; review date/due date; and a regression test proving that an expired/non-approved entry fails closed.
-
-The current review date is 2026-09-01 and review due date is 2026-11-30. CI is intentionally allowed to fail after that date until the relevant terms are rechecked and deliberately renewed.
+The current engineering review is due 2026-11-30. CI is intentionally allowed to fail after an applicable review expires until it is deliberately renewed from independently inspectable evidence.
