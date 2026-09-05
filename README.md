@@ -19,24 +19,23 @@ ProcRun is an evidence-first infrastructure procurement product for suppliers.
 
 ## Canonical decision
 
-**Status: WEB BUILD BLOCKED UNTIL FULL DELIVERY-READINESS IS GREEN. TED-SCOPED LIVE PROCUREMENT CLASSIFICATION APPROVED. OPENCOESIONE 2021-2027 EXACT OPERATION-LIST SOURCE CONTRACT APPROVED, BUT LIVE SOURCE-TRANSFER IS NOT YET GREEN.**
+**Status: WEB PRODUCT BUILD: GO. CORE PRODUCT DELIVERY AND PRE-WEB RELEASE HOUSEKEEPING ARE GREEN.**
 
-Canonical specification: [`docs/PRODUCT_FOUNDATION_FINAL.md`](docs/PRODUCT_FOUNDATION_FINAL.md).
-Authoritative build/release decision: [`docs/BUILD_GATES.md`](docs/BUILD_GATES.md), gate **A20**.
-Sequencing rule: [`docs/DELIVERY_READINESS_GATE.md`](docs/DELIVERY_READINESS_GATE.md).
+Canonical specification: `docs/PRODUCT_FOUNDATION_FINAL.md`.
+Authoritative build/release decision: `docs/BUILD_GATES.md`, gate A20.
+Frozen pre-web baseline: `docs/PREWEB_RELEASE_BASELINE.md`.
+Sequencing rule: `docs/DELIVERY_READINESS_GATE.md`.
 
 ## Permanent sequencing rule
 
-**Web implementation is the final build phase. It must not start or continue until the complete non-web delivery chain is launch-ready.**
+Web implementation is the final product-development phase. That phase is now authorized because the complete non-web intelligence delivery chain has passed production acceptance.
 
-At the moment web build receives `GO`, the product must already be ready for launch except for the web interface itself. There may be no unresolved source, live-ingest, pipeline, coverage, persistence/export, operational, billing/control-plane or release-control dependency waiting behind the web build.
-
-Any fixture-based or shell web work created before this rule was restored is non-authoritative and frozen. It does not satisfy the web-build gate and is not permission to continue web development.
+The existing fixture/shell under `web/` is non-authoritative and may be replaced. It does not constrain the visual implementation, but the frozen customer-safe data, source, coverage, privacy and evidence contracts do constrain it.
 
 ## Approved sources
 
-- **TED Search API:** APPROVED from public API documentation, server-side field projection, legal notice and Commission Decision 2011/833/EU.
-- **OpenCoesione 2021-2027 operation-list ZIP/CSV:** APPROVED for the exact bounded publication from public OpenCoesione/RGS documentation and CC BY 4.0 terms. The broad OpenCoesione API and project/entity surfaces are not approved.
+- **TED Search API:** APPROVED for field-projected procurement evidence and TED-scoped negative-search coverage.
+- **OpenCoesione 2021-2027 operation-list ZIP/CSV:** APPROVED for the exact bounded publication family; the current live route is PR FESR Lombardia. The broad OpenCoesione API and project/entity surfaces are not approved.
 - **Portugal PRR / Mais Transparência / PT2030 / Portal BASE current routes:** Category B / PERMANENTLY BLOCKED for intelligence ingestion.
 - **Poland public EU-funds project surfaces reviewed:** Category B / REJECTED.
 
@@ -44,40 +43,30 @@ No approved source has any future human-contact dependency.
 
 ## MVP coverage contract
 
-TED Search API is APPROVED for field-bounded procurement evidence, market context and the MVP negative-search boundary.
-
 For the MVP, `OPEN` means exactly:
 
 > **No relevant procurement found in TED as of DATE.**
 
 This is not a guarantee that no procurement exists outside TED, including purely national or below-threshold procedures. Every customer-facing OPEN state must preserve that scope.
 
-Phase 0B/0C remain FAIL for the retired TED-only demand-extraction hypothesis; those failures are not rewritten.
+Phase 0B/0C remain FAIL for the retired TED-only demand-extraction hypothesis; those historical failures are not rewritten.
 
 ## Permanent validation constraint
 
 Only already-public, independently inspectable evidence and machine-verifiable behaviour may close a source gate. Silence is never permission. ProcRun never uses `download then filter` as a privacy mechanism. Human-dependent approval is not a fallback path.
 
-## Funded-project delivery path
-
-The canonical mechanism remains:
+## Accepted production delivery path
 
 `approved funded project -> source-evidenced purchasable components -> indexed procurement evidence -> conservative component state -> project aggregate state -> remaining procurement runway`
 
-OpenCoesione is the approved Category A funded-project source contract for the exact 2021-2027 operation-list publication family. The currently pinned PR FESR Lombardia route is **not live-accepted** because the current GitHub-hosted runtime receives HTTP 403 before ZIP/schema validation. This is a delivery blocker until an automated no-contact runtime successfully performs the exact same frozen-route source-transfer and the canonical live end-to-end chain passes.
+The dedicated production runtime has completed this path on live sources: 4,631 funded projects; complete Italy TED universe of 176,540 notices / 708 pages; 81 projects with components; 37 useful/resolved; 44 safely unresolved; customer-safe JSONL; PostgreSQL run manifest; verified backup/restore; active delivery/backup timers; PostgreSQL loopback-only.
+
+The customer application may consume only `src/procrun/read_model.py` (`customer-runway-v1`) or an explicitly versioned successor approved under the same customer-safe boundary.
 
 ## Current engineering instruction
 
-**DO NOT CONTINUE WEB DEVELOPMENT. COMPLETE THE FULL NON-WEB DELIVERY CHAIN FIRST.**
+**CONTINUE WITH THE CUSTOMER-FACING WEB PRODUCT BUILD.**
 
-Required before `A20 WEB BUILD` may change to GO:
+The web phase includes GUI/UX, authentication/account handling, customer control-plane separation, Stripe/subscription integration if used, VAT/invoicing implementation, Terms/Privacy and merchant identity presentation, domain/TLS, customer-facing source attribution/methodology, security/access controls and final launch testing.
 
-1. OpenCoesione live source-transfer succeeds from an approved automated runtime without weakening the frozen route/schema/zero-PII contract;
-2. funded-project canonical end-to-end processing succeeds on live data through the customer-safe read boundary;
-3. TED-scoped OPEN remains enforced in production code and all relevant exports/read contracts;
-4. persistence, saved/export and operational delivery paths are launch-ready;
-5. billing/control-plane and A19 release controls that do not depend on final web presentation are launch-ready;
-6. drift/schema/compliance/no-contact/regression/CI gates are green;
-7. repo status documents agree that the only remaining launch work is the web interface.
-
-Only after all seven conditions are green may customer-facing web implementation resume.
+Those web/control-plane items are mandatory before public paid launch, but they are not pre-web blockers. No further OpenCoesione/TED production replay is required merely because documentation or web code changes.

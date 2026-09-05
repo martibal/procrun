@@ -1,91 +1,53 @@
 # Pre-web showstopper closure status
 
-Status: **WEB BUILD GO; LIVE SOURCE ACTIVATION REMAINS FAIL-CLOSED**
+Status: **CLOSED — PRE-WEB RELEASE HOUSEKEEPING PASS; WEB PRODUCT BUILD AUTHORIZED.**
 
-A20 remains the authoritative final gate.
+A20 in `docs/BUILD_GATES.md` is the authoritative readiness gate. The frozen handoff contract is `docs/PREWEB_RELEASE_BASELINE.md`.
 
-The pre-web architecture has been separated from production-source activation. The UI may now be implemented against deterministic fixtures and the frozen customer-safe read model. This does not approve any unresolved live source.
+## Closed gates
 
-## 1. Funded-project source A1
+### Funded-project source
 
-**Status: BLOCKED FOR LIVE INGEST; NOT A WEB-BUILD BLOCKER.**
+**PASS.** The exact OpenCoesione 2021-2027 EU-cohesion operation-list publication family is approved. The current live route is PR FESR Lombardia. Broad OpenCoesione API/Projects/Soggetti routes remain outside the contract.
 
-PRR Projects is not production-approved from public evidence alone. The former source-owner clarification path is retired because ProcRun forbids outreach, authority/source-owner contact, customer contact and paid expert/legal consultation as validation mechanisms.
+### Procurement source and OPEN boundary
 
-OpenCoesione materially improves the public-evidence position: its portal states CC BY 4.0 reuse and machine publication, while official monitoring guidance requires natural-person beneficiaries to be represented as `Individuo` and operation titles not to contain natural-person names. That is still insufficient to prove the complete free-text extraction route safe before receipt, so live funded-project ingest stays disabled.
+**PASS.** TED Search API is the declared MVP procurement-evidence universe. `OPEN` means exactly:
 
-Valid closure still requires either:
+> **No relevant procurement found in TED as of DATE.**
 
-- new authoritative public material that independently closes RIGHTS, ACCESS, TRANSPORT, FREE-TEXT SAFETY, SCHEMA and COVERAGE for an exact production route; or
-- a different funded-project source that passes the same gate entirely from public evidence.
+Incomplete retrieval or ambiguous matching yields `UNRESOLVED`.
 
-No download-then-filter fallback is permitted.
+### Live end-to-end delivery
 
-## 2. Validation universe
+**PASS.** Dedicated production runtime completed OpenCoesione -> FundingProject -> component extraction -> complete TED evidence -> conservative matching/state -> runway -> append-only PostgreSQL -> customer-safe JSONL on real data.
 
-**Status: INTERNAL GATE IMPLEMENTED; SOURCE-TRANSFER VALIDATION REQUIRED BEFORE LIVE ACTIVATION.**
+Accepted run: 4,631 funded projects; 176,540 TED notices / 708 pages; 81 projects with components; 37 useful/resolved; 44 safely unresolved.
 
-Portugal 2030 Phase-0 evidence cannot be inherited automatically by a replacement funded source. `source_validation.py` keeps source compliance separate from source-transfer validation.
+### Component fallback
 
-When a funded-project source becomes A1-approved, its preregistered source-transfer confirmation must pass before production activation.
+**PASS FOR MVP CONTRACT.** Deterministic-only extraction with safe abstention is the production contract. No local model is required for launch. Ambiguous scope remains `UNRESOLVED`.
 
-## 3. Procurement linkage / false OPEN
+### Persistence and reconstruction
 
-**Status: INTERNAL FALSE-OPEN PROTECTION CLOSED; NATIONAL SOURCE GATE BLOCKED FOR LIVE `OPEN`.**
+**PASS.** Append-only ledger and customer-safe read boundary are implemented; production manifest exists; logical backup was restored and verified.
 
-Completed internally:
+### Runtime and operations
 
-- every component names required procurement sources and completed sources;
-- TED-only absence cannot produce original national `OPEN` where national Portugal coverage is required;
-- incomplete coverage yields `UNRESOLVED`;
-- grouped-scope ambiguity abstains;
-- PACS-FC-04022300 is replayed as a regression case.
+**PASS.** Dedicated Hetzner runtime, provider backup, loopback-only PostgreSQL, no unexpected public TCP listener, fail-closed publication, and active delivery/backup timers are verified.
 
-IMPIC now publishes a nationwide Portal BASE announcements dataset covering 2012-2026 with current updates and open/public-domain licensing metadata. This closes important reuse/history questions but not the pre-receipt privacy contract: full Portuguese notice structures include contact/author identity fields, and no authoritative projected zero-natural-person machine route has been found. Therefore the national source remains blocked for intelligence ingest.
+### Customer-safe contract and attribution
 
-Still required before live national `OPEN`: one Portuguese national procurement route must pass `docs/NATIONAL_PROCUREMENT_SOURCE_GATE.md` entirely from public evidence, with pre-receipt zero-PII safety and completeness semantics adequate for absence-based claims.
+**PASS / FROZEN.** `customer-runway-v1` is the sole intelligence contract for the customer application. TED/OpenCoesione attribution and non-endorsement wording are frozen in `docs/PREWEB_RELEASE_BASELINE.md`.
 
-## 4. End-to-end replay
+## Historical 403
 
-**Status: FIXTURE PIPELINE CLOSED; LIVE ACCEPTANCE DEFERRED TO SOURCE ACTIVATION.**
+The GitHub-hosted OpenCoesione HTTP 403 is historical evidence only. GitHub-hosted CI is not used as the production source-transfer runtime. The dedicated production runtime passed the same frozen source contract without widening the route or weakening the zero-PII boundary.
 
-The canonical internal path is exercised as:
+## Web handoff
 
-`FundingProject -> deterministic component extraction -> exact evidence binding -> candidate matching -> component state -> project aggregation -> customer-safe read model -> deterministic content hash`.
+**A20 WEB BUILD: GO.**
 
-A true live-source acceptance replay cannot be completed until both remaining source gates are approved. It remains mandatory before paid/live production, but no longer blocks UI implementation.
+The next phase is the customer-facing product: GUI/UX, authentication/account control plane, Stripe/subscription flow if used, VAT/invoicing implementation, Terms/Privacy and merchant identity presentation, domain/TLS, customer-control-plane privacy/logging, rendered attribution/methodology and final launch/security testing.
 
-## 5. Model fallback
-
-**Status: CLOSED FOR MVP.**
-
-The MVP is deterministic-only. Unmatched scope that would require fallback forces `UNRESOLVED`; it cannot create `OPEN`.
-
-## 6. Persistence / reconstruction
-
-**Status: CLOSED.**
-
-Exact source spans, append-only evidence provenance, empty-database migrations and reconstruction hashes are implemented and regression-tested.
-
-## Final consequence
-
-**Start the web build now.**
-
-Build constraints:
-
-1. use fixtures and the customer-safe read model only;
-2. do not activate PRR/OpenCoesione/BASE or any other conditional source merely to populate UI;
-3. never represent fixture data as live production data;
-4. keep incomplete national coverage fail-closed as `UNRESOLVED`;
-5. preserve all zero-PII and zero-contact source rules.
-
-Remaining release work, in parallel:
-
-1. qualify one funded-project source using public evidence only;
-2. qualify one complete-enough Portuguese national procurement source using public evidence only;
-3. run the funded-source transfer validation;
-4. run live end-to-end acceptance;
-5. require green CI and A19;
-6. only then enable live ingest, live national `OPEN`, and paid production.
-
-No human-dependent validation or weaker TED-only product pivot is an acceptable shortcut.
+Those are web-phase launch controls, not unresolved pre-web showstoppers.

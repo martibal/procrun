@@ -1,0 +1,52 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+packages:
+  - python3
+  - python3-venv
+  - python3-pip
+  - postgresql
+  - postgresql-client
+  - ufw
+  - ca-certificates
+  - curl
+  - jq
+  - rsync
+  - openssl
+
+users:
+  - name: procrun
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/procrun
+    create_home: false
+
+write_files:
+  - path: /etc/sysctl.d/99-procrun.conf
+    permissions: '0644'
+    content: |
+      fs.protected_hardlinks = 1
+      fs.protected_symlinks = 1
+      kernel.dmesg_restrict = 1
+      kernel.kptr_restrict = 2
+      net.ipv4.conf.all.accept_redirects = 0
+      net.ipv4.conf.default.accept_redirects = 0
+      net.ipv4.conf.all.send_redirects = 0
+      net.ipv4.conf.default.send_redirects = 0
+
+runcmd:
+  - [install, -d, -o, procrun, -g, procrun, -m, '0750', /opt/procrun]
+  - [install, -d, -o, procrun, -g, procrun, -m, '0750', /var/lib/procrun]
+  - [install, -d, -o, procrun, -g, procrun, -m, '0750', /var/lib/procrun/published]
+  - [install, -d, -o, root, -g, procrun, -m, '0750', /var/backups/procrun]
+  - [install, -d, -o, root, -g, procrun, -m, '0750', /etc/procrun]
+  - [bash, -lc, "DB_PASS=$(openssl rand -hex 24); printf 'PROCRUN_DATABASE_URL=postgresql://procrun:%s@127.0.0.1:5432/procrun\n' \"$DB_PASS\" > /etc/procrun/procrun.env; chmod 0640 /etc/procrun/procrun.env; chown root:procrun /etc/procrun/procrun.env; runuser -u postgres -- psql -v ON_ERROR_STOP=1 -c \"CREATE ROLE procrun LOGIN PASSWORD '$DB_PASS';\" -c \"CREATE DATABASE procrun OWNER procrun;\""]
+  - [bash, -lc, "PGCONF=$(runuser -u postgres -- psql -Atqc 'show config_file'); sed -ri \"s/^#?listen_addresses\s*=.*/listen_addresses = '127.0.0.1'/\" \"$PGCONF\"; systemctl restart postgresql"]
+  - [ufw, default, deny, incoming]
+  - [ufw, default, allow, outgoing]
+  - [ufw, allow, OpenSSH]
+  - [ufw, --force, enable]
+  - [sysctl, --system]
+  - [systemctl, enable, --now, postgresql]
+
+final_message: "ProcRun base runtime bootstrap complete; application deployment is still required."

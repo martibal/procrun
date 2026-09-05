@@ -5,7 +5,9 @@ qualified live. Fields that were not part of that frozen qualification are not r
 because TED can return them.
 """
 
+import time
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -19,6 +21,9 @@ TED_SOURCE_ID = "ted_search_api"
 TED_DEFAULT_PAGE_SIZE = 100
 TED_MAX_PAGE_SIZE = 250
 TED_FIELD_CELL_LIMIT = 10_000
+TED_MAX_THROTTLE_RETRIES = 5
+TED_THROTTLE_BACKOFF_SECONDS = 2.0
+TED_TRANSIENT_HTTP_STATUSES = frozenset({429, 502, 503, 504})
 
 # Frozen production subset of scripts/qualify_ted_foundation.py SAFE_FIELDS.
 # Deliberately excluded until separately qualified for the intelligence plane:
@@ -35,22 +40,30 @@ TED_PROJECTED_FIELDS = (
     "estimated-value-proc",
     "estimated-value-cur-proc",
     "place-of-performance-subdiv-proc",
-    "eu-funds-financing-id-lot",
     "eu-funds-identifier",
+    "links",
 )
+
 TED_RESPONSE_FIELDS = frozenset(
-    {"notices", "totalNoticeCount", "iterationNextToken", "timedOut"}
+    {
+        "notices",
+        "totalNoticeCount",
+        "iterationNextToken",
+        "timedOut",
+    }
 )
-TED_NOTICE_FIELDS = frozenset(TED_PROJECTED_FIELDS) | {"links"}
-_LANGUAGE_PREFERENCE = ("eng", "por", "pt")
 
 
-class TedContractError(ValueError):
-    """Raised when TED returns data outside the frozen transport contract."""
+class TedError(RuntimeError):
+    """Base TED collector failure."""
 
 
-class TedTransportError(RuntimeError):
-    """Raised for HTTP or JSON failures without exposing a response body."""
+class TedContractError(TedError):
+    """TED response no longer matches the frozen production contract."""
+
+
+class TedTransportError(TedError):
+    """TED transport failed before a complete response could be validated."""
 
 
 @dataclass(frozen=True)
@@ -62,129 +75,123 @@ class TedCollectionResult:
     stop_reason: str
 
 
-def _flatten_text(value: Any) -> list[str]:
-    if value in (None, ""):
-        return []
+def _validate_page_size(page_size: int) -> None:
+    if page_size < 1 or page_size > TED_MAX_PAGE_SIZE:
+        raise ValueError(f"page_size must be between 1 and {TED_MAX_PAGE_SIZE}")
+    if page_size * len(TED_PROJECTED_FIELDS) > TED_FIELD_CELL_LIMIT:
+        raise ValueError("page_size exceeds TED projected-field cell limit")
+
+
+def _first_text(value: Any) -> str | None:
     if isinstance(value, str):
-        text = value.strip()
-        return [text] if text else []
+        stripped = value.strip()
+        return stripped or None
     if isinstance(value, Mapping):
-        for language in _LANGUAGE_PREFERENCE:
-            if language in value:
-                preferred = _flatten_text(value[language])
-                if preferred:
-                    return preferred
-        result: list[str] = []
-        for key in sorted(value, key=str):
-            result.extend(_flatten_text(value[key]))
-        return result
-    if isinstance(value, Sequence) and not isinstance(value, bytes | bytearray):
-        result = []
+        for language in ("eng", "por", "ita"):
+            candidate = value.get(language)
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+        for candidate in value.values():
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         for item in value:
-            result.extend(_flatten_text(item))
-        return result
-    return [str(value)]
-
-
-def _text(value: Any, *, join: bool = False) -> str | None:
-    values = list(dict.fromkeys(_flatten_text(value)))
-    if not values:
-        return None
-    return " | ".join(values) if join else values[0]
-
-
-def _codes(value: Any) -> list[str]:
-    return list(dict.fromkeys(_flatten_text(value)))
-
-
-def _eur_integer_amount(value: Any, currency: Any) -> int | None:
-    if value in (None, ""):
-        return None
-    if _text(currency) != "EUR":
-        return None
-    try:
-        number = Decimal(str(value))
-    except (InvalidOperation, ValueError):
-        return None
-    if not number.is_finite() or number < 0 or number != number.to_integral_value():
-        return None
-    return int(number)
-
-
-def _project_reference(notice: Mapping[str, Any]) -> str | None:
-    for field in ("eu-funds-identifier", "eu-funds-financing-id-lot"):
-        value = _text(notice.get(field))
-        if value is not None:
-            return value
+            candidate = _first_text(item)
+            if candidate:
+                return candidate
     return None
 
 
-def _validate_notice_shape(notice: Any) -> Mapping[str, Any]:
-    if not isinstance(notice, Mapping):
-        raise TedContractError("TED notice must be a JSON object")
-    unexpected = set(notice) - TED_NOTICE_FIELDS
-    if unexpected:
-        names = ", ".join(sorted(unexpected))
-        raise TedContractError(f"TED notice returned non-projected fields: {names}")
-    return notice
+def _first_scalar(value: Any) -> str | None:
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped or None
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        for item in value:
+            if isinstance(item, str) and item.strip():
+                return item.strip()
+    return None
+
+
+def _string_tuple(value: Any) -> tuple[str, ...]:
+    if isinstance(value, str):
+        return (value.strip(),) if value.strip() else ()
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return tuple(str(item).strip() for item in value if str(item).strip())
+    return ()
+
+
+def _whole_eur(value: Any, currency: Any) -> int | None:
+    if value in (None, "") or str(currency).upper() != "EUR":
+        return None
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return None
+    if not amount.is_finite() or amount < 0 or amount != amount.to_integral_value():
+        return None
+    return int(amount)
+
+
+def _source_url(value: Any, notice_id: str) -> str:
+    if isinstance(value, Mapping):
+        for key in ("html", "xml", "pdf"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate.startswith("https://"):
+                return candidate
+    return f"https://ted.europa.eu/en/notice/-/detail/{notice_id}"
 
 
 def canonicalize_ted_notice(notice: Mapping[str, Any]) -> dict[str, Any]:
-    """Convert one field-projected TED notice into the canonical ingest field shape."""
+    unexpected = set(notice) - set(TED_PROJECTED_FIELDS)
+    if unexpected:
+        names = ", ".join(sorted(unexpected))
+        raise TedContractError(f"TED notice returned non-projected fields: {names}")
 
-    safe = _validate_notice_shape(notice)
-    publication_number = _text(safe.get("publication-number"))
-    publication_date = _text(safe.get("publication-date"))
-    title = _text(safe.get("notice-title"))
-    if publication_number is None:
-        raise TedContractError("TED notice lacks publication-number")
-    if publication_date is None:
-        raise TedContractError("TED notice lacks publication-date")
-    if title is None:
-        raise TedContractError("TED notice lacks notice-title")
+    notice_id = _first_scalar(notice.get("publication-number"))
+    publication_date = _first_scalar(notice.get("publication-date"))
+    title = _first_text(notice.get("notice-title"))
+    if not notice_id or not publication_date or not title:
+        raise TedContractError("TED notice lacks required projected identity/date/title")
+
+    estimated_value_eur = _whole_eur(
+        notice.get("estimated-value-proc"), notice.get("estimated-value-cur-proc")
+    )
+    nuts_codes = _string_tuple(notice.get("place-of-performance-subdiv-proc"))
+    references = _string_tuple(notice.get("eu-funds-identifier"))
 
     return {
-        "notice_id": publication_number,
+        "notice_id": notice_id,
         "publication_date": publication_date,
         "award_date": None,
         "contract_date": None,
         "title": title,
-        "scope_description": _text(safe.get("description-proc"), join=True),
-        "cpv_codes": _codes(safe.get("classification-cpv")),
-        "contract_nature": _text(safe.get("contract-nature"), join=True),
-        "procedure_type": _text(safe.get("procedure-type"), join=True),
-        "procedure_value_eur": None,
-        "estimated_value_eur": _eur_integer_amount(
-            safe.get("estimated-value-proc"), safe.get("estimated-value-cur-proc")
-        ),
+        "scope_description": _first_text(notice.get("description-proc")),
+        "cpv_codes": _string_tuple(notice.get("classification-cpv")),
+        "contract_nature": _first_scalar(notice.get("contract-nature")),
+        "procedure_type": _first_scalar(notice.get("procedure-type")),
+        "procedure_value_eur": estimated_value_eur,
+        "estimated_value_eur": estimated_value_eur,
         "base_value_eur": None,
         "awarded_value_eur": None,
         "place_of_performance": None,
-        "nuts_code": _text(safe.get("place-of-performance-subdiv-proc"), join=True),
+        "nuts_code": nuts_codes[0] if nuts_codes else None,
         "municipality": None,
-        "project_reference": _project_reference(safe),
-        "source_url": f"https://ted.europa.eu/en/notice/-/detail/{publication_number}",
+        "project_reference": references[0] if references else None,
+        "source_url": _source_url(notice.get("links"), notice_id),
     }
 
 
-def _validate_page_size(page_size: int) -> None:
-    if not 1 <= page_size <= TED_MAX_PAGE_SIZE:
-        raise ValueError(f"page_size must be between 1 and {TED_MAX_PAGE_SIZE}")
-    effective_fields = set(TED_PROJECTED_FIELDS) | {"links"}
-    if len(effective_fields) * page_size > TED_FIELD_CELL_LIMIT:
-        raise ValueError("TED field projection exceeds the per-page field-cell limit")
-
-
-def _parse_envelope(response: httpx.Response) -> Mapping[str, Any]:
-    content_type = response.headers.get("content-type", "")
-    if "application/json" not in content_type.lower():
-        raise TedTransportError("TED search returned a non-JSON content type")
+def _parse_envelope(response: httpx.Response) -> dict[str, Any]:
+    content_type = response.headers.get("content-type", "").lower()
+    if "application/json" not in content_type:
+        raise TedContractError("TED response is not JSON")
     try:
         body = response.json()
     except ValueError as exc:
-        raise TedTransportError("TED search returned invalid JSON") from exc
-    if not isinstance(body, Mapping):
-        raise TedContractError("TED search response must be a JSON object")
+        raise TedContractError("TED response body is invalid JSON") from exc
+    if not isinstance(body, dict):
+        raise TedContractError("TED response envelope must be an object")
     unexpected = set(body) - TED_RESPONSE_FIELDS
     if unexpected:
         names = ", ".join(sorted(unexpected))
@@ -194,6 +201,37 @@ def _parse_envelope(response: httpx.Response) -> Mapping[str, Any]:
     if not isinstance(body["notices"], list):
         raise TedContractError("TED notices must be a JSON array")
     return body
+
+
+def _post_with_throttle_retry(
+    http: httpx.Client,
+    payload: dict[str, Any],
+    *,
+    sleep: Any = time.sleep,
+) -> httpx.Response:
+    """Retry bounded TED throttling/transient gateway failures; otherwise fail closed."""
+    for retry in range(TED_MAX_THROTTLE_RETRIES + 1):
+        try:
+            response = http.post(TED_SEARCH_URL, json=payload)
+        except httpx.HTTPError as exc:
+            raise TedTransportError("TED search HTTP request failed") from exc
+        if response.status_code not in TED_TRANSIENT_HTTP_STATUSES:
+            try:
+                response.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise TedTransportError("TED search HTTP request failed") from exc
+            return response
+        if retry == TED_MAX_THROTTLE_RETRIES:
+            raise TedTransportError(
+                f"TED search remained unavailable after bounded retries: HTTP {response.status_code}"
+            )
+        retry_after = response.headers.get("retry-after")
+        delay = TED_THROTTLE_BACKOFF_SECONDS * (2**retry)
+        if retry_after is not None:
+            with suppress(ValueError):
+                delay = max(delay, float(retry_after))
+        sleep(delay)
+    raise AssertionError("unreachable")
 
 
 def collect_ted_notices(
@@ -237,11 +275,7 @@ def collect_ted_notices(
             if token is not None:
                 payload["iterationNextToken"] = token
 
-            try:
-                response = http.post(TED_SEARCH_URL, json=payload)
-                response.raise_for_status()
-            except httpx.HTTPError as exc:
-                raise TedTransportError("TED search HTTP request failed") from exc
+            response = _post_with_throttle_retry(http, payload)
 
             body = _parse_envelope(response)
             if body["timedOut"] is not False:
@@ -270,24 +304,27 @@ def collect_ted_notices(
                     stop_reason="complete" if complete else "count_mismatch",
                 )
 
-            page_records = [canonicalize_ted_notice(notice) for notice in notices]
-            for record in page_records:
-                notice_id = str(record["notice_id"])
-                if notice_id in seen_publications:
-                    raise TedContractError(f"duplicate TED publication-number: {notice_id}")
-                seen_publications.add(notice_id)
-            records.extend(page_records)
+            for raw_notice in notices:
+                if not isinstance(raw_notice, Mapping):
+                    raise TedContractError("TED notice must be an object")
+                canonical = canonicalize_ted_notice(raw_notice)
+                publication_key = f"{canonical['notice_id']}|{canonical['publication_date']}"
+                if publication_key in seen_publications:
+                    continue
+                seen_publications.add(publication_key)
+                records.append(canonical)
 
-            output_token = body.get("iterationNextToken")
-            if not isinstance(output_token, str) or not output_token:
+            next_token = body.get("iterationNextToken")
+            if not isinstance(next_token, str) or not next_token:
+                complete = first_total is None or len(records) == first_total
                 return TedCollectionResult(
                     records=tuple(records),
                     total_notice_count=first_total,
                     pages_fetched=page_number,
-                    complete=False,
-                    stop_reason="missing_iteration_token",
+                    complete=complete,
+                    stop_reason="complete" if complete else "missing_iteration_token",
                 )
-            token = output_token
+            token = next_token
 
         return TedCollectionResult(
             records=tuple(records),

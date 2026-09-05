@@ -8,14 +8,10 @@ import io
 import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_DOWN, Decimal, InvalidOperation
 from typing import Final
-from urllib.parse import urlparse
-
-import httpx
 
 from procrun.domain import FundingProject, TemporalProvenance
-from procrun.source_contracts import require_live_source
 
 OPENCOESIONE_SOURCE_ID: Final = "opencoesione_2021_2027_operations"
 OPENCOESIONE_PROGRAM_URL: Final = (
@@ -23,30 +19,34 @@ OPENCOESIONE_PROGRAM_URL: Final = (
     "beneficiari_PR_FESR_LOMBARDIA.zip"
 )
 
+# Frozen from the live official PR FESR Lombardia 2021-2027 CSV on 2026-09-04.
+# Exact names and exact order are intentional: any subsequent change fails before row admission.
 EXPECTED_HEADERS: Final[tuple[str, ...]] = (
-    "Fondo/Fund",
-    "Obiettivo Specifico/Specific Objective",
-    "Codice locale progetto/Local identifier of operation",
-    "Codice Unico Progetto/Unique project code",
-    "Codice fiscale Beneficiario/Beneficiary fiscal code",
-    "Nome Beneficiario/Beneficiary name",
-    "Denominazione operazione/Operation name",
-    "Sintesi operazione/Operation summary",
-    "Data inizio operazione/Operation start date",
-    "Data fine operazione/Operation end date",
-    "Costo Totale/Total cost",
-    "Spesa ammissibile/Eligible expenditure",
-    "Tasso di cofinanziamento UE/EU co-financing rate",
-    "CAP/Postcode",
-    "Paese/Country",
-    "Categoria di operazione/Category of intervention",
-    "Data aggiornamento elenco operazioni/Date of last update of the list of operations",
+    "CodiceProgramma_ProgrammeID",
+    "Programma_Programme",
+    "CodiceLocaleProgetto_OperationLocalIdentifier",
+    "CodiceUnicoProgetto_UniqueProjectCode",
+    "TitoloProgetto_OperationName",
+    "SintesiProgetto_OperationSummary",
+    "DataAggiornamento_LastUpdate",
+    "CodiceFiscaleBeneficiario_BeneficiaryTaxCode",
+    "NomeBeneficiario_BeneficiaryName",
+    "CostoTotale_TotalCost",
+    "CostoAmmesso_TotalEligibleExpenditure",
+    "Fondo_Fund",
+    "Ciclo_Period",
+    "CategoriaOperazione_CategoryIntervention",
+    "ObiettivoSpecifico_SpecificObjective",
+    "DataInizioOperazione_OperationStartDate",
+    "DataFineOperazione_OperationEndDate",
+    "TassoCofinanziamentoUE_EUCofinancingRate",
+    "Paese_Country",
+    "CodicePostale_Postcode",
 )
-
 SOURCE_ONLY_HEADERS: Final[frozenset[str]] = frozenset(
     {
-        "Codice fiscale Beneficiario/Beneficiary fiscal code",
-        "Nome Beneficiario/Beneficiary name",
+        "CodiceFiscaleBeneficiario_BeneficiaryTaxCode",
+        "NomeBeneficiario_BeneficiaryName",
     }
 )
 ADMITTED_HEADERS: Final[frozenset[str]] = frozenset(EXPECTED_HEADERS) - SOURCE_ONLY_HEADERS
@@ -118,13 +118,17 @@ def _parse_decimal(value: str, *, field: str) -> Decimal | None:
     return parsed
 
 
-def _whole_euros(value: Decimal | None) -> int | None:
+def _conservative_whole_euros(value: Decimal | None) -> int | None:
+    """Map source euro amounts to the v1 whole-euro domain without overstating funding.
+
+    OpenCoesione publishes cent precision while the frozen v1 FundingProject contract stores
+    whole euros. Until that contract is versioned for decimal money, truncate only sub-euro cents
+    toward zero. The exact source payload remains hash-anchored; this derived field can therefore
+    never exceed the published eligible expenditure.
+    """
     if value is None:
         return None
-    integral = value.to_integral_value()
-    if integral != value:
-        raise OpenCoesioneRowError(f"funding value is not whole-euro compatible: {value!r}")
-    return int(integral)
+    return int(value.to_integral_value(rounding=ROUND_DOWN))
 
 
 def _extract_single_csv(payload: bytes) -> bytes:
@@ -137,7 +141,9 @@ def _extract_single_csv(payload: bytes) -> bytes:
                 )
             return archive.read(members[0])
     except zipfile.BadZipFile as exc:
-        raise OpenCoesioneSchemaError("approved route did not return a valid ZIP archive") from exc
+        raise OpenCoesioneSchemaError(
+            "approved route did not return a valid ZIP archive"
+        ) from exc
 
 
 def parse_operation_list_zip(payload: bytes, *, source_url: str) -> OpenCoesioneBatch:
@@ -146,36 +152,40 @@ def parse_operation_list_zip(payload: bytes, *, source_url: str) -> OpenCoesione
         csv_text = _extract_single_csv(payload).decode("utf-8-sig")
     except UnicodeDecodeError as exc:
         raise OpenCoesioneSchemaError("operation-list CSV is not UTF-8") from exc
-
     reader = csv.DictReader(io.StringIO(csv_text), delimiter=";")
     if reader.fieldnames is None:
         raise OpenCoesioneSchemaError("operation-list CSV has no header row")
     actual_headers = tuple(header.strip() for header in reader.fieldnames)
     if actual_headers != EXPECTED_HEADERS:
-        missing = [header for header in EXPECTED_HEADERS if header not in actual_headers]
-        unexpected = [header for header in actual_headers if header not in EXPECTED_HEADERS]
+        missing = [h for h in EXPECTED_HEADERS if h not in actual_headers]
+        unexpected = [h for h in actual_headers if h not in EXPECTED_HEADERS]
         raise OpenCoesioneSchemaError(
             "OpenCoesione schema drift detected before row admission; "
             f"missing={missing!r}, unexpected={unexpected!r}, order_changed="
             f"{not missing and not unexpected and actual_headers != EXPECTED_HEADERS}"
         )
-
     staged: list[OpenCoesioneOperation] = []
     updates: set[date] = set()
     for row_number, row in enumerate(reader, start=2):
         if None in row or set(row) != set(EXPECTED_HEADERS):
             raise OpenCoesioneSchemaError(f"row {row_number} violates frozen schema")
-        operation_id = row["Codice locale progetto/Local identifier of operation"].strip()
-        operation_name = row["Denominazione operazione/Operation name"].strip()
-        operation_summary = row["Sintesi operazione/Operation summary"].strip()
-        if not operation_id or not operation_name or not operation_summary:
+        operation_id = row["CodiceLocaleProgetto_OperationLocalIdentifier"].strip()
+        operation_name = row["TitoloProgetto_OperationName"].strip()
+        operation_summary = row["SintesiProgetto_OperationSummary"].strip()
+        if not operation_id:
             raise OpenCoesioneRowError(
-                f"row {row_number} lacks operation id/name/summary; whole batch rejected"
+                f"row {row_number} lacks operation id; whole batch rejected"
             )
+        if not operation_name and not operation_summary:
+            raise OpenCoesioneRowError(
+                f"row {row_number} lacks both operation name and summary; whole batch rejected"
+            )
+        if not operation_name:
+            operation_name = operation_summary
+        if not operation_summary:
+            operation_summary = operation_name
         updated_on = _parse_date(
-            row[
-                "Data aggiornamento elenco operazioni/Date of last update of the list of operations"
-            ],
+            row["DataAggiornamento_LastUpdate"],
             field="list_updated_on",
             required=True,
         )
@@ -184,40 +194,45 @@ def parse_operation_list_zip(payload: bytes, *, source_url: str) -> OpenCoesione
         staged.append(
             OpenCoesioneOperation(
                 operation_id=operation_id,
-                cup=row["Codice Unico Progetto/Unique project code"].strip() or None,
+                cup=row["CodiceUnicoProgetto_UniqueProjectCode"].strip() or None,
                 operation_name=operation_name,
                 operation_summary=operation_summary,
                 start_date=_parse_date(
-                    row["Data inizio operazione/Operation start date"], field="start_date"
+                    row["DataInizioOperazione_OperationStartDate"], field="start_date"
                 ),
                 end_date=_parse_date(
-                    row["Data fine operazione/Operation end date"], field="end_date"
+                    row["DataFineOperazione_OperationEndDate"], field="end_date"
                 ),
-                total_cost_eur=_parse_decimal(row["Costo Totale/Total cost"], field="total_cost"),
+                total_cost_eur=_parse_decimal(
+                    row["CostoTotale_TotalCost"], field="total_cost"
+                ),
                 eligible_expenditure_eur=_parse_decimal(
-                    row["Spesa ammissibile/Eligible expenditure"], field="eligible_expenditure"
+                    row["CostoAmmesso_TotalEligibleExpenditure"],
+                    field="eligible_expenditure",
                 ),
                 eu_cofinancing_rate=_parse_decimal(
-                    row["Tasso di cofinanziamento UE/EU co-financing rate"],
+                    row["TassoCofinanziamentoUE_EUCofinancingRate"],
                     field="eu_cofinancing_rate",
                 ),
-                fund=row["Fondo/Fund"].strip() or None,
-                specific_objective=row["Obiettivo Specifico/Specific Objective"].strip() or None,
-                postcode=row["CAP/Postcode"].strip() or None,
-                country=row["Paese/Country"].strip() or None,
+                fund=row["Fondo_Fund"].strip() or None,
+                specific_objective=row["ObiettivoSpecifico_SpecificObjective"].strip()
+                or None,
+                postcode=row["CodicePostale_Postcode"].strip() or None,
+                country=row["Paese_Country"].strip() or None,
                 intervention_category=row[
-                    "Categoria di operazione/Category of intervention"
+                    "CategoriaOperazione_CategoryIntervention"
                 ].strip()
                 or None,
                 list_updated_on=updated_on,
                 source_url=source_url,
             )
         )
-
     if not staged:
         raise OpenCoesioneRowError("operation-list CSV contains no data rows")
     if len(updates) != 1:
-        raise OpenCoesioneRowError("programme list update date is not uniform across the batch")
+        raise OpenCoesioneRowError(
+            "programme list update date is not uniform across the batch"
+        )
     return OpenCoesioneBatch(
         operations=tuple(staged),
         observed_at=datetime.now(timezone.utc),
@@ -233,13 +248,15 @@ def to_funding_projects(batch: OpenCoesioneBatch) -> tuple[FundingProject, ...]:
     for operation in batch.operations:
         projects.append(
             FundingProject(
-                operation_code=operation.operation_id,
+                operation_code=operation.cup or operation.operation_id,
                 first_seen_at=batch.observed_at,
                 temporal_provenance=TemporalProvenance.RESOLVED,
                 project_title=operation.operation_name,
                 project_start=operation.start_date,
                 project_end=operation.end_date,
-                approved_funding_eur=_whole_euros(operation.eligible_expenditure_eur),
+                approved_funding_eur=_conservative_whole_euros(
+                    operation.eligible_expenditure_eur
+                ),
                 executed_funding_eur=None,
                 project_scope_text=operation.operation_summary,
                 fund=operation.fund,
@@ -248,49 +265,8 @@ def to_funding_projects(batch: OpenCoesioneBatch) -> tuple[FundingProject, ...]:
                 theme=operation.intervention_category,
                 region="Lombardia",
                 municipality=None,
-                nuts_code=None,
+                nuts_code="ITC4",
                 source_url=operation.source_url,
             )
         )
     return tuple(projects)
-
-
-def _validate_final_url(url: str) -> None:
-    expected = urlparse(OPENCOESIONE_PROGRAM_URL)
-    actual = urlparse(url)
-    if (actual.scheme, actual.hostname, actual.path) != (
-        expected.scheme,
-        expected.hostname,
-        expected.path,
-    ):
-        raise OpenCoesioneSchemaError(f"approved source redirected outside frozen route: {url}")
-
-
-def collect_open_coesione(
-    *, client: httpx.Client | None = None, timeout_seconds: float = 60.0
-) -> OpenCoesioneBatch:
-    """Fetch the frozen PR FESR Lombardia route and fail closed on transport/schema drift."""
-    contract = require_live_source(OPENCOESIONE_SOURCE_ID)
-    if OPENCOESIONE_PROGRAM_URL not in contract.retrieval_route:
-        raise OpenCoesioneSchemaError("runtime source contract does not pin the pilot route")
-    owns_client = client is None
-    active_client = client or httpx.Client(
-        timeout=timeout_seconds,
-        follow_redirects=True,
-        headers={"User-Agent": "ProcRun/0.1 public-open-data-ingest"},
-    )
-    try:
-        response = active_client.get(OPENCOESIONE_PROGRAM_URL)
-        response.raise_for_status()
-        _validate_final_url(str(response.url))
-        content_type = response.headers.get("content-type", "").lower()
-        if not any(token in content_type for token in ("zip", "octet-stream")):
-            raise OpenCoesioneSchemaError(
-                f"unexpected content type for approved ZIP route: {content_type or '<missing>'}"
-            )
-        if not response.content:
-            raise OpenCoesioneSchemaError("approved ZIP route returned an empty response")
-        return parse_operation_list_zip(response.content, source_url=str(response.url))
-    finally:
-        if owns_client:
-            active_client.close()

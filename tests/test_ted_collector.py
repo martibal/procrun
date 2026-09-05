@@ -6,6 +6,8 @@ import pytest
 from procrun.collectors.ted import (
     TED_PROJECTED_FIELDS,
     TedContractError,
+    TedTransportError,
+    _post_with_throttle_retry,
     canonicalize_ted_notice,
     collect_ted_notices,
 )
@@ -195,3 +197,122 @@ def test_fractional_eur_value_is_not_silently_rounded() -> None:
     )
 
     assert canonical["estimated_value_eur"] is None
+
+
+def test_throttle_retry_reuses_identical_request_and_then_succeeds() -> None:
+    calls: list[bytes] = []
+    statuses = [429, 429, 200]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.content)
+        status = statuses.pop(0)
+        if status == 429:
+            return httpx.Response(status, headers={"retry-after": "0"}, request=request)
+        return httpx.Response(
+            status,
+            json={"notices": [], "timedOut": False},
+            headers={"content-type": "application/json"},
+            request=request,
+        )
+
+    sleeps: list[float] = []
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = _post_with_throttle_retry(
+            client, {"query": "buyer-country=ITA"}, sleep=sleeps.append
+        )
+
+    assert result.status_code == 200
+    assert len(calls) == 3
+    assert calls[0] == calls[1] == calls[2]
+    assert sleeps == [2.0, 4.0]
+
+
+def test_transient_gateway_retry_reuses_identical_request_and_then_succeeds() -> None:
+    calls: list[bytes] = []
+    statuses = [502, 503, 504, 200]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.content)
+        status = statuses.pop(0)
+        if status != 200:
+            return httpx.Response(status, request=request)
+        return httpx.Response(
+            status,
+            json={"notices": [], "timedOut": False},
+            headers={"content-type": "application/json"},
+            request=request,
+        )
+
+    sleeps: list[float] = []
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = _post_with_throttle_retry(
+            client, {"query": "buyer-country=ITA"}, sleep=sleeps.append
+        )
+
+    assert result.status_code == 200
+    assert len(calls) == 4
+    assert calls[0] == calls[1] == calls[2] == calls[3]
+    assert sleeps == [2.0, 4.0, 8.0]
+
+
+def test_non_transient_http_error_remains_immediate_fail_closed() -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(500, request=request)
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(TedTransportError, match="HTTP request failed"),
+    ):
+        _post_with_throttle_retry(
+            client,
+            {"query": "buyer-country=ITA"},
+            sleep=lambda _: None,
+        )
+
+    assert calls == 1
+
+
+def test_throttle_retry_exhaustion_remains_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import procrun.collectors.ted as ted_module
+
+    monkeypatch.setattr(ted_module, "TED_MAX_THROTTLE_RETRIES", 2)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, request=request)
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(TedTransportError, match="remained unavailable"),
+    ):
+        _post_with_throttle_retry(
+            client,
+            {"query": "buyer-country=ITA"},
+            sleep=lambda _: None,
+        )
+
+
+def test_gateway_retry_exhaustion_remains_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import procrun.collectors.ted as ted_module
+
+    monkeypatch.setattr(ted_module, "TED_MAX_THROTTLE_RETRIES", 2)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(502, request=request)
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(TedTransportError, match="HTTP 502"),
+    ):
+        _post_with_throttle_retry(
+            client,
+            {"query": "buyer-country=ITA"},
+            sleep=lambda _: None,
+        )

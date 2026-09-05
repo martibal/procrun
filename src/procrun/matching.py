@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 
+from procrun.coverage import ted_open_wording
 from procrun.domain import (
     ComponentAssessment,
     ComponentState,
@@ -132,8 +133,6 @@ def evaluate_candidate(candidate: MatchCandidate, cutoff_date: date) -> Candidat
         disposition = CandidateDisposition.REJECTED
         reason = "procurement evidence is after the historical cutoff"
     elif tier in {MatchTier.A, MatchTier.B} and not _has_exact_evidence(candidate.evidence):
-        # REVIEW rather than REJECTED is deliberate. An otherwise strong candidate lacking the
-        # customer-verifiable source span must suppress OPEN until its evidence is resolved.
         disposition = CandidateDisposition.REVIEW
         reason = "Tier A/B structural facts lack the required exact source span"
     elif tier in {MatchTier.A, MatchTier.B}:
@@ -211,8 +210,7 @@ def classify_component(
         evidence_ids = ()
     else:
         state = ComponentState.OPEN
-        as_of = cutoff_date.isoformat()
-        rationale = f"No relevant procurement found in approved indexed sources as of {as_of}."
+        rationale = ted_open_wording(cutoff_date)
         evidence_ids = ()
 
     return ComponentMatchResult(
