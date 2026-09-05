@@ -23,6 +23,7 @@ TED_MAX_PAGE_SIZE = 250
 TED_FIELD_CELL_LIMIT = 10_000
 TED_MAX_THROTTLE_RETRIES = 5
 TED_THROTTLE_BACKOFF_SECONDS = 2.0
+TED_TRANSIENT_HTTP_STATUSES = frozenset({429, 502, 503, 504})
 
 # Frozen production subset of scripts/qualify_ted_foundation.py SAFE_FIELDS.
 # Deliberately excluded until separately qualified for the intelligence plane:
@@ -208,20 +209,22 @@ def _post_with_throttle_retry(
     *,
     sleep: Any = time.sleep,
 ) -> httpx.Response:
-    """Retry only explicit TED throttling; all other transport failures remain immediate/fail-closed."""
+    """Retry bounded TED throttling/transient gateway failures; otherwise fail closed."""
     for retry in range(TED_MAX_THROTTLE_RETRIES + 1):
         try:
             response = http.post(TED_SEARCH_URL, json=payload)
         except httpx.HTTPError as exc:
             raise TedTransportError("TED search HTTP request failed") from exc
-        if response.status_code != 429:
+        if response.status_code not in TED_TRANSIENT_HTTP_STATUSES:
             try:
                 response.raise_for_status()
             except httpx.HTTPError as exc:
                 raise TedTransportError("TED search HTTP request failed") from exc
             return response
         if retry == TED_MAX_THROTTLE_RETRIES:
-            raise TedTransportError("TED search remained throttled after bounded retries")
+            raise TedTransportError(
+                f"TED search remained unavailable after bounded retries: HTTP {response.status_code}"
+            )
         retry_after = response.headers.get("retry-after")
         delay = TED_THROTTLE_BACKOFF_SECONDS * (2**retry)
         if retry_after is not None:
