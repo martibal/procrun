@@ -227,7 +227,9 @@ def test_throttle_retry_reuses_identical_request_and_then_succeeds() -> None:
     assert sleeps == [2.0, 4.0]
 
 
-def test_throttle_retry_exhaustion_remains_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_throttle_retry_exhaustion_remains_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     import procrun.collectors.ted as ted_module
 
     monkeypatch.setattr(ted_module, "TED_MAX_THROTTLE_RETRIES", 2)
@@ -235,6 +237,12 @@ def test_throttle_retry_exhaustion_remains_fail_closed(monkeypatch: pytest.Monke
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(429, request=request)
 
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(TedTransportError, match="remained throttled"):
-            _post_with_throttle_retry(client, {"query": "buyer-country=ITA"}, sleep=lambda _: None)
+    with (
+        httpx.Client(transport=httpx.MockTransport(handler)) as client,
+        pytest.raises(TedTransportError, match="remained throttled"),
+    ):
+        _post_with_throttle_retry(
+            client,
+            {"query": "buyer-country=ITA"},
+            sleep=lambda _: None,
+        )

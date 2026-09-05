@@ -140,7 +140,7 @@ systemctl enable --now postgresql
 install -d -o procrun -g procrun -m 0750 /opt/procrun
 install -d -o procrun -g procrun -m 0750 /var/lib/procrun
 install -d -o procrun -g procrun -m 0750 /var/lib/procrun/published
-install -d -o root -g procrun -m 0750 /var/backups/procrun
+install -d -o root -g postgres -m 0750 /var/backups/procrun
 install -d -o root -g procrun -m 0750 /etc/procrun
 
 if [ ! -s /etc/procrun/procrun.env ]; then
@@ -181,6 +181,8 @@ ufw --force enable
 install -d -o procrun -g procrun -m 0750 "$RELEASE"
 tar -xzf /tmp/procrun-release.tar.gz -C "$RELEASE"
 rm -f /tmp/procrun-release.tar.gz
+# Defense in depth for deployments initiated from Windows: shell scripts must be LF on Linux.
+find "$RELEASE" -type f -name '*.sh' -exec sed -i 's/\r$//' {} +
 python3 -m venv /opt/procrun/venv
 /opt/procrun/venv/bin/python -m pip install --upgrade pip
 /opt/procrun/venv/bin/python -m pip install -c "$RELEASE/requirements-runtime.lock" -e "$RELEASE"

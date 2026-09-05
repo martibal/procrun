@@ -5,10 +5,11 @@ qualified live. Fields that were not part of that frozen qualification are not r
 because TED can return them.
 """
 
+import time
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-import time
 from typing import Any
 
 import httpx
@@ -224,10 +225,8 @@ def _post_with_throttle_retry(
         retry_after = response.headers.get("retry-after")
         delay = TED_THROTTLE_BACKOFF_SECONDS * (2**retry)
         if retry_after is not None:
-            try:
+            with suppress(ValueError):
                 delay = max(delay, float(retry_after))
-            except ValueError:
-                pass
         sleep(delay)
     raise AssertionError("unreachable")
 
@@ -288,7 +287,9 @@ def collect_ted_notices(
             total = body.get("totalNoticeCount")
             if first_total is None and total is not None:
                 if not isinstance(total, int) or isinstance(total, bool) or total < 0:
-                    raise TedContractError("TED totalNoticeCount must be a non-negative integer")
+                    raise TedContractError(
+                        "TED totalNoticeCount must be a non-negative integer"
+                    )
                 first_total = total
 
             notices = body["notices"]
@@ -306,7 +307,9 @@ def collect_ted_notices(
                 if not isinstance(raw_notice, Mapping):
                     raise TedContractError("TED notice must be an object")
                 canonical = canonicalize_ted_notice(raw_notice)
-                publication_key = f"{canonical['notice_id']}|{canonical['publication_date']}"
+                publication_key = (
+                    f"{canonical['notice_id']}|{canonical['publication_date']}"
+                )
                 if publication_key in seen_publications:
                     continue
                 seen_publications.add(publication_key)

@@ -6,7 +6,9 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 BACKUP="$BACKUP_DIR/procrun-$STAMP.dump"
 RESTORE_DB="procrun_restore_${STAMP//[^0-9]/}"
 
-install -d -o root -g procrun -m 0750 "$BACKUP_DIR"
+# The backup service runs as root, while pg_dump/pg_restore run as the local postgres user.
+# Keep the directory non-public but traversable/readable by postgres for restore verification.
+install -d -o root -g postgres -m 0750 "$BACKUP_DIR"
 
 as_postgres() {
   runuser -u postgres -- "$@"
@@ -17,8 +19,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-as_postgres pg_dump --format=custom --no-owner --no-acl --file="$BACKUP" procrun
-chown root:procrun "$BACKUP"
+# Root owns the shell redirection, so postgres does not need directory write permission.
+as_postgres pg_dump --format=custom --no-owner --no-acl procrun > "$BACKUP"
+chown root:postgres "$BACKUP"
 chmod 0640 "$BACKUP"
 
 test -s "$BACKUP"
