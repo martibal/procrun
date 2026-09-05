@@ -1,120 +1,87 @@
 # ProcRun production runtime
 
-Status: **IMPLEMENTED IN REPOSITORY; LIVE HOST ACCEPTANCE REQUIRED BEFORE A20 WEB BUILD GO**
+Status: **LIVE HOST ACCEPTED — NON-WEB PRODUCTION RUNTIME PASS**
 
 ## Purpose
 
-The production runtime exists only to execute the non-web delivery chain:
+The production runtime executes only the intelligence delivery chain:
 
-`OpenCoesione -> canonical FundingProject -> TED projected search -> deterministic runway -> append-only ledger -> customer-safe JSONL`
+`OpenCoesione -> FundingProject -> TED projected search -> deterministic runway -> append-only ledger -> customer-safe JSONL`
 
-It exposes no ProcRun application port. PostgreSQL is bound to loopback only. The web layer is not installed or served by this runtime.
+It exposes no ProcRun customer application port. PostgreSQL is bound to loopback only. The customer web/control plane is a separate phase.
 
-## Approved target
-
-The current target is a dedicated Hetzner Cloud EU VPS under the already-approved `hetzner_cloud` compliance service. It must not share Urd Atlas/Trendanalytics infrastructure.
-
-Default provisioning target:
+## Accepted target
 
 - server: `procrun-prod`
-- type: `cx33`
+- Hetzner server id: `164569825`
 - location: `hel1`
-- image: `ubuntu-24.04`
+- image: Ubuntu 24.04
 - provider daily backups: enabled
-- local logical PostgreSQL backup: daily, restore-verified
+- local logical PostgreSQL backup: daily and restore-verified
 
-The server type/location may not silently fall back to another target after a capacity or provisioning error. Any change requires an explicit repository decision and the same compliance/runtime acceptance.
+The runtime is dedicated to ProcRun and does not share Urd Atlas/Trendanalytics infrastructure.
 
-## Provisioning
+## Live acceptance evidence
 
-Run from a clean committed ProcRun checkout:
+The first complete accepted production run completed on 2026-09-04/05 and produced:
 
-```powershell
-$env:HCLOUD_TOKEN = "<token in current shell only>"
-.\scripts\provision_production_server.ps1 -SshKey "<existing Hetzner SSH key name>"
-```
+- 4,631 funded projects;
+- 176,540 TED records across 708 complete pages;
+- 81 projects with components / published projects;
+- 37 useful/resolved projects;
+- 44 safely unresolved projects;
+- customer-safe JSONL at `/var/lib/procrun/published/runway.jsonl`;
+- PostgreSQL run manifest;
+- clean oneshot service completion.
 
-The token is never written into Git or copied to the production server.
-
-The provisioning script:
-
-1. runs the repository Hetzner compliance gate;
-2. refuses duplicate server names;
-3. creates the exact configured server without automatic type/location fallback;
-4. enables Hetzner daily backups;
-5. uploads a `git archive` of the exact clean commit, so the server needs no GitHub credential;
-6. waits for cloud-init;
-7. creates the Python runtime and installs pinned dependencies;
-8. installs systemd delivery/backup units;
-9. executes the first real live delivery run;
-10. requires a non-empty customer-safe JSONL output and at least one run manifest;
-11. executes a PostgreSQL logical backup and restores it into a scratch database;
-12. verifies no unexpected public TCP listener exists;
-13. enables recurring timers only after all preceding checks pass.
-
-Any failed step leaves A20 blocked. A created server is never treated as successful merely because infrastructure exists.
+The accepted live run was generated before later non-semantic operations/type housekeeping. The final delivery runtime code was subsequently promoted to commit `51c0071fe20011bb407d50c1df63a9d35ef68e76` without re-running TED; that commit had green delivery CI before promotion.
 
 ## Live delivery fail-closed rules
 
-The production delivery command is:
+The production command is:
 
 ```bash
-/opt/procrun/venv/bin/python scripts/run_live_delivery.py \
-  --output /var/lib/procrun/published/runway.jsonl
+/opt/procrun/venv/bin/python scripts/run_live_delivery.py --output /var/lib/procrun/published/runway.jsonl
 ```
 
-It fails without publishing a new output if any of these conditions occur:
+A new publication fails closed if OpenCoesione transport/schema validation fails, the funded-project batch is empty, TED retrieval is incomplete, evidence/read-model invariants fail, the append-only ledger write fails, or real sources produce zero resolved customer runway projects.
 
-- OpenCoesione transport/redirect/content/schema validation fails;
-- the OpenCoesione batch is empty;
-- TED projected search fails;
-- TED ITERATION does not complete or its returned count does not reconcile;
-- a source or evidence object violates its allowlist/domain invariant;
-- the append-only ledger write fails;
-- real sources produce zero resolved customer runway projects.
-
-`OPEN` is valid only when the TED universe is complete and is rendered exactly as:
+`OPEN` is valid only with complete TED coverage and is rendered exactly as:
 
 > **No relevant procurement found in TED as of DATE.**
 
-No live result claims absence outside TED.
+## Persistence and network boundary
 
-## Persistence
+PostgreSQL listens on `127.0.0.1:5432`. The verified listener check showed only PostgreSQL loopback, local system DNS and public SSH/22; no ProcRun database/application listener was publicly exposed.
 
-PostgreSQL is local to the dedicated runtime and listens only on `127.0.0.1`. The generated database password exists only in `/etc/procrun/procrun.env` with root/procrun group access.
-
-The ledger remains append-only and stores source/version provenance, canonical projects/components/evidence, component/project assessments and run manifests. Browser code never connects directly to this database.
+Database secrets remain outside Git in the production environment. Browser code must never connect directly to the intelligence database.
 
 ## Backup and restore
 
-Two recovery paths are required:
+Two recovery paths are active:
 
-1. Hetzner automatic daily server backups;
-2. daily logical `pg_dump` files under `/var/backups/procrun`.
+1. Hetzner provider backup;
+2. logical `pg_dump` under `/var/backups/procrun`.
 
-Every logical backup is immediately restored into a temporary database and checked for the ProcRun migration ledger. A backup job that cannot restore is a failed backup job.
-
-The local logical retention is 14 days. Provider backup retention follows the active Hetzner seven-slot backup service.
+The logical backup service has completed a real scratch restore verification with `restore_verified=true`. Local logical retention is 14 days.
 
 ## Timers
 
-- verified logical backup: daily at 03:30 UTC plus up to five minutes randomized delay;
-- live delivery: daily at 06:15 UTC plus up to five minutes randomized delay.
+Both timers are enabled and active:
 
-Timers are persistent and are enabled only after the first live production acceptance succeeds.
+- logical backup: daily 03:30 UTC plus up to five minutes randomized delay;
+- live delivery: daily 06:15 UTC plus up to five minutes randomized delay.
 
-## Acceptance evidence required before A20 GO
+The verified next schedules after activation were 2026-09-06 03:33:24 UTC and 06:17:37 UTC respectively.
 
-Before `A20 WEB BUILD` may change to `GO`, repository status must record all of the following from the actual dedicated runtime:
+## Operational semantics
 
-- exact deployed commit;
-- OpenCoesione accepted operation count, list update date and source SHA-256;
-- TED production query count and complete page count;
-- nonzero canonical/live customer output count;
-- run-manifest presence in restored PostgreSQL data;
-- successful logical restore verification;
-- enabled provider backup and both systemd timers;
-- no unexpected public listener;
-- final Python/compliance/TED-contract CI green on that same commit.
+A systemd delivery service is a oneshot and is expected to become inactive/dead after a successful run. Nonzero exit or fail-closed validation is a failed delivery, not a partial success. A failed new run must not be represented as a fresh publication.
 
-No fixture, local unit test or GitHub-hosted OpenCoesione request may substitute for this acceptance.
+Backup success requires restore verification, not merely creation of a dump file.
+
+The historical GitHub-hosted OpenCoesione HTTP 403 is not a production-runtime failure: GitHub Actions is intentionally not the live OpenCoesione transfer runtime.
+
+## Pre-web decision
+
+All production-runtime acceptance requirements are satisfied. See `docs/PREWEB_RELEASE_BASELINE.md` and A19/A20 in `docs/BUILD_GATES.md`.
