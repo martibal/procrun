@@ -83,28 +83,28 @@ def _validate_page_size(page_size: int) -> None:
 
 def _first_text(value: Any) -> str | None:
     if isinstance(value, str):
-        text = value.strip()
-        return text or None
+        stripped = value.strip()
+        return stripped or None
     if isinstance(value, Mapping):
         for language in ("eng", "por", "ita"):
-            text = value.get(language)
-            if isinstance(text, str) and text.strip():
-                return text.strip()
-        for text in value.values():
-            if isinstance(text, str) and text.strip():
-                return text.strip()
+            candidate = value.get(language)
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+        for candidate in value.values():
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         for item in value:
-            text = _first_text(item)
-            if text:
-                return text
+            candidate = _first_text(item)
+            if candidate:
+                return candidate
     return None
 
 
 def _first_scalar(value: Any) -> str | None:
     if isinstance(value, str):
-        text = value.strip()
-        return text or None
+        stripped = value.strip()
+        return stripped or None
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         for item in value:
             if isinstance(item, str) and item.strip():
@@ -287,9 +287,7 @@ def collect_ted_notices(
             total = body.get("totalNoticeCount")
             if first_total is None and total is not None:
                 if not isinstance(total, int) or isinstance(total, bool) or total < 0:
-                    raise TedContractError(
-                        "TED totalNoticeCount must be a non-negative integer"
-                    )
+                    raise TedContractError("TED totalNoticeCount must be a non-negative integer")
                 first_total = total
 
             notices = body["notices"]
@@ -307,9 +305,7 @@ def collect_ted_notices(
                 if not isinstance(raw_notice, Mapping):
                     raise TedContractError("TED notice must be an object")
                 canonical = canonicalize_ted_notice(raw_notice)
-                publication_key = (
-                    f"{canonical['notice_id']}|{canonical['publication_date']}"
-                )
+                publication_key = f"{canonical['notice_id']}|{canonical['publication_date']}"
                 if publication_key in seen_publications:
                     continue
                 seen_publications.add(publication_key)
