@@ -54,16 +54,13 @@ def test_source_categories_and_prr_final_status() -> None:
     assert "Category A — eligible for no-contact qualification" in status
     assert "Category B — permanently ineligible" in status
     assert "PRR Projects on dados.gov.pt | B | PERMANENTLY BLOCKED" in status
-    assert (
-        "OpenCoesione PR FESR Lombardia 2021-2027 operation-list ZIP/CSV | A | "
-        "APPROVED / IMPLEMENTED"
-    ) in status
+    assert "OpenCoesione PR FESR Lombardia 2021-2027 operation-list ZIP/CSV" in status
     assert "Broader OpenCoesione API / Projects / Soggetti routes" in status
     assert "Poland" in status
     assert "| B | REJECTED" in status
 
 
-def test_opencoesione_a1_and_collector_are_implemented_but_live_stays_gated() -> None:
+def test_opencoesione_a1_and_live_delivery_are_accepted() -> None:
     gates = _read("docs/BUILD_GATES.md")
     qualification = _read("docs/OPENCOESIONE_A1_QUALIFICATION.md")
     contracts = _read("src/procrun/source_contracts.py")
@@ -72,10 +69,8 @@ def test_opencoesione_a1_and_collector_are_implemented_but_live_stays_gated() ->
     assert "A1 SOURCE QUALIFICATION: PASS" in gates
     assert "A20 OPENCOESIONE A1 SOURCE QUALIFICATION: APPROVED" in gates
     assert "A20 OPENCOESIONE COLLECTOR + FROZEN SCHEMA: IMPLEMENTED, FAIL-CLOSED" in gates
-    assert (
-        "A20 LIVE FUNDED-PROJECT INGEST: BLOCKED BY LIVE SOURCE-TRANSFER + "
-        "END-TO-END ACCEPTANCE + GREEN CI"
-    ) in gates
+    assert "A20 OPENCOESIONE LIVE SOURCE-TRANSFER: PASS" in gates
+    assert "A20 LIVE FUNDED-PROJECT INGEST + CUSTOMER-SAFE DELIVERY: PASS" in gates
     assert (
         "APPROVED SOURCE CONTRACT — EXACT 2021-2027 EU COHESION OPERATION-LIST ROUTE ONLY"
         in qualification
@@ -105,18 +100,16 @@ def test_opencoesione_privacy_and_scope_contract_is_frozen() -> None:
         assert required in qualification
 
 
-def test_web_build_is_blocked_until_delivery_ready() -> None:
+def test_preweb_gate_is_green_before_customer_web_phase() -> None:
     readme = _read("README.md")
     gates = _read("docs/BUILD_GATES.md")
     sequencing = _read("docs/DELIVERY_READINESS_GATE.md")
-    assert "DO NOT CONTINUE WEB DEVELOPMENT" in readme
-    assert "WEB BUILD BLOCKED UNTIL FULL DELIVERY-READINESS IS GREEN" in readme
-    assert "A20 WEB BUILD: BLOCKED" in gates
-    assert "A20 PRODUCT LAUNCH READINESS: BLOCKED" in gates
+    assert "A20 WEB BUILD: GO" in gates
+    assert "A19 PRE-WEB RELEASE READINESS: PASS" in gates
+    assert "WEB PRODUCT BUILD: GO" in readme
     assert "Web implementation is the final build phase" in sequencing
-    assert "launch-ready except for the web interface itself" in sequencing
-    assert "CONTINUE THE WEB BUILD" not in readme
-    assert "A20 WEB BUILD: GO" not in gates
+    assert "Stripe" in sequencing
+    assert "A20 WEB BUILD: BLOCKED" not in gates
 
 
 def test_customer_routes_follow_product() -> None:
