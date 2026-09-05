@@ -3,7 +3,7 @@
 The probe requests only a bounded byte range from the public ZIP. It aborts before
 reading the response body unless the server honors the Range request with HTTP 206.
 From the returned ZIP prefix it decompresses only enough data to reach the first CSV
-line break, then prints that header. No data rows are parsed or emitted.
+line break. No data rows are parsed or emitted.
 """
 
 from __future__ import annotations
@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from typing import Final
 
 import httpx
+
+from procrun.collectors.opencoesione import EXPECTED_HEADERS
 
 PUBLICATION_PAGE: Final = (
     "https://opencoesione.gov.it/it/beneficiari_operazioni_2021_2027/"
@@ -140,16 +142,24 @@ def probe_header(url: str, *, timeout_seconds: float = 30.0) -> ProbeResult:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("urls", nargs="+")
+    parser.add_argument("url")
+    parser.add_argument("--require-frozen-header", action="store_true")
     args = parser.parse_args()
-    for url in args.urls:
-        result = probe_header(url)
-        print(f"requested_url={result.requested_url}")
-        print(f"final_url={result.final_url}")
-        print(f"content_range={result.content_range}")
-        print(f"csv_member={result.csv_member}")
-        print(f"header_count={len(result.header)}")
-        print("header=" + ";".join(result.header))
+    result = probe_header(args.url)
+    print(f"requested_url={result.requested_url}")
+    print(f"final_url={result.final_url}")
+    print(f"content_range={result.content_range}")
+    print(f"csv_member={result.csv_member}")
+    print(f"header_count={len(result.header)}")
+    if args.require_frozen_header and result.header != EXPECTED_HEADERS:
+        missing = [field for field in EXPECTED_HEADERS if field not in result.header]
+        unexpected = [field for field in result.header if field not in EXPECTED_HEADERS]
+        raise HeaderProbeError(
+            "header differs from frozen contract; "
+            f"missing={missing!r}, unexpected={unexpected!r}, "
+            f"order_changed={not missing and not unexpected}"
+        )
+    print("frozen_header_match=true" if result.header == EXPECTED_HEADERS else "frozen_header_match=false")
     return 0
 
 
