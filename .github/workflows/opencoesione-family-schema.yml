@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   qualify-public-metadata:
@@ -26,4 +27,23 @@ jobs:
           python -m pip install --disable-pip-version-check -e .
           python -m pip install --disable-pip-version-check "xlrd==2.0.2"
       - name: Qualify official metadata only
-        run: python scripts/qualify_opencoesione_family_schema.py
+        id: qualify
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python scripts/qualify_opencoesione_family_schema.py 2>&1 | tee /tmp/opencoesione-schema-result.txt
+      - name: Publish schema-only diagnostic to PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo 'OpenCoesione public metadata qualification:'
+            echo '```text'
+            cat /tmp/opencoesione-schema-result.txt
+            echo '```'
+          } > /tmp/comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file /tmp/comment.md
+      - name: Enforce qualification result
+        if: steps.qualify.outcome != 'success'
+        run: exit 1
