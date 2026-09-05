@@ -221,7 +221,8 @@ if ! systemctl start procrun-backup.service; then
 fi
 systemctl enable --now procrun-delivery.timer procrun-backup.timer
 
-if ss -lnt | awk 'NR>1 {print $4}' | grep -Ev '(^127\.0\.0\.1:5432$|^\[::1\]:5432$|:22$)' | grep -q .; then
+# Loopback listeners are intentionally local-only and must not be treated as public exposure.
+if ss -lnt | awk 'NR>1 {print $4}' | grep -Ev '(^127\.[0-9.]+:|^\[::1\]:|:22$)' | grep -q .; then
   echo "Unexpected public TCP listener detected" >&2
   ss -lnt >&2
   exit 1
