@@ -20,18 +20,23 @@ The required response cannot satisfy ProcRun's pre-receipt data-safety/source-co
 
 ## Current source registry decision
 
-| Source | Category | Status | Role / decision |
-| --- | --- | --- | --- |
-| TED Search API projected route | A | APPROVED / LIVE | MVP procurement evidence and TED-scoped negative-search coverage |
-| OpenCoesione PR FESR Lombardia 2021-2027 operation-list ZIP/CSV | A | APPROVED / IMPLEMENTED / LIVE-ACCEPTED | Funded-project source; exact frozen route/schema |
-| OpenCoesione all-program 2021-2027 ZIP | A source family | NOT ACTIVATED | Official same-family complete list, but bounded header-only CI probe could not qualify the frozen runtime header without proceeding to the response rows. Fail-closed; existing clean-runner HTTP 403 evidence remains unresolved. |
-| OpenCoesione PR FESR FSE+ Puglia 2021-2027 ZIP | A source family | NOT ACTIVATED | Rechecked against the correct `opencoesione.gov.it` route. Bounded header-only CI probe failed before the frozen header could be qualified, so no rows were received and the route remains non-live. |
-| Broader OpenCoesione API / Projects / Soggetti routes | B for ProcRun transport | BLOCKED | Not covered by bounded operation-list approval |
-| PRR Projects on dados.gov.pt | B | PERMANENTLY BLOCKED | Does not satisfy required safety contract |
-| Mais Transparência project surfaces | B | PERMANENTLY BLOCKED | Human-authored project/beneficiary surface |
-| PT2030 operations bulk workbook | B | PERMANENTLY BLOCKED | Broad identity-bearing transport; no download-then-filter |
-| Portal BASE / APIBase2 current route | B | PERMANENTLY BLOCKED | Broad identity-bearing response; no approved projection |
-| Poland public EU-funds project surfaces reviewed | B | REJECTED | No exact safe machine route established from public documentation |
+| Source | Category | Status | Verification date | Schema evidence | Role / decision |
+| --- | --- | --- | --- | --- | --- |
+| TED Search API projected route | A | APPROVED / LIVE | 2026-09-05 | TED projected contract | MVP procurement evidence and TED-scoped negative-search coverage |
+| OpenCoesione PR FESR Lombardia 2021-2027 operation-list ZIP/CSV | A | APPROVED / IMPLEMENTED / LIVE-ACCEPTED | 2026-09-04 | live 20-column transport header | Funded-project source; exact frozen route/schema |
+| OpenCoesione all-program 2021-2027 ZIP | A source family | NOT ACTIVATED | 2026-09-05 | `https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls` | Official metadata is 38,400 bytes / 37.5 KiB but does not equal ProcRun's frozen 20-column transport contract; six exact runtime headers are absent or named differently. Previous bounded header probe also failed. |
+| OpenCoesione PR FESR FSE+ Puglia 2021-2027 ZIP | A source family | NOT ACTIVATED | 2026-09-05 | `https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls` | Same official beneficiary metadata contract; not exact-equal to frozen 20-column runtime header. No data rows retrieved for this qualification. |
+| OpenCoesione PR FESR Campania 2021-2027 ZIP | A source family | NOT ACTIVATED | 2026-09-05 | `https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls` | Same official beneficiary metadata contract; not exact-equal to frozen 20-column runtime header. No data rows retrieved. |
+| OpenCoesione PR FESR Lazio 2021-2027 ZIP | A source family | NOT ACTIVATED | 2026-09-05 | `https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls` | Same official beneficiary metadata contract; not exact-equal to frozen 20-column runtime header. No data rows retrieved. |
+| OpenCoesione PR FESR Emilia-Romagna 2021-2027 ZIP | A source family | NOT ACTIVATED | 2026-09-05 | `https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls` | Same official beneficiary metadata contract; not exact-equal to frozen 20-column runtime header. No data rows retrieved. |
+| OpenCoesione PR FESR Liguria 2021-2027 ZIP | A source family | NOT ACTIVATED | 2026-09-05 | `https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls` | Same official beneficiary metadata contract; not exact-equal to frozen 20-column runtime header. No data rows retrieved. |
+| OpenCoesione PR FESR Veneto 2021-2027 ZIP | A source family | NOT ACTIVATED | 2026-09-05 | `https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls` | Same official beneficiary metadata contract; not exact-equal to frozen 20-column runtime header. No data rows retrieved. |
+| Broader OpenCoesione API / Projects / Soggetti routes | B for ProcRun transport | BLOCKED | 2026-09-05 | n/a | Not covered by bounded operation-list approval |
+| PRR Projects on dados.gov.pt | B | PERMANENTLY BLOCKED | 2026-09-05 | n/a | Does not satisfy required safety contract |
+| Mais Transparência project surfaces | B | PERMANENTLY BLOCKED | 2026-09-05 | n/a | Human-authored project/beneficiary surface |
+| PT2030 operations bulk workbook | B | PERMANENTLY BLOCKED | 2026-09-05 | n/a | Broad identity-bearing transport; no download-then-filter |
+| Portal BASE / APIBase2 current route | B | PERMANENTLY BLOCKED | 2026-09-05 | n/a | Broad identity-bearing response; no approved projection |
+| Poland public EU-funds project surfaces reviewed | B | REJECTED | 2026-09-05 | n/a | No exact safe machine route established from public documentation |
 
 ## OpenCoesione production acceptance
 
@@ -41,17 +46,26 @@ The collector validates the exact approved publication schema and route, fails t
 
 The dedicated production runtime has successfully transferred and processed the live Lombardia source. Accepted production evidence: 4,631 funded projects; complete Italy TED universe of 176,540 notices across 708 pages; 81 projects with components; 37 useful/resolved and 44 safely unresolved; customer-safe JSONL and PostgreSQL run manifest.
 
-### 2026-09-05 Italy coverage-expansion probe
+### 2026-09-05 full-family schema-document qualification
 
-OpenCoesione publicly describes the 2021-2027 publication family as covering all national and regional programmes. That source-family approval is broader than the currently activated production route, but it does not by itself authorize a runtime transport that has not passed the frozen technical contract.
+OpenCoesione's central 2021-2027 beneficiary/operation page links the public schema workbook `metadati_beneficiari.xls`. The workbook downloaded by the schema-only CI qualifier is exactly 38,400 bytes (37.5 KiB), matching the repeated 37.5 KB signal that motivated this check.
 
-PR #55 tested the official all-program ZIP and the official Puglia programme ZIP using a fail-closed HTTP Range probe. The probe requests only bytes 0-262143, refuses to read the body unless the server returns HTTP 206 for that exact bounded range, and decompresses only far enough to reach the CSV header line. It never parses or emits a data row.
+That signal does **not** prove equality with ProcRun's live transport contract. The workbook contains the 17-field regulatory/metadata model, while the live Lombardia CSV frozen in `src/procrun/collectors/opencoesione.py` has 20 ordered transport columns. Exact comparison found these frozen runtime headers absent under their exact names in the workbook:
 
-Both routes failed this bounded pre-row qualification. Therefore neither route is claimed to have a matching schema, neither was downloaded for row inspection, and neither is activated. This is a transport/header-evidence failure, **not** evidence that either source has a different schema.
+- `CostoTotale_TotalCost`
+- `Ciclo_Period`
+- `ObiettivoSpecifico_SpecificObjective`
+- `DataInizioOperazione_OperationStartDate` (workbook uses `DataInizioProgetto_OperationStartDate`)
+- `DataFineOperazione_OperationEndDate` (workbook uses `DataFineProgetto_OperationEndDate`)
+- `Paese_Country` (workbook uses `StatoMembro_Country`)
 
-Exact live OpenCoesione production coverage remains **PR FESR Lombardia 2021-2027 only**. Customer-facing text must not describe ProcRun's funded-project coverage as all of Italy.
+Therefore the all-program file and the six prioritised regional routes do not satisfy the instruction's exact field-name/order/count criterion from schema documentation alone. They remain non-live. This is a **schema-document-to-runtime-contract mismatch**, not evidence that their underlying CSV files necessarily differ from Lombardia.
 
-INTERREG files were not assessed in this round.
+No candidate data ZIP was downloaded to resolve the mismatch, because ProcRun's permanent pre-receipt boundary forbids using row-bearing data as the discovery mechanism for an unqualified route. No new `require_live_source()` entry was added, so the instruction to run a full regression after each newly activated source was not triggered.
+
+Exact live OpenCoesione production coverage remains **PR FESR Lombardia 2021-2027 only**. Customer-facing text must not describe ProcRun's funded-project coverage as all of Italy or as multi-region coverage.
+
+INTERREG and lower-priority regional/national candidates were not promoted in this round because the higher-priority candidates already failed the mandatory exact schema-document gate.
 
 ## TED production contract and MVP OPEN
 
