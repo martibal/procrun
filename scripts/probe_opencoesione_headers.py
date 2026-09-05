@@ -159,7 +159,8 @@ def main() -> int:
             f"missing={missing!r}, unexpected={unexpected!r}, "
             f"order_changed={not missing and not unexpected}"
         )
-    print("frozen_header_match=true" if result.header == EXPECTED_HEADERS else "frozen_header_match=false")
+    frozen_match = result.header == EXPECTED_HEADERS
+    print(f"frozen_header_match={str(frozen_match).lower()}")
     return 0
 
 
