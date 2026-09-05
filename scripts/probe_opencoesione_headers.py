@@ -108,27 +108,30 @@ def probe_header(url: str, *, timeout_seconds: float = 30.0) -> ProbeResult:
         "Referer": PUBLICATION_PAGE,
         "Range": f"bytes=0-{RANGE_END}",
     }
-    with httpx.Client(timeout=timeout_seconds, follow_redirects=True) as client:
-        with client.stream("GET", url, headers=headers) as response:
-            if response.status_code != 206:
-                raise HeaderProbeError(
-                    "server did not honor bounded Range request; refusing to read response body "
-                    f"(status={response.status_code}, final_url={response.url})"
-                )
-            content_range = response.headers.get("content-range", "")
-            expected_prefix = f"bytes 0-{RANGE_END}/"
-            if not content_range.startswith(expected_prefix):
-                raise HeaderProbeError(
-                    f"unexpected Content-Range for bounded probe: {content_range!r}"
-                )
-            prefix = b"".join(response.iter_bytes())
+    with (
+        httpx.Client(timeout=timeout_seconds, follow_redirects=True) as client,
+        client.stream("GET", url, headers=headers) as response,
+    ):
+        if response.status_code != 206:
+            raise HeaderProbeError(
+                "server did not honor bounded Range request; refusing to read response body "
+                f"(status={response.status_code}, final_url={response.url})"
+            )
+        content_range = response.headers.get("content-range", "")
+        expected_prefix = f"bytes 0-{RANGE_END}/"
+        if not content_range.startswith(expected_prefix):
+            raise HeaderProbeError(
+                f"unexpected Content-Range for bounded probe: {content_range!r}"
+            )
+        prefix = b"".join(response.iter_bytes())
+        final_url = str(response.url)
 
     if len(prefix) > RANGE_END + 1:
         raise HeaderProbeError("server returned more bytes than the bounded range")
     member_name, header = _extract_csv_header_from_zip_prefix(prefix)
     return ProbeResult(
         requested_url=url,
-        final_url=str(response.url),
+        final_url=final_url,
         content_range=content_range,
         csv_member=member_name,
         header=header,
