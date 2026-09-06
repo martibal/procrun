@@ -1,4 +1,5 @@
 import { PublicPage } from "@/components/public-site";
+import { DATA_COMPLETENESS_DISCLOSURE, OPENCOESIONE_ATTRIBUTION, TED_ATTRIBUTION } from "@/lib/public-copy";
 
 export default function MethodologyPage() {
   return <PublicPage>
@@ -40,10 +41,10 @@ export default function MethodologyPage() {
     <section className="public-section split-section">
       <div><p className="small">Source attribution</p><h2 className="display-h2">The derived analysis is ProcRun's, not the source publisher's.</h2></div>
       <div className="source-cards">
-        <article><h3>TED</h3><p>Source: Tenders Electronic Daily (TED), Publications Office of the European Union. ProcRun transforms and classifies the source data; the derived analysis is not an official EU publication or endorsement.</p></article>
-        <article><h3>OpenCoesione</h3><p>Source: OpenCoesione, Lista beneficiari e operazioni 2021-2027 (PR FESR Lombardia), used under CC BY 4.0. ProcRun transforms and classifies the source data; the derived analysis is not an official OpenCoesione, Italian-government or EU publication or endorsement.</p></article>
+        <article><h3>TED</h3><p>{TED_ATTRIBUTION}</p></article>
+        <article><h3>OpenCoesione</h3><p>{OPENCOESIONE_ATTRIBUTION}</p></article>
       </div>
-      <p className="small">Dekningen reflekterer det italienske overvåkingssystemets nåværende fyllingsgrad for 2021–2027-perioden og vil vokse i takt med at flere prosjekter registreres nasjonalt.</p>
+      <p className="small">{DATA_COMPLETENESS_DISCLOSURE}</p>
     </section>
 
     <section className="public-section">

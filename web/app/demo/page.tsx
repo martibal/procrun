@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PublicPage } from "@/components/public-site";
+import { DATA_COMPLETENESS_DISCLOSURE, OPENCOESIONE_ATTRIBUTION, TED_ATTRIBUTION } from "@/lib/public-copy";
 import { getPublicShowcaseOpportunities } from "@/lib/public-showcase";
 
 export default function DemoPage() {
@@ -29,9 +30,9 @@ export default function DemoPage() {
 
     <section className="public-section legal-copy">
       <h2>Source attribution</h2>
-      <p>Source: Tenders Electronic Daily (TED), Publications Office of the European Union. ProcRun transforms and classifies the source data; the derived analysis is not an official EU publication or endorsement.</p>
-      <p>Source: OpenCoesione, Lista beneficiari e operazioni 2021-2027 (PR FESR Lombardia), used under CC BY 4.0. ProcRun transforms and classifies the source data; the derived analysis is not an official OpenCoesione, Italian-government or EU publication or endorsement.</p>
-      <p>Dekningen reflekterer det italienske overvåkingssystemets nåværende fyllingsgrad for 2021–2027-perioden og vil vokse i takt med at flere prosjekter registreres nasjonalt.</p>
+      <p>{TED_ATTRIBUTION}</p>
+      <p>{OPENCOESIONE_ATTRIBUTION}</p>
+      <p>{DATA_COMPLETENESS_DISCLOSURE}</p>
       <p className="small">The paid service expands access to the opportunity corpus, supplier-profile matching, filtering and workflow. It does not unlock hidden evidence on the individual records shown here.</p>
       <div className="actions"><Link className="button" href="/pricing">View pricing</Link><Link className="button secondary" href="/login">Sign in</Link></div>
     </section>
