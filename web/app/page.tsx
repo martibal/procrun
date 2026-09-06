@@ -9,9 +9,8 @@ export default function HomePage() {
   return <PublicPage>
     <div className={styles.page}>
       <section className={styles.hero}>
-        <h1>Funded infrastructure projects in Lombardia, checked against TED procurement.</h1>
-        <p className={styles.intro}>ProcRun turns published project scope into a supplier-facing list of equipment and services, then checks whether matching procurement has already appeared in TED.</p>
-        <p className={styles.intro}>Use it to find projects worth investigating before spending time reading project documents and procurement notices yourself.</p>
+        <h1>Find what funded infrastructure projects still need to buy.</h1>
+        <p className={styles.intro}>ProcRun helps suppliers find sales opportunities in public infrastructure projects in Lombardia. It shows what each project needs, what has already been procured, and what may still be left to buy — based on published EU funding data and procurement notices in TED.</p>
 
         <article className={styles.record} aria-label="Example ProcRun opportunity">
           <div className={styles.recordTop}>
