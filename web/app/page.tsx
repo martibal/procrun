@@ -18,10 +18,7 @@ export default function HomePage() {
           <header className={styles.opportunityHeader}>
             <p className={styles.guideText}>Current opportunity</p>
             <h2>LED lighting replacement for playing fields and walkways</h2>
-            <div className={styles.opportunityMeta}>
-              <span>{example.geography}</span>
-              <span>€{(example.valueEur ?? 0).toLocaleString("en-GB")} approved funding</span>
-            </div>
+            <p className={styles.opportunityMeta}>{example.geography} <span>·</span> €{(example.valueEur ?? 0).toLocaleString("en-GB")} approved funding</p>
             <p className={styles.originalTitle}>Original project: <span>{example.projectTitle}</span></p>
           </header>
 
@@ -33,8 +30,8 @@ export default function HomePage() {
 
           <section className={styles.procurementFinding}>
             <p className={styles.guideText}>Why this opportunity is showing now</p>
-            <p className={styles.procurementHeadline}>The funded work identifies an LED lighting purchase, and no relevant procurement was found in TED through {checkedThrough}.</p>
-            <p className={styles.meaning}><strong>What this means:</strong> the procurement may still be ahead, or it may have taken place through a procedure that is not published in TED.</p>
+            <p className={styles.procurementHeadline}>The funded work identifies LED lighting, and ProcRun found no relevant procurement for it in TED through {checkedThrough}.</p>
+            <p className={styles.coverageNote}>The procurement may still be ahead, or it may have taken place through a national or below-threshold procedure that does not appear in TED.</p>
           </section>
 
           <details className={styles.evidence}>
@@ -72,28 +69,18 @@ export default function HomePage() {
         </article>
 
         <div className={styles.actions}>
-          <Link className={styles.primaryButton} href="/app">Open demo</Link>
+          <Link className={styles.primaryButton} href="/demo">Open demo</Link>
           <Link className={styles.secondaryButton} href="/pricing">View pricing</Link>
         </div>
       </section>
 
-      <section className={styles.explainer} aria-labelledby="explainer-heading">
-        <h2 id="explainer-heading">What ProcRun does across funded projects in Lombardia</h2>
+      <section className={styles.explainer}>
+        <h2>This is what ProcRun does across funded projects in Lombardia.</h2>
         <div className={styles.explainerRows}>
-          <div>
-            <h3>Find the project</h3>
-            <p>See funded projects and the equipment, systems or services identified in the published project scope.</p>
-          </div>
-          <div>
-            <h3>Check the procurement</h3>
-            <p>See whether ProcRun has found procurement evidence in TED for those purchasing needs.</p>
-          </div>
-          <div>
-            <h3>Focus your sales work</h3>
-            <p>Use the resulting opportunities to concentrate on projects relevant to what your company supplies.</p>
-          </div>
+          <div><strong>Find the project.</strong><p>See funded projects and what they are expected to purchase.</p></div>
+          <div><strong>Check the procurement.</strong><p>See whether ProcRun has found procurement evidence for those purchasing needs.</p></div>
+          <div><strong>Focus your sales work.</strong><p>Filter the resulting opportunities to the products and services your company supplies.</p></div>
         </div>
-        <Link className={styles.primaryButton} href="/app">Open demo</Link>
       </section>
 
       <section className={styles.priceSection}>

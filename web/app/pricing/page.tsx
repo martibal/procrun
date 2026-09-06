@@ -4,7 +4,7 @@ import { PublicPage } from "@/components/public-site";
 export default function PricingPage() {
   return <PublicPage>
     <section className="page-hero">
-      <div className="eyebrow">Pricing</div>
+      <p className="small">Pricing</p>
       <h1 className="h1 public-h1">One professional launch package.</h1>
       <p className="lede lede-large">ProcRun is designed as a paid supplier-intelligence product rather than a freemium tender directory. No permanent free tier is planned.</p>
     </section>
@@ -31,7 +31,7 @@ export default function PricingPage() {
         <p>Current funded-project coverage is the approved OpenCoesione PR FESR Lombardia route.</p>
         <p>OPEN always means <strong>No relevant procurement found in TED as of the stated date.</strong> It does not establish absence outside TED.</p>
         <p>ProcRun does not promise every future purchase, national procurement completeness, a complete bill of materials or win probability.</p>
-        <Link className="text-link strong" href="/methodology">Read methodology →</Link>
+        <Link className="text-link strong" href="/methodology">Read methodology</Link>
       </aside>
     </section>
   </PublicPage>;

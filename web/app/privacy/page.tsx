@@ -4,7 +4,7 @@ import { PublicPage } from "@/components/public-site";
 export default function PrivacyPage() {
   return <PublicPage>
     <section className="page-hero narrow-copy">
-      <div className="eyebrow">Privacy</div>
+      <p className="small">Privacy</p>
       <h1 className="h1 public-h1">Privacy by separation.</h1>
       <p className="lede">ProcRun keeps the intelligence pipeline and the customer account/billing control plane separate. Natural-person data is excluded from the intelligence plane.</p>
     </section>
@@ -32,7 +32,7 @@ export default function PrivacyPage() {
       <p>Legal controller identity, registered address, privacy contact route and any required processor/subprocessor details will be published here before production account creation and paid checkout are enabled.</p>
 
       <div className="notice scope"><strong>Launch gate:</strong> this is the privacy framework for the customer web build. Processor-specific and merchant-specific details are intentionally not invented before those services are selected and activated.</div>
-      <p><Link className="text-link strong" href="/terms">Read terms framework →</Link></p>
+      <p><Link className="text-link strong" href="/terms">Read terms framework</Link></p>
     </section>
   </PublicPage>;
 }

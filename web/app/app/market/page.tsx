@@ -6,20 +6,20 @@ export default function MarketPage() {
   const states = ["OPEN", "CLOSED", "UNRESOLVED"] as const;
 
   return <>
-    <div className="eyebrow">Market intelligence</div>
+    <p className="small">Market Intelligence</p>
     <h1 className="h1">Market context with the coverage boundary attached.</h1>
-    <p className="lede">This view summarises only the customer-safe fixture set. In production, TED market measures will disclose their observation window, missingness and exact indexed scope.</p>
-    <div className="notice scope"><strong>Fixture workspace.</strong> These totals are interface fixtures, not market-size claims and not Portuguese national procurement totals.</div>
+    <p className="lede">This development view summarises only the current customer-safe set. Production market measures must disclose their observation window, missingness and exact indexed scope.</p>
+    <div className="notice scope"><strong>Development workspace.</strong> These totals are interface values, not a complete Lombardia or Italian procurement market-size claim.</div>
 
     <div className="grid">
-      <div className="card"><div className="small">Fixture opportunities</div><div className="kpi">{opportunities.length}</div></div>
-      <div className="card"><div className="small">Fixture project value</div><div className="kpi">€{(total / 1_000_000).toFixed(1)}m</div></div>
+      <div className="card"><div className="small">Current opportunities</div><div className="kpi">{opportunities.length}</div></div>
+      <div className="card"><div className="small">Current project value</div><div className="kpi">€{(total / 1_000_000).toFixed(1)}m</div></div>
       <div className="card"><div className="small">TED-scoped OPEN value</div><div className="kpi">€{(openValue / 1_000_000).toFixed(1)}m</div></div>
     </div>
 
     <section className="section card flat">
-      <div className="section-label">State distribution</div>
-      <h2 className="h2">What the current fixture evidence supports</h2>
+      <p className="small">State distribution</p>
+      <h2 className="h2">What the current evidence supports</h2>
       {states.map((state) => {
         const count = opportunities.filter((item) => item.state === state).length;
         const pct = opportunities.length ? Math.round((count / opportunities.length) * 100) : 0;
@@ -28,8 +28,8 @@ export default function MarketPage() {
     </section>
 
     <section className="section grid two">
-      <div className="card flat"><div className="eyebrow">Coverage</div><p><strong>TED only for MVP negative search.</strong></p><p className="small">No relevant procurement found in TED as of the item cutoff does not establish absence outside TED.</p></div>
-      <div className="card flat"><div className="eyebrow">Funded-project expansion</div><p><strong>OpenCoesione 2021–2027</strong></p><p className="small">Italian funded-project data remains fixture-only in the browser until live transfer/E2E acceptance is green.</p></div>
+      <div className="card flat"><p className="small">Coverage</p><p><strong>TED only for MVP negative search.</strong></p><p className="small">No relevant procurement found in TED as of the item cutoff does not establish absence outside TED.</p></div>
+      <div className="card flat"><p className="small">Funded projects</p><p><strong>PR FESR Lombardia 2021–2027</strong></p><p className="small">The current live funded-project route is Lombardia only. Additional regions require separate source activation before customer-facing use.</p></div>
     </section>
   </>;
 }

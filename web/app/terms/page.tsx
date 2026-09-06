@@ -4,7 +4,7 @@ import { PublicPage } from "@/components/public-site";
 export default function TermsPage() {
   return <PublicPage>
     <section className="page-hero narrow-copy">
-      <div className="eyebrow">Terms</div>
+      <p className="small">Terms</p>
       <h1 className="h1 public-h1">Terms of service framework.</h1>
       <p className="lede">This page establishes the customer-facing terms structure for the web build. Final merchant identity, billing mechanics, cancellation language and effective date must be completed before paid checkout is enabled.</p>
     </section>
@@ -35,7 +35,7 @@ export default function TermsPage() {
       <p>Legal business name, registered address, registration number, customer contact route and final governing-law/dispute information will be published here before paid launch.</p>
 
       <div className="notice scope"><strong>Launch gate:</strong> these terms are a product-development framework and are not yet the final paid-service contract.</div>
-      <p><Link className="text-link strong" href="/privacy">Read privacy framework →</Link></p>
+      <p><Link className="text-link strong" href="/privacy">Read privacy framework</Link></p>
     </section>
   </PublicPage>;
 }
