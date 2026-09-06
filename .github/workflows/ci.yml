@@ -95,8 +95,21 @@ jobs:
           PY
 
   web:
-    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
     steps:
-      - run: echo "Web CI is frozen until A20 pre-web delivery readiness is green."
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package.json
+      - name: Install web dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck web
+        run: npm run typecheck
+      - name: Build web
+        run: npm run build

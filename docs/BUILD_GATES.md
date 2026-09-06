@@ -4,6 +4,8 @@ Status: **PRE-WEB RELEASE READINESS GREEN; WEB PRODUCT BUILD AUTHORIZED.**
 Canonical product spec: `docs/PRODUCT_FOUNDATION_FINAL.md`
 Pre-web baseline: `docs/PREWEB_RELEASE_BASELINE.md`
 Sequencing rule: `docs/DELIVERY_READINESS_GATE.md`
+Customer data/commercialization contract: `docs/CUSTOMER_DATA_AND_COMMERCIALIZATION_CONTRACT.md`
+Authoritative web-phase requirements: `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`
 
 These gates are authoritative. Historical product files cannot override them.
 
@@ -47,15 +49,23 @@ Component states are `OPEN`, `CLOSED`, `UNRESOLVED`. Project states are `OPEN`, 
 
 **PASS / FROZEN.** `src/procrun/read_model.py`, version `customer-runway-v1`, is the sole intelligence contract intended for browser/API consumption. No raw source payload, beneficiary identity field, buyer/contact identity, model prompt or unvalidated candidate text may reach browser code. Exact fields and invariants are frozen in `docs/PREWEB_RELEASE_BASELINE.md`.
 
+The customer-safe boundary is format-independent: web UI, demo, sample, CSV, JSON, API and other exports are all subject to the same rule. Public availability of an upstream field does not make it customer-safe.
+
 ## A6 — Permanent sequencing rule
 
 Web implementation is the final product-development phase. The complete non-web delivery chain is now production-ready, so the sequencing prerequisite is satisfied.
 
 The existing fixture/shell web code remains non-authoritative; authorization to begin web development does not retroactively validate it.
 
-## A7 — Unsupported claims
+The customer application must now be implemented against `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`. That specification governs web scope and acceptance, but it cannot widen any source, privacy, rights, attribution or customer-safe boundary established by these gates or `docs/CUSTOMER_DATA_AND_COMMERCIALIZATION_CONTRACT.md`.
 
-Do not claim complete Portuguese procurement coverage, complete Italian public-investment coverage, complete bill of materials, every future purchase, guaranteed lead time, win probability, buyer-person intelligence or source/EU endorsement. TED-scoped absence must never be shortened into national absence. OpenCoesione coverage remains limited to the approved 2021-2027 EU-cohesion operation-list universe.
+## A7 — Unsupported claims and commercialization boundary
+
+Do not claim complete national procurement coverage, complete Italian public-investment coverage, complete bill of materials, every future purchase, guaranteed lead time, win probability, buyer-person intelligence or source/EU endorsement. TED-scoped absence must never be shortened into national absence. OpenCoesione coverage remains limited to the approved 2021-2027 EU-cohesion operation-list universe and the currently activated Lombardia route.
+
+ProcRun does not sell exclusive access to underlying public OpenCoesione or TED source data. Customer payment is for the approved ProcRun service layer: processing, evidence-bounded component extraction, procurement matching, conservative state assessment, supplier relevance, workflow, filtering, history and other approved derived functionality. Pricing/marketing must not imply ownership of, exclusivity in, or privileged access to the underlying public data.
+
+All customer-facing use of source-derived information is additionally governed by `docs/CUSTOMER_DATA_AND_COMMERCIALIZATION_CONTRACT.md`. A new external source or new source field cannot be introduced through UI, enrichment, evidence, export or copy before the applicable RIGHTS / ACCESS / DATA SAFETY / attribution / customer-mapping gate is closed.
 
 ## A8 — Pre-web release controls
 
@@ -74,7 +84,7 @@ Do not claim complete Portuguese procurement coverage, complete Italian public-i
 - fail-closed operational semantics;
 - compliance/no-contact/static/type/test/TED-contract CI.
 
-Customer application concerns — auth, Stripe, subscriptions, VAT/invoicing implementation, merchant identity presentation, Terms/Privacy pages, customer-control-plane processors, domain/TLS, cookies/logging and final rendered attribution — are part of the authorized web product phase. They remain mandatory before public paid launch, but are not prerequisites for starting that phase.
+Customer application concerns — auth, Stripe, subscriptions, VAT/invoicing implementation, merchant identity presentation, Terms/Privacy pages, customer-control-plane processors, domain/TLS, cookies/logging, final rendered attribution and customer-facing commercialization/source-consistency checks — are part of the authorized web product phase. They remain mandatory before public paid launch, but are not prerequisites for starting that phase.
 
 No external legal review or human response is an allowed gate-closing mechanism.
 
@@ -92,11 +102,13 @@ A20 is the only authoritative readiness source.
 
 **A20 WEB BUILD: GO — CORE PRODUCT DELIVERY IS PRODUCTION-READY. CUSTOMER APPLICATION IS THE SOLE REMAINING PRODUCT-DEVELOPMENT PHASE.**
 
-**A20 LIVE PORTUGAL OPEN CLASSIFICATION: APPROVED (TED-SCOPED).**
+**A20 MVP OPEN CLASSIFICATION: APPROVED (TED-SCOPED).**
 
 Exact definition: **No relevant procurement found in TED as of DATE.** This does not establish absence outside TED.
 
 **A20 OPENCOESIONE A1 SOURCE QUALIFICATION: APPROVED (EXACT 2021-2027 EU-COHESION OPERATION-LIST ROUTE).**
+
+**A20 OPENCOESIONE CURRENT LIVE ROUTE: PR FESR LOMBARDIA 2021-2027.**
 
 **A20 OPENCOESIONE COLLECTOR + FROZEN SCHEMA: IMPLEMENTED, FAIL-CLOSED.**
 
@@ -110,6 +122,6 @@ Exact definition: **No relevant procurement found in TED as of DATE.** This does
 
 **A20 PRODUCT LAUNCH READINESS: NOT YET COMPLETE — AUTHORIZED WEB PRODUCT PHASE REMAINS.**
 
-Web development may now proceed. Public/paid launch remains blocked until the web-phase launch controls — including authentication/authorization, billing/Stripe if used, customer legal/privacy presentation, control-plane privacy, TLS/domain, source attribution, security and final end-to-end checkout/access tests — are green.
+Web development may now proceed under `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`. Public/paid launch remains blocked until the web-phase launch controls in that specification — including authentication/authorization, billing/Stripe if used, customer legal/privacy presentation, control-plane privacy, TLS/domain, source attribution, commercialization/source-consistency, security and final end-to-end checkout/access tests — are green.
 
-No other README/spec/history file may claim broader source coverage or launch readiness than this A20 decision.
+No other README/spec/history file may claim broader source coverage, customer-data rights, commercialization rights or launch readiness than this A20 decision, the normative customer-data/commercialization contract and the authoritative web-phase specification permit.

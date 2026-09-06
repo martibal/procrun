@@ -25,12 +25,18 @@ Canonical specification: `docs/PRODUCT_FOUNDATION_FINAL.md`.
 Authoritative build/release decision: `docs/BUILD_GATES.md`, gate A20.
 Frozen pre-web baseline: `docs/PREWEB_RELEASE_BASELINE.md`.
 Sequencing rule: `docs/DELIVERY_READINESS_GATE.md`.
+Normative customer-data/commercialization contract: `docs/CUSTOMER_DATA_AND_COMMERCIALIZATION_CONTRACT.md`.
+Authoritative web-phase requirements: `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`.
+
+The customer-data/commercialization contract is mandatory for all customer-facing code, exports, APIs, demos, samples, marketing, pricing, Terms/Privacy copy and source links. Public availability of upstream data does not widen ProcRun's approved source or customer-safe boundary, and customer payment is for the approved ProcRun service layer rather than exclusive access to underlying public source data.
+
+The web-phase specification governs the customer application, navigation, demo, onboarding, opportunity surfaces, launch controls and acceptance criteria. It is subordinate to `docs/BUILD_GATES.md` and `docs/CUSTOMER_DATA_AND_COMMERCIALIZATION_CONTRACT.md` on source, privacy, rights, attribution and customer-safe data boundaries.
 
 ## Permanent sequencing rule
 
 Web implementation is the final product-development phase. That phase is now authorized because the complete non-web intelligence delivery chain has passed production acceptance.
 
-The existing fixture/shell under `web/` is non-authoritative and may be replaced. It does not constrain the visual implementation, but the frozen customer-safe data, source, coverage, privacy and evidence contracts do constrain it.
+The existing fixture/shell under `web/` is non-authoritative and may be replaced. It does not constrain the visual implementation, but the frozen customer-safe data, source, coverage, privacy, evidence and commercialization contracts do constrain it.
 
 ## Approved sources
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh ProcRun OpenCoesione Lombardia approximately every two months
+
+[Timer]
+OnCalendar=*-01,03,05,07,09,11-05 08:30:00 Europe/Rome
+Persistent=true
+RandomizedDelaySec=900
+Unit=procrun-opencoesione-sync.service
+
+[Install]
+WantedBy=timers.target

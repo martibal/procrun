@@ -1,6 +1,6 @@
 # ProcRun source status
 
-Status date: 2026-09-05
+Status date: 2026-09-06
 Canonical product spec: `docs/PRODUCT_FOUNDATION_FINAL.md`
 Authoritative readiness gate: `docs/BUILD_GATES.md` A20
 
@@ -82,3 +82,34 @@ It does not mean that no procurement exists outside TED. `procrun.coverage` expo
 > **Do not receive a broad response containing prohibited fields and discard them afterwards.**
 
 No natural-person data may enter the intelligence plane. Account/billing/support PII belongs to the separate customer control plane built during the web phase.
+
+## 2026-09-06 source-boundary incident
+
+Status: **CLOSED — REMEDIATION VERIFIED 2026-09-06**
+
+During an ad hoc geography investigation, a production-server diagnostic printed a complete admitted-source row rather than an explicit allowlist of customer-safe fields. The diagnostic therefore exposed a source-only identity field in the interactive terminal. This practice was outside ProcRun's intended source-safety discipline. The approved runtime contract itself was not changed, and source-only identity fields did not enter `FundingProject` or the customer-safe read model.
+
+The same investigation temporarily introduced a more precise location into the web branch from a separate Unioncamere Lombardia funding-decision PDF. **Unioncamere is not an approved ProcRun source.** It entered customer-facing code without prior RIGHTS / ACCESS / DATA SAFETY qualification. The derived location and source reference were removed. Any future consideration of Unioncamere requires a full source qualification from the beginning; prior temporary use creates no presumption of approval.
+
+`CodicePostale_Postcode` remains one of the approved OpenCoesione Lombardia transport columns but is not approved for precise customer geography. Its observed format is unresolved. Customer-facing geography therefore remains `Lombardia, Italy` until official schema documentation establishes the field semantics and an explicit customer-safe mapping is approved.
+
+### Persistence verification and cleanup
+
+The production host was checked after the incident. No `auditd` service was installed, and no `pam_tty_audit` or equivalent TTY/session-recording configuration was found in the inspected SSH/PAM/audit configuration. No session/audit recording containing the original diagnostic stdout was found.
+
+A later diagnostic sudo search command itself embedded the searched identity string in its command-line arguments. That command was persisted in `/var/log/auth.log` and in the persistent systemd journal. The exact auth-log entry was removed, the affected persistent journal file was rotated out and deleted, `systemd-journald` was restarted, and root shell history for the incident session was cleared.
+
+Post-cleanup verification returned:
+
+- `AUTH CHECK: CLEAN`
+- `JOURNAL CHECK: CLEAN`
+
+No customer-facing Unioncamere-derived location/source remains, and no approved source/runtime contract was expanded as a result of the incident.
+
+### Permanent controls confirmed by closure
+
+1. No new external source may enter customer-facing code before full RIGHTS / ACCESS / DATA SAFETY qualification and source registration.
+2. Complete source rows must not be printed or manually inspected for discovery or debugging.
+3. Schema exploration must use public schema documentation; approved-route row diagnostics, if unavoidable, must use an explicit allowlist of admitted non-identity fields.
+4. `CodicePostale_Postcode` remains unusable for precise customer geography until its official documented semantics and an approved customer-safe mapping are established.
+5. Legal, privacy and source-boundary checks take priority over product convenience, UI enrichment and debugging speed.

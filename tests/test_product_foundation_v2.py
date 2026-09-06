@@ -46,7 +46,8 @@ def test_ted_scoped_open_is_canonical() -> None:
     assert phrase in gates
     assert phrase in national
     assert "This is not a guarantee that no procurement exists outside TED" in spec
-    assert "A20 LIVE PORTUGAL OPEN CLASSIFICATION: APPROVED (TED-SCOPED)" in gates
+    assert "A20 MVP OPEN CLASSIFICATION: APPROVED (TED-SCOPED)" in gates
+    assert "A20 OPENCOESIONE CURRENT LIVE ROUTE: PR FESR LOMBARDIA 2021-2027" in gates
 
 
 def test_source_categories_and_prr_final_status() -> None:
@@ -126,4 +127,4 @@ def test_customer_routes_follow_product() -> None:
         "/pricing",
     ):
         assert route in spec
-    assert "ProcRun Portugal — €149/month" in spec
+    assert "ProcRun Lombardia — €149/month" in spec

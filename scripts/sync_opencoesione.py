@@ -1,37 +1,34 @@
 #!/usr/bin/env python3
-"""Run the daily TED delivery and append verifiable component-state history."""
+"""Refresh the admitted OpenCoesione Lombardia cache on the source's bimonthly cadence."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import os
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 import psycopg
 
-from procrun.migrations import apply_all_migrations
-from procrun.procurement_history import (
-    record_latest_assessments_as_observations,
-    record_sync_run,
+from procrun.collectors.opencoesione_live import (
+    DEFAULT_CACHE_PATH,
+    refresh_open_coesione_cache,
 )
-from procrun.production_delivery import run_live_delivery
+from procrun.migrations import apply_all_migrations
+from procrun.procurement_history import record_sync_run
 
 
 def _args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--database-url", default=os.environ.get("PROCRUN_DATABASE_URL"))
     parser.add_argument(
-        "--database-url",
-        default=os.environ.get("PROCRUN_DATABASE_URL"),
-        help="PostgreSQL DSN; defaults to PROCRUN_DATABASE_URL.",
-    )
-    parser.add_argument(
-        "--output",
+        "--cache",
         type=Path,
-        default=Path("/var/lib/procrun/published/runway.jsonl"),
+        default=Path(
+            os.environ.get("PROCRUN_OPENCOESIONE_CACHE", str(DEFAULT_CACHE_PATH))
+        ),
     )
-    parser.add_argument("--cutoff", type=date.fromisoformat)
     return parser.parse_args()
 
 
@@ -39,38 +36,30 @@ def main() -> int:
     args = _args()
     if not args.database_url:
         raise SystemExit("PROCRUN_DATABASE_URL or --database-url is required")
-
     started_at = datetime.now(timezone.utc)
     try:
-        summary = run_live_delivery(
-            database_url=args.database_url,
-            output_path=args.output,
-            cutoff_date=args.cutoff,
-        )
+        batch = refresh_open_coesione_cache(cache_path=args.cache)
         completed_at = datetime.now(timezone.utc)
         with psycopg.connect(args.database_url) as conn:
             apply_all_migrations(conn)
             with conn.transaction():
-                observations_written = record_latest_assessments_as_observations(
-                    conn, summary.cutoff_date
-                )
                 record_sync_run(
                     conn,
-                    job_name="ted_daily",
+                    job_name="opencoesione_bimonthly",
                     started_at=started_at,
                     completed_at=completed_at,
                     status="SUCCESS",
-                    row_count=observations_written,
+                    row_count=len(batch.operations),
                     detail={
-                        "cutoff_date": summary.cutoff_date.isoformat(),
-                        "ted_records": summary.ted_records,
-                        "ted_pages": summary.ted_pages,
-                        "published_projects": summary.published_projects,
+                        "list_updated_on": batch.list_updated_on.isoformat(),
+                        "source_sha256": batch.source_sha256,
                     },
                 )
-        payload = dict(summary.__dict__)
-        payload["procurement_observations_written"] = observations_written
-        print(json.dumps(payload, default=str, sort_keys=True))
+        print(
+            json.dumps(
+                {"status": "SUCCESS", "rows": len(batch.operations)}, sort_keys=True
+            )
+        )
         return 0
     except Exception as exc:
         completed_at = datetime.now(timezone.utc)
@@ -80,7 +69,7 @@ def main() -> int:
                 with conn.transaction():
                     record_sync_run(
                         conn,
-                        job_name="ted_daily",
+                        job_name="opencoesione_bimonthly",
                         started_at=started_at,
                         completed_at=completed_at,
                         status="ERROR",

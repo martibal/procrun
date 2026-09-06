@@ -8,11 +8,11 @@ export default function RunwayPage() {
   const unresolved = opportunities.filter((item) => item.state === "UNRESOLVED").length;
 
   return <>
-    <div className="eyebrow">Supplier runway</div>
+    <p className="small">Opportunities</p>
     <h1 className="h1">See what the evidence supports — and where it stops.</h1>
     <p className="lede">The MVP combines a deterministic supplier profile with TED procurement evidence. OPEN is always a bounded negative-search conclusion, never a statement that procurement does not exist elsewhere.</p>
 
-    <div className="notice scope"><strong>Fixture workspace.</strong> These opportunities come only from the frozen customer-safe fixture adapter. No source payload is rendered here. OPEN means “No relevant procurement found in TED as of the stated date.”</div>
+    <div className="notice scope"><strong>Development workspace.</strong> Fixture records are interface-only; customer-facing production data must come through the frozen customer-safe read model. OPEN means “No relevant procurement found in TED as of the stated date.”</div>
 
     <div className="grid">
       <div className="card"><div className="small">TED-scoped OPEN</div><div className="kpi">{open}</div><div className="micro">No relevant TED match at cutoff</div></div>
@@ -21,12 +21,12 @@ export default function RunwayPage() {
     </div>
 
     <div className="actions">
-      <Link className="button" href="/app/profile">Configure supplier profile</Link>
+      <Link className="button" href="/app/profile">Configure Supplier Profile</Link>
       <Link className="button secondary" href="/api/export">Export fixture CSV</Link>
     </div>
 
     <section className="section">
-      <div className="section-label">Opportunity feed</div>
+      <p className="small">Opportunity feed</p>
       <h2 className="h2">Evidence-ranked workspace</h2>
       <p className="small">State is determined by the evidence contract. Supplier relevance can change ordering, never OPEN/CLOSED/UNRESOLVED.</p>
       <OpportunityList items={opportunities} />
