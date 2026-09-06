@@ -12,20 +12,46 @@ export default function HomePage() {
         <h1>Find what funded infrastructure projects still need to buy.</h1>
         <p className={styles.intro}>ProcRun helps suppliers find sales opportunities in public infrastructure projects in Lombardia. It shows what each project needs, what has already been procured, and what may still be left to buy — based on published EU funding data and procurement notices in TED.</p>
 
-        <article className={styles.record} aria-label="Example ProcRun opportunity">
+        <div className={styles.exampleIntro}>
+          <h2>See how it works</h2>
+          <p>This example shows how ProcRun turns a funded project into something a supplier can quickly assess. Start with the project, see the purchasing need ProcRun identified, then see whether matching procurement has been found.</p>
+        </div>
+
+        <article className={styles.record} aria-label="Example ProcRun result">
           <div className={styles.recordTop}>
             <div>
+              <p className={styles.guideText}>The funded project</p>
               <h2>{example.projectTitle}</h2>
-              <p className={styles.recordMeta}>{example.geography} <span>/</span> €{(example.valueEur ?? 0).toLocaleString("en-GB")} <span>/</span> Cutoff {example.cutoffDate}</p>
+              <p className={styles.recordMeta}>{example.geography} <span>/</span> €{(example.valueEur ?? 0).toLocaleString("en-GB")} project value <span>/</span> Checked through {example.cutoffDate}</p>
+              <p className={styles.explain}>This is a publicly funded infrastructure project included in the source data monitored by ProcRun.</p>
             </div>
-            <span className={styles.relevance}><i aria-hidden="true" />High relevance</span>
           </div>
-          <p className={styles.demand}><strong>Demand identified:</strong> {example.component}</p>
+
+          <div className={styles.resultStep}>
+            <p className={styles.guideText}>What the project needs</p>
+            <p className={styles.resultValue}>{example.component}</p>
+            <p className={styles.explain}>ProcRun reads the published project description and identifies equipment or services that the project says are part of the planned work.</p>
+          </div>
+
+          <div className={styles.resultStep}>
+            <p className={styles.guideText}>What ProcRun found in procurement records</p>
+            <p className={styles.resultValue}>No matching procurement found in TED as of {example.cutoffDate}.</p>
+            <p className={styles.explain}>ProcRun checks TED, the EU publication service for public procurement notices, for evidence that this identified need has already been procured.</p>
+          </div>
+
+          <div className={styles.interpretation}>
+            <p className={styles.guideText}>What this means for a supplier</p>
+            <p>The identified need may still be worth investigating if your company supplies {example.component.toLowerCase()}. This is not a guarantee that the purchase is still available: ProcRun is showing that it found no relevant procurement in TED by the stated date.</p>
+          </div>
+
           <details className={styles.evidence}>
-            <summary>Show evidence</summary>
-            <blockquote>“{example.projectEvidence}”</blockquote>
-            <p>Project scope evidence from the approved OpenCoesione 2021–2027 operation-list route for PR FESR Lombardia.</p>
-            <p><strong>Procurement state:</strong> {example.state}. {example.openWording}</p>
+            <summary>See the source evidence</summary>
+            <div className={styles.evidenceBody}>
+              <p className={styles.evidenceHeading}>Why ProcRun identified this need</p>
+              <blockquote>“{example.projectEvidence}”</blockquote>
+              <p>This text comes from the published project information used to identify the purchasing need above.</p>
+              <p>Source: OpenCoesione 2021–2027 operation-list publication for PR FESR Lombardia.</p>
+            </div>
           </details>
         </article>
 
