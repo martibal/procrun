@@ -1,8 +1,8 @@
 [Unit]
-Description=Run ProcRun live delivery daily
+Description=Run ProcRun daily TED delivery after the confirmed publication window
 
 [Timer]
-OnCalendar=*-*-* 06:15:00 UTC
+OnCalendar=*-*-* 09:45:00 Europe/Rome
 Persistent=true
 RandomizedDelaySec=300
 Unit=procrun-delivery.service

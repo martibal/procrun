@@ -53,7 +53,7 @@ export function OpportunityDetail({ item, publicMode = false }: { item: Opportun
 
     <div className="actions">
       {publicMode
-        ? <><Link className="button" href="/pricing">Find opportunities like this</Link><Link className="button secondary" href="/demo">Back to demo</Link></>
+        ? <><Link className="button" href="/pricing">Find opportunities like this</Link><Link className="button secondary" href={`/demo/opportunities/${item.id}/history`}>View full history</Link><Link className="button secondary" href="/demo">Back to demo</Link></>
         : <><Link className="button secondary" href="/app">Back to opportunities</Link><Link className="button secondary" href={`/app/projects/${item.projectId}`}>Open project</Link></>}
     </div>
   </>;
