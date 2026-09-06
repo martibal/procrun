@@ -1,5 +1,5 @@
 import os
-from datetime import date, datetime, timezone
+from datetime import date
 
 import psycopg
 import pytest
@@ -74,9 +74,11 @@ def test_observations_are_deduped_and_append_only() -> None:
             coverage_note="Coverage: TED.",
         )
         assert duplicate is None
-        assert conn.execute(
+        count_row = conn.execute(
             "SELECT count(*) FROM procrun.procurement_observations"
-        ).fetchone()[0] == 1
+        ).fetchone()
+        assert count_row is not None
+        assert count_row[0] == 1
 
         closed = append_procurement_observation(
             conn,
@@ -93,12 +95,14 @@ def test_observations_are_deduped_and_append_only() -> None:
 
         with pytest.raises(psycopg.Error):
             conn.execute(
-                "UPDATE procrun.procurement_observations SET coverage_note = 'changed' WHERE id = %s",
+                "UPDATE procrun.procurement_observations "
+                "SET coverage_note = 'changed' WHERE id = %s",
                 (first.id,),
             )
 
         rows = conn.execute(
-            "SELECT state, observed_at FROM procrun.procurement_observations ORDER BY observed_at"
+            "SELECT state, observed_at FROM procrun.procurement_observations "
+            "ORDER BY observed_at"
         ).fetchall()
         assert rows == [("OPEN", date(2026, 1, 1)), ("CLOSED", date(2026, 1, 3))]
 

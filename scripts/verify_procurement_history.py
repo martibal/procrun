@@ -13,21 +13,33 @@ from procrun.domain import ComponentState
 from procrun.migrations import apply_all_migrations
 from procrun.procurement_history import append_procurement_observation
 
+_LOCAL_DSN = "postgresql://procrun:procrun-local-only@127.0.0.1:5432/procrun"
+
 
 def _args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--database-url",
-        default="postgresql://procrun:procrun-local-only@127.0.0.1:5432/procrun",
-    )
+    parser.add_argument("--database-url", default=_LOCAL_DSN)
     return parser.parse_args()
+
+
+def _require_known_local_database(database_url: str) -> None:
+    parsed = urlparse(database_url)
+    safe = (
+        parsed.hostname in {"127.0.0.1", "localhost"}
+        and parsed.port == 5432
+        and parsed.username == "procrun"
+        and parsed.password == "procrun-local-only"
+        and parsed.path == "/procrun"
+    )
+    if not safe:
+        raise SystemExit(
+            "Refusing destructive acceptance check: use the exact compose.yml local-test DSN"
+        )
 
 
 def main() -> int:
     args = _args()
-    parsed = urlparse(args.database_url)
-    if parsed.hostname not in {"127.0.0.1", "localhost"}:
-        raise SystemExit("Refusing to run destructive acceptance check against a non-local database")
+    _require_known_local_database(args.database_url)
 
     with psycopg.connect(args.database_url, autocommit=True) as conn:
         conn.execute("DROP SCHEMA IF EXISTS procrun CASCADE")
@@ -61,7 +73,8 @@ def main() -> int:
 
         try:
             conn.execute(
-                "UPDATE procrun.procurement_observations SET coverage_note = 'changed' WHERE id = %s",
+                "UPDATE procrun.procurement_observations "
+                "SET coverage_note = 'changed' WHERE id = %s",
                 (first.id,),
             )
         except psycopg.Error:

@@ -109,6 +109,10 @@ def _fetch_network(
             active_client.close()
 
 
+def _decimal_text(value: Decimal | None) -> str | None:
+    return str(value) if value is not None else None
+
+
 def _operation_payload(operation: OpenCoesioneOperation) -> dict[str, Any]:
     return {
         "operation_id": operation.operation_id,
@@ -117,9 +121,9 @@ def _operation_payload(operation: OpenCoesioneOperation) -> dict[str, Any]:
         "operation_summary": operation.operation_summary,
         "start_date": operation.start_date.isoformat() if operation.start_date else None,
         "end_date": operation.end_date.isoformat() if operation.end_date else None,
-        "total_cost_eur": str(operation.total_cost_eur) if operation.total_cost_eur is not None else None,
-        "eligible_expenditure_eur": str(operation.eligible_expenditure_eur) if operation.eligible_expenditure_eur is not None else None,
-        "eu_cofinancing_rate": str(operation.eu_cofinancing_rate) if operation.eu_cofinancing_rate is not None else None,
+        "total_cost_eur": _decimal_text(operation.total_cost_eur),
+        "eligible_expenditure_eur": _decimal_text(operation.eligible_expenditure_eur),
+        "eu_cofinancing_rate": _decimal_text(operation.eu_cofinancing_rate),
         "fund": operation.fund,
         "specific_objective": operation.specific_objective,
         "postcode": operation.postcode,
@@ -153,6 +157,14 @@ def write_open_coesione_cache(batch: OpenCoesioneBatch, path: Path) -> None:
     temp_path.replace(path)
 
 
+def _optional_date(value: Any) -> date | None:
+    return date.fromisoformat(str(value)) if value else None
+
+
+def _optional_decimal(value: Any) -> Decimal | None:
+    return Decimal(str(value)) if value else None
+
+
 def load_open_coesione_cache(path: Path) -> OpenCoesioneBatch:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if raw.get("cache_version") != CACHE_VERSION:
@@ -165,17 +177,17 @@ def load_open_coesione_cache(path: Path) -> OpenCoesioneBatch:
             cup=item["cup"],
             operation_name=str(item["operation_name"]),
             operation_summary=str(item["operation_summary"]),
-            start_date=date.fromisoformat(item["start_date"]) if item["start_date"] else None,
-            end_date=date.fromisoformat(item["end_date"]) if item["end_date"] else None,
-            total_cost_eur=Decimal(item["total_cost_eur"]) if item["total_cost_eur"] else None,
-            eligible_expenditure_eur=Decimal(item["eligible_expenditure_eur"]) if item["eligible_expenditure_eur"] else None,
-            eu_cofinancing_rate=Decimal(item["eu_cofinancing_rate"]) if item["eu_cofinancing_rate"] else None,
+            start_date=_optional_date(item["start_date"]),
+            end_date=_optional_date(item["end_date"]),
+            total_cost_eur=_optional_decimal(item["total_cost_eur"]),
+            eligible_expenditure_eur=_optional_decimal(item["eligible_expenditure_eur"]),
+            eu_cofinancing_rate=_optional_decimal(item["eu_cofinancing_rate"]),
             fund=item["fund"],
             specific_objective=item["specific_objective"],
             postcode=item["postcode"],
             country=item["country"],
             intervention_category=item["intervention_category"],
-            list_updated_on=date.fromisoformat(item["list_updated_on"]),
+            list_updated_on=date.fromisoformat(str(item["list_updated_on"])),
             source_url=str(item["source_url"]),
         )
         for item in raw["operations"]
@@ -191,13 +203,19 @@ def load_open_coesione_cache(path: Path) -> OpenCoesioneBatch:
     )
 
 
+def _configured_cache_path(cache_path: Path | None) -> Path:
+    if cache_path is not None:
+        return cache_path
+    return Path(os.environ.get("PROCRUN_OPENCOESIONE_CACHE", str(DEFAULT_CACHE_PATH)))
+
+
 def refresh_open_coesione_cache(
     *,
     cache_path: Path | None = None,
     client: httpx.Client | None = None,
     timeout_seconds: float = 60.0,
 ) -> OpenCoesioneBatch:
-    path = cache_path or Path(os.environ.get("PROCRUN_OPENCOESIONE_CACHE", DEFAULT_CACHE_PATH))
+    path = _configured_cache_path(cache_path)
     batch = _fetch_network(client=client, timeout_seconds=timeout_seconds)
     write_open_coesione_cache(batch, path)
     return batch
@@ -213,7 +231,7 @@ def collect_open_coesione_live(
 
     if client is not None:
         return _fetch_network(client=client, timeout_seconds=timeout_seconds)
-    path = cache_path or Path(os.environ.get("PROCRUN_OPENCOESIONE_CACHE", DEFAULT_CACHE_PATH))
+    path = _configured_cache_path(cache_path)
     if path.exists():
         return load_open_coesione_cache(path)
     return refresh_open_coesione_cache(cache_path=path, timeout_seconds=timeout_seconds)

@@ -25,7 +25,9 @@ def _args() -> argparse.Namespace:
     parser.add_argument(
         "--cache",
         type=Path,
-        default=Path(os.environ.get("PROCRUN_OPENCOESIONE_CACHE", DEFAULT_CACHE_PATH)),
+        default=Path(
+            os.environ.get("PROCRUN_OPENCOESIONE_CACHE", str(DEFAULT_CACHE_PATH))
+        ),
     )
     return parser.parse_args()
 
@@ -53,7 +55,11 @@ def main() -> int:
                         "source_sha256": batch.source_sha256,
                     },
                 )
-        print(json.dumps({"status": "SUCCESS", "rows": len(batch.operations)}, sort_keys=True))
+        print(
+            json.dumps(
+                {"status": "SUCCESS", "rows": len(batch.operations)}, sort_keys=True
+            )
+        )
         return 0
     except Exception as exc:
         completed_at = datetime.now(timezone.utc)
