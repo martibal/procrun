@@ -9,29 +9,37 @@ export type Opportunity = {
   cutoffDate: string;
   coverage: "TED";
   openWording?: string;
+  coverageNote?: string;
   projectEvidence: string;
   procurementEvidence?: string;
   valueEur?: number;
   geography: string;
+  programme?: string;
+  projectStart?: string;
+  sourceUrl?: string;
   sourceVersion: string;
-  isFixture: true;
+  isFixture: boolean;
 };
 
 export const opportunities: readonly Opportunity[] = [
   {
-    id: "opp-water-pumps",
-    projectId: "fixture-it-water-001",
-    projectTitle: "Regional water-network resilience programme",
-    component: "Pumping systems and controls",
+    id: "opp-led-playing-fields",
+    projectId: "F28C25000130007",
+    projectTitle: "SOSTITUZIONE LED PER ILLUMINAZIONE CAMPI DA GIOCO E VIALETTI",
+    component: "Lighting",
     state: "OPEN",
-    cutoffDate: "2026-09-04",
+    cutoffDate: "2026-09-06",
     coverage: "TED",
-    openWording: "No relevant procurement found in TED as of 2026-09-04.",
-    projectEvidence: "Upgrade pumping stations, electrical controls and remote monitoring across the network.",
-    valueEur: 8200000,
-    geography: "Lombardia · Italy",
-    sourceVersion: "fixture:read-model:v1",
-    isFixture: true,
+    openWording: "No relevant procurement found in TED as of 2026-09-06.",
+    coverageNote: "Coverage: TED. No relevant procurement means no matching procurement was found in the complete TED query universe through the stated cutoff. This does not establish absence outside TED, including national or below-threshold procedures.",
+    projectEvidence: "SOSTITUZIONE LED PER ILLUMINAZIONE CAMPI DA GIOCO E VIALETTI",
+    valueEur: 35845,
+    geography: "Lombardia, Italy",
+    programme: "PR FESR Lombardia 2021-2027",
+    projectStart: "2025-01-11",
+    sourceUrl: "https://opencoesione.gov.it/media/open_data/beneficiari/2021-2027/beneficiari_PR_FESR_LOMBARDIA.zip",
+    sourceVersion: "customer-runway-v1",
+    isFixture: false,
   },
   {
     id: "opp-rail-signalling",
@@ -44,7 +52,7 @@ export const opportunities: readonly Opportunity[] = [
     projectEvidence: "Modernisation includes signalling, communications and station systems.",
     procurementEvidence: "TED notice matched signalling-system procurement under the frozen matching rules.",
     valueEur: 14500000,
-    geography: "Lombardia · Italy",
+    geography: "Lombardia, Italy",
     sourceVersion: "fixture:read-model:v1",
     isFixture: true,
   },
@@ -57,7 +65,7 @@ export const opportunities: readonly Opportunity[] = [
     cutoffDate: "2026-09-04",
     coverage: "TED",
     projectEvidence: "Digital monitoring and control infrastructure for local distribution assets.",
-    geography: "Lombardia · Italy",
+    geography: "Lombardia, Italy",
     sourceVersion: "fixture:read-model:v1",
     isFixture: true,
   },
