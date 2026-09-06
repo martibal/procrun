@@ -14,8 +14,6 @@ export type Opportunity = {
   procurementEvidence?: string;
   valueEur?: number;
   geography: string;
-  locationBasis?: string;
-  locationSourceUrl?: string;
   programme?: string;
   projectStart?: string;
   sourceUrl?: string;
@@ -36,9 +34,7 @@ export const opportunities: readonly Opportunity[] = [
     coverageNote: "Coverage: TED. No relevant procurement means no matching procurement was found in the complete TED query universe through the stated cutoff. This does not establish absence outside TED, including national or below-threshold procedures.",
     projectEvidence: "SOSTITUZIONE LED PER ILLUMINAZIONE CAMPI DA GIOCO E VIALETTI",
     valueEur: 35845,
-    geography: "Milano province, Lombardia, Italy",
-    locationBasis: "Province of the operational site reported in the official Lombardia funding decision for this project.",
-    locationSourceUrl: "https://www.unioncamerelombardia.it/fileadmin/bandi/2024/Bando_Investimenti_Linea_Microimprese/All._1_Determinazione_n._9-2025_Investimenti_Linea_Microimprese_imprese_ammesse.pdf",
+    geography: "Lombardia, Italy",
     programme: "PR FESR Lombardia 2021-2027",
     projectStart: "2025-01-11",
     sourceUrl: "https://opencoesione.gov.it/media/open_data/beneficiari/2021-2027/beneficiari_PR_FESR_LOMBARDIA.zip",
