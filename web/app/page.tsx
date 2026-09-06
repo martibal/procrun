@@ -48,8 +48,6 @@ export default function HomePage() {
                 <div><dt>Operation code</dt><dd>{example.projectId}</dd></div>
                 <div><dt>Approved funding</dt><dd>€{(example.valueEur ?? 0).toLocaleString("en-GB")}</dd></div>
               </dl>
-              {example.locationBasis ? <p>{example.locationBasis}</p> : null}
-              {example.locationSourceUrl ? <a className={styles.textLink} href={example.locationSourceUrl}>Official funding decision for location</a> : null}
 
               <h3>Why this purchasing need is shown</h3>
               <p>The source text explicitly refers to replacement of LED lighting for playing fields and walkways. The customer-safe production record classifies the identified component as <code>energy_efficiency:lighting</code>.</p>
