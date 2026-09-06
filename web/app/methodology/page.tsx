@@ -1,14 +1,56 @@
-import Link from "next/link";
+import { PublicPage } from "@/components/public-site";
 
 export default function MethodologyPage() {
-  return <div className="public-shell">
-    <div className="public-nav"><Link href="/" className="brand">ProcRun</Link><div className="nav"><Link href="/pricing">Pricing</Link><Link href="/app">Workspace</Link></div></div>
-    <div className="eyebrow">Methodology</div>
-    <h1 className="h1">Evidence first. Coverage stated, not implied.</h1>
-    <p className="lede">ProcRun separates source facts, matching evidence and derived conclusions so the customer can inspect what supports each state.</p>
-    <section className="card flat section"><h2 className="h2">What OPEN means in the MVP</h2><p><strong>No relevant procurement found in TED as of DATE.</strong></p><p className="small">This is not a guarantee that no procurement exists outside TED, including purely national or below-threshold procedures. Incomplete TED retrieval cannot produce OPEN.</p></section>
-    <section className="card flat section"><h2 className="h2">What we do not promise</h2><p className="small">No complete Portuguese procurement coverage. No complete Italian public-investment coverage. No complete bill of materials. No guaranteed future purchase. No win probability. No buyer-person intelligence. No source or EU endorsement.</p></section>
-    <section className="card flat section"><h2 className="h2">Source boundary</h2><p className="small">Browser, API and export surfaces consume only validated customer-safe read models. Raw TED or OpenCoesione responses never form part of the browser contract.</p></section>
-    <section className="card flat section"><h2 className="h2">OpenCoesione expansion boundary</h2><p className="small">The approved funded-project source contract is limited to the 2021–2027 EU-cohesion operation-list publication. Italian funded-project data remains non-live in the customer interface until transfer/end-to-end acceptance is green.</p></section>
-  </div>;
+  return <PublicPage>
+    <section className="page-hero">
+      <div className="eyebrow">Methodology & coverage</div>
+      <h1 className="h1 public-h1">Evidence first. Coverage stated, not implied.</h1>
+      <p className="lede lede-large">ProcRun separates source facts, component extraction, procurement evidence and derived state so a customer can see both what supports a conclusion and what the conclusion does not say.</p>
+    </section>
+
+    <section className="public-section">
+      <div className="method-grid">
+        <article><span className="step">01</span><h2>Approved project source</h2><p>Funded-project records enter the intelligence pipeline only from explicitly approved public publication routes. The current live funded-project route is the PR FESR Lombardia publication within the OpenCoesione 2021–2027 EU-cohesion operation-list family.</p></article>
+        <article><span className="step">02</span><h2>Deterministic components</h2><p>A component must be supported by an exact project-scope evidence span. Generic assumptions about what a project “probably” buys are not enough.</p></article>
+        <article><span className="step">03</span><h2>TED evidence search</h2><p>Procurement evidence is retrieved from Tenders Electronic Daily under bounded field projection, pagination and schema checks. Incomplete retrieval fails closed.</p></article>
+        <article><span className="step">04</span><h2>Conservative state</h2><p>Strong accepted evidence can support CLOSED. Absence inside the complete approved TED search scope can support OPEN. Ambiguity or insufficient evidence produces UNRESOLVED.</p></article>
+      </div>
+    </section>
+
+    <section className="public-section">
+      <div className="eyebrow">State definitions</div>
+      <h2 className="display-h2 compact-heading">How to read a component state.</h2>
+      <div className="state-grid">
+        <article className="state-panel"><span className="pill">OPEN · TED-scoped</span><h3>No relevant procurement found in TED as of DATE.</h3><p>This is a bounded negative-search conclusion. It is not a guarantee that procurement does not exist outside TED, including purely national or below-threshold procedures.</p></article>
+        <article className="state-panel"><span className="pill closed">CLOSED</span><h3>Accepted procurement evidence shows the specific component has entered procurement by the cutoff.</h3><p>The evidence object retains the publication identity, date, exact evidence, matching context and observation cutoff.</p></article>
+        <article className="state-panel"><span className="pill unresolved">UNRESOLVED</span><h3>A safe conclusion cannot be supported.</h3><p>Review-band evidence, ambiguity, insufficient corroboration or incomplete retrieval must remain unresolved rather than being promoted into a lead.</p></article>
+      </div>
+    </section>
+
+    <section className="public-section split-section">
+      <div><div className="eyebrow">Project state</div><h2 className="display-h2">Project-level runway is an aggregate of component evidence.</h2></div>
+      <div className="coverage-list">
+        <div><strong>OPEN</strong><p>Open-derived project states inherit the same explicit TED coverage boundary.</p></div>
+        <div><strong>PARTIAL</strong><p>Some components have accepted procurement evidence while others still meet the bounded OPEN definition.</p></div>
+        <div><strong>CLOSED</strong><p>The relevant supported components have accepted procurement evidence under the matching rules.</p></div>
+        <div><strong>UNRESOLVED</strong><p>Ambiguity or insufficient evidence prevents a safe project-level runway conclusion.</p></div>
+      </div>
+    </section>
+
+    <section className="public-section split-section">
+      <div><div className="eyebrow">Source attribution</div><h2 className="display-h2">The derived analysis is ProcRun's, not the source publisher's.</h2></div>
+      <div className="source-cards">
+        <article><h3>TED</h3><p>Source: Tenders Electronic Daily (TED), Publications Office of the European Union. ProcRun transforms and classifies the source data; the derived analysis is not an official EU publication or endorsement.</p></article>
+        <article><h3>OpenCoesione</h3><p>Source: OpenCoesione, Lista beneficiari e operazioni 2021-2027, used under CC BY 4.0. ProcRun transforms and classifies the source data; the derived analysis is not an official OpenCoesione, Italian-government or EU publication or endorsement.</p></article>
+      </div>
+    </section>
+
+    <section className="public-section">
+      <div className="eyebrow">Explicit limitations</div>
+      <h2 className="display-h2 compact-heading">Claims ProcRun does not make.</h2>
+      <div className="negative-grid">
+        <div>Complete national procurement coverage</div><div>Complete Italian public-investment coverage</div><div>A complete bill of materials</div><div>Discovery of every future purchase</div><div>Win probability or GO/NO-GO scoring</div><div>Buyer-person or contact intelligence</div><div>100% accuracy</div><div>Government, source or EU endorsement</div>
+      </div>
+    </section>
+  </PublicPage>;
 }
