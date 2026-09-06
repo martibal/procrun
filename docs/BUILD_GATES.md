@@ -5,6 +5,7 @@ Canonical product spec: `docs/PRODUCT_FOUNDATION_FINAL.md`
 Pre-web baseline: `docs/PREWEB_RELEASE_BASELINE.md`
 Sequencing rule: `docs/DELIVERY_READINESS_GATE.md`
 Customer data/commercialization contract: `docs/CUSTOMER_DATA_AND_COMMERCIALIZATION_CONTRACT.md`
+Authoritative web-phase requirements: `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`
 
 These gates are authoritative. Historical product files cannot override them.
 
@@ -55,6 +56,8 @@ The customer-safe boundary is format-independent: web UI, demo, sample, CSV, JSO
 Web implementation is the final product-development phase. The complete non-web delivery chain is now production-ready, so the sequencing prerequisite is satisfied.
 
 The existing fixture/shell web code remains non-authoritative; authorization to begin web development does not retroactively validate it.
+
+The customer application must now be implemented against `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`. That specification governs web scope and acceptance, but it cannot widen any source, privacy, rights, attribution or customer-safe boundary established by these gates or `docs/CUSTOMER_DATA_AND_COMMERCIALIZATION_CONTRACT.md`.
 
 ## A7 — Unsupported claims and commercialization boundary
 
@@ -119,6 +122,6 @@ Exact definition: **No relevant procurement found in TED as of DATE.** This does
 
 **A20 PRODUCT LAUNCH READINESS: NOT YET COMPLETE — AUTHORIZED WEB PRODUCT PHASE REMAINS.**
 
-Web development may now proceed. Public/paid launch remains blocked until the web-phase launch controls — including authentication/authorization, billing/Stripe if used, customer legal/privacy presentation, control-plane privacy, TLS/domain, source attribution, commercialization/source-consistency, security and final end-to-end checkout/access tests — are green.
+Web development may now proceed under `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`. Public/paid launch remains blocked until the web-phase launch controls in that specification — including authentication/authorization, billing/Stripe if used, customer legal/privacy presentation, control-plane privacy, TLS/domain, source attribution, commercialization/source-consistency, security and final end-to-end checkout/access tests — are green.
 
-No other README/spec/history file may claim broader source coverage, customer-data rights, commercialization rights or launch readiness than this A20 decision and the normative customer-data/commercialization contract permit.
+No other README/spec/history file may claim broader source coverage, customer-data rights, commercialization rights or launch readiness than this A20 decision, the normative customer-data/commercialization contract and the authoritative web-phase specification permit.
