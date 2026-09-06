@@ -12,26 +12,29 @@ export default function HomePage() {
       <section className={styles.hero}>
         <h1>Find what funded infrastructure projects still need to buy.</h1>
         <p className={styles.intro}>ProcRun helps suppliers find sales opportunities in public infrastructure projects in Lombardia. It shows what each project needs, what has already been procured, and what may still be left to buy — based on published EU funding data and procurement notices in TED.</p>
+        <p className={styles.audience}>For suppliers selling equipment, systems and services into public infrastructure projects.</p>
 
         <article className={styles.record} aria-label="Current ProcRun opportunity">
           <header className={styles.opportunityHeader}>
             <p className={styles.guideText}>Current opportunity</p>
             <h2>LED lighting replacement for playing fields and walkways</h2>
-            <p className={styles.opportunityMeta}>{example.geography} <span>·</span> €{(example.valueEur ?? 0).toLocaleString("en-GB")} approved funding</p>
+            <div className={styles.opportunityMeta}>
+              <span>{example.geography}</span>
+              <span>€{(example.valueEur ?? 0).toLocaleString("en-GB")} approved funding</span>
+            </div>
             <p className={styles.originalTitle}>Original project: <span>{example.projectTitle}</span></p>
           </header>
 
           <section className={styles.primaryFinding}>
-            <p className={styles.guideText}>Potential purchasing need</p>
+            <p className={styles.guideText}>What may still need to be bought</p>
             <p className={styles.resultValue}>LED lighting for playing fields and walkways</p>
             <p className={styles.projectContext}>The published project scope explicitly states that LED lighting is to be replaced for playing fields and walkways.</p>
           </section>
 
           <section className={styles.procurementFinding}>
-            <p className={styles.guideText}>Procurement check</p>
-            <p className={styles.procurementHeadline}>No matching procurement found in TED</p>
-            <p className={styles.checkedDate}>Checked through {checkedThrough}.</p>
-            <p className={styles.coverageNote}>ProcRun found no matching procurement in the complete TED query universe checked through that date. Purchases made through national or below-threshold procedures may not appear in TED.</p>
+            <p className={styles.guideText}>Why this opportunity is showing now</p>
+            <p className={styles.procurementHeadline}>The funded work identifies an LED lighting purchase, and no relevant procurement was found in TED through {checkedThrough}.</p>
+            <p className={styles.meaning}><strong>What this means:</strong> the procurement may still be ahead, or it may have taken place through a procedure that is not published in TED.</p>
           </section>
 
           <details className={styles.evidence}>
@@ -72,6 +75,25 @@ export default function HomePage() {
           <Link className={styles.primaryButton} href="/app">Open demo</Link>
           <Link className={styles.secondaryButton} href="/pricing">View pricing</Link>
         </div>
+      </section>
+
+      <section className={styles.explainer} aria-labelledby="explainer-heading">
+        <h2 id="explainer-heading">What ProcRun does across funded projects in Lombardia</h2>
+        <div className={styles.explainerRows}>
+          <div>
+            <h3>Find the project</h3>
+            <p>See funded projects and the equipment, systems or services identified in the published project scope.</p>
+          </div>
+          <div>
+            <h3>Check the procurement</h3>
+            <p>See whether ProcRun has found procurement evidence in TED for those purchasing needs.</p>
+          </div>
+          <div>
+            <h3>Focus your sales work</h3>
+            <p>Use the resulting opportunities to concentrate on projects relevant to what your company supplies.</p>
+          </div>
+        </div>
+        <Link className={styles.primaryButton} href="/app">Open demo</Link>
       </section>
 
       <section className={styles.priceSection}>
