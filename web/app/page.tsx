@@ -17,7 +17,7 @@ export default function HomePage() {
           <header className={styles.opportunityHeader}>
             <p className={styles.guideText}>Current opportunity</p>
             <h2>LED lighting replacement for playing fields and walkways</h2>
-            <p className={styles.opportunityMeta}>Lombardia, Italy <span>·</span> €{(example.valueEur ?? 0).toLocaleString("en-GB")} approved funding</p>
+            <p className={styles.opportunityMeta}>{example.geography} <span>·</span> €{(example.valueEur ?? 0).toLocaleString("en-GB")} approved funding</p>
             <p className={styles.originalTitle}>Original project: <span>{example.projectTitle}</span></p>
           </header>
 
@@ -42,11 +42,14 @@ export default function HomePage() {
 
               <h3>Project details</h3>
               <dl className={styles.evidenceFacts}>
+                <div><dt>Location</dt><dd>{example.geography}</dd></div>
                 <div><dt>Programme</dt><dd>{example.programme}</dd></div>
                 <div><dt>Project start</dt><dd>{example.projectStart}</dd></div>
                 <div><dt>Operation code</dt><dd>{example.projectId}</dd></div>
                 <div><dt>Approved funding</dt><dd>€{(example.valueEur ?? 0).toLocaleString("en-GB")}</dd></div>
               </dl>
+              {example.locationBasis ? <p>{example.locationBasis}</p> : null}
+              {example.locationSourceUrl ? <a className={styles.textLink} href={example.locationSourceUrl}>Official funding decision for location</a> : null}
 
               <h3>Why this purchasing need is shown</h3>
               <p>The source text explicitly refers to replacement of LED lighting for playing fields and walkways. The customer-safe production record classifies the identified component as <code>energy_efficiency:lighting</code>.</p>
