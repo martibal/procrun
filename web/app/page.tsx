@@ -3,64 +3,62 @@ import { PublicPage } from "@/components/public-site";
 
 export default function HomePage() {
   return <PublicPage>
-    <section className="hero hero-wide">
-      <div className="eyebrow">Infrastructure procurement intelligence for suppliers</div>
-      <h1>See which funded projects may still have procurement runway.</h1>
-      <p className="lede lede-large">ProcRun starts with approved funded-project scope, identifies source-evidenced purchasable components, checks procurement evidence in TED, and shows what the evidence supports — including where the answer remains unresolved.</p>
+    <section className="landing-hero">
+      <div className="eyebrow">Procurement intelligence for infrastructure suppliers</div>
+      <h1>Find funded projects that may still have procurement left.</h1>
+      <p className="landing-intro">ProcRun takes public funded-project records, identifies the equipment and services described in the project scope, and checks TED for procurement evidence. You get a project list that shows what appears already procured, what has no matching TED procurement at the cutoff, and what cannot be decided safely.</p>
+      <p className="landing-use">Use it to decide which funded projects are worth investigating first, without reading project documents and procurement notices one by one.</p>
       <div className="actions">
-        <Link className="button large" href="/product">See how ProcRun works</Link>
-        <Link className="button secondary large" href="/app">Open demo workspace</Link>
+        <Link className="button large" href="/app">Open the demo</Link>
+        <Link className="text-link strong landing-secondary-link" href="/methodology">See exactly how it is calculated →</Link>
       </div>
-      <p className="micro hero-note">The current workspace is a development/demo surface. Paid checkout and production authentication are not enabled yet.</p>
     </section>
 
-    <section className="proof-strip" aria-label="Product principles">
-      <div><strong>Source-evidenced</strong><span>Positive procurement matches retain supporting evidence.</span></div>
-      <div><strong>Bounded absence</strong><span>OPEN is explicitly limited to the complete TED search scope.</span></div>
-      <div><strong>Safe abstention</strong><span>Ambiguous or incomplete evidence stays UNRESOLVED.</span></div>
-    </section>
-
-    <section className="public-section split-section">
+    <section className="landing-section landing-two-col">
       <div>
-        <div className="eyebrow">What you get</div>
-        <h2 className="display-h2">A project-level view of what appears bought, still open, or genuinely uncertain.</h2>
+        <h2>What you get</h2>
+        <p>Each project is broken down into purchasable components supported by the published project description. ProcRun then checks those components against TED procurement evidence.</p>
       </div>
-      <div className="feature-stack">
-        <div className="feature-row"><span className="step">01</span><div><h3>Funded project scope</h3><p>Start from approved public project records rather than invented demand or generic tender keywords.</p></div></div>
-        <div className="feature-row"><span className="step">02</span><div><h3>Purchasable components</h3><p>ProcRun derives only components supported by exact project-scope evidence and fixed extraction rules.</p></div></div>
-        <div className="feature-row"><span className="step">03</span><div><h3>Procurement evidence</h3><p>Accepted TED evidence is matched conservatively to each component, with evidence and cutoff retained.</p></div></div>
-        <div className="feature-row"><span className="step">04</span><div><h3>Remaining runway</h3><p>Each component and project is classified as OPEN, CLOSED, PARTIAL or UNRESOLVED under explicit rules.</p></div></div>
-      </div>
-    </section>
-
-    <section className="public-section">
-      <div className="section-heading-row">
-        <div><div className="eyebrow">Read the state correctly</div><h2 className="display-h2 compact-heading">Three component outcomes, one important boundary.</h2></div>
-        <Link className="text-link strong" href="/methodology">Full methodology →</Link>
-      </div>
-      <div className="state-grid">
-        <article className="state-panel"><span className="pill">OPEN · TED-scoped</span><h3>No relevant procurement found in TED as of the stated cutoff.</h3><p>This does not establish that no procurement exists outside TED, including national or below-threshold procedures.</p></article>
-        <article className="state-panel"><span className="pill closed">CLOSED</span><h3>Accepted procurement evidence exists for the specific component.</h3><p>The supporting publication, evidence span, date and matching rationale remain inspectable.</p></article>
-        <article className="state-panel"><span className="pill unresolved">UNRESOLVED</span><h3>The evidence is not strong enough for a safe decision.</h3><p>Incomplete retrieval, ambiguity or insufficient corroboration cannot be converted into an opportunity claim.</p></article>
+      <div className="landing-lines">
+        <div><strong>Project</strong><span>Title, programme, region, dates, approved funding and source.</span></div>
+        <div><strong>Components</strong><span>The equipment or services that can be supported directly by the project scope.</span></div>
+        <div><strong>Procurement evidence</strong><span>Matched TED notices with publication date, notice identity and the exact evidence used.</span></div>
+        <div><strong>Current state</strong><span>OPEN, CLOSED, PARTIAL or UNRESOLVED, with the cutoff date and explanation.</span></div>
       </div>
     </section>
 
-    <section className="public-section split-section coverage-section">
+    <section className="landing-section">
+      <h2>How to read the result</h2>
+      <div className="landing-status-list">
+        <div><strong>OPEN</strong><p>No relevant procurement was found in TED as of the stated date. This is TED-scoped; it does not mean procurement cannot exist in national or below-threshold channels.</p></div>
+        <div><strong>CLOSED</strong><p>Accepted procurement evidence was found for the component.</p></div>
+        <div><strong>PARTIAL</strong><p>A project contains a mix of component states, so some procurement may remain while other parts have evidence of procurement.</p></div>
+        <div><strong>UNRESOLVED</strong><p>The available evidence is too ambiguous or incomplete to classify safely.</p></div>
+      </div>
+    </section>
+
+    <section className="landing-section landing-two-col">
       <div>
-        <div className="eyebrow">Coverage today</div>
-        <h2 className="display-h2">Know exactly which public sources sit behind the result.</h2>
-        <p className="lede">ProcRun does not imply broader coverage than its approved source contracts support.</p>
+        <h2>Where the data comes from</h2>
+        <p>Funded-project scope currently comes from the approved OpenCoesione 2021–2027 EU-cohesion operation-list publication family. Procurement evidence comes from Tenders Electronic Daily (TED).</p>
       </div>
-      <div className="coverage-list">
-        <div><strong>Funded-project source</strong><p>OpenCoesione, exact 2021–2027 EU-cohesion operation-list publication family. The current live funded-project route is PR FESR Lombardia.</p></div>
-        <div><strong>Procurement evidence</strong><p>Tenders Electronic Daily (TED), used for field-bounded procurement evidence and the MVP negative-search boundary.</p></div>
-        <div><strong>What is outside the claim</strong><p>ProcRun does not claim complete national procurement coverage, every future purchase, a complete bill of materials, win probability or buyer-person intelligence.</p></div>
+      <div>
+        <h2>What ProcRun does not claim</h2>
+        <p>ProcRun does not claim complete national procurement coverage, a complete bill of materials, every future purchase, win probability or buyer/contact intelligence. Where the evidence is insufficient, the product shows that explicitly.</p>
+        <Link className="text-link strong" href="/methodology">Read methodology and coverage →</Link>
       </div>
     </section>
 
-    <section className="public-section cta-band">
-      <div><div className="eyebrow">Launch package</div><h2 className="display-h2 compact-heading">Professional procurement evidence, €149 per month.</h2><p className="lede">One launch package. No permanent free tier is planned.</p></div>
-      <div className="actions"><Link className="button large" href="/pricing">See pricing details</Link><Link className="button secondary large" href="/faq">Read FAQ</Link></div>
+    <section className="landing-section landing-bottom">
+      <div>
+        <h2>ProcRun Portugal</h2>
+        <p className="landing-price">€149 <span>/ month</span></p>
+        <p>One professional package with the procurement runway workspace, evidence detail, supplier profile, saved opportunities, market context and customer-safe CSV export.</p>
+      </div>
+      <div className="landing-bottom-action">
+        <Link className="button large" href="/pricing">See pricing</Link>
+        <Link className="text-link strong" href="/faq">Read the FAQ →</Link>
+      </div>
     </section>
   </PublicPage>;
 }
