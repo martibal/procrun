@@ -26,8 +26,11 @@ Authoritative build/release decision: `docs/BUILD_GATES.md`, gate A20.
 Frozen pre-web baseline: `docs/PREWEB_RELEASE_BASELINE.md`.
 Sequencing rule: `docs/DELIVERY_READINESS_GATE.md`.
 Normative customer-data/commercialization contract: `docs/CUSTOMER_DATA_AND_COMMERCIALIZATION_CONTRACT.md`.
+Authoritative web-phase requirements: `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`.
 
 The customer-data/commercialization contract is mandatory for all customer-facing code, exports, APIs, demos, samples, marketing, pricing, Terms/Privacy copy and source links. Public availability of upstream data does not widen ProcRun's approved source or customer-safe boundary, and customer payment is for the approved ProcRun service layer rather than exclusive access to underlying public source data.
+
+The web-phase specification governs the customer application, navigation, demo, onboarding, opportunity surfaces, launch controls and acceptance criteria. It is subordinate to `docs/BUILD_GATES.md` and `docs/CUSTOMER_DATA_AND_COMMERCIALIZATION_CONTRACT.md` on source, privacy, rights, attribution and customer-safe data boundaries.
 
 ## Permanent sequencing rule
 
