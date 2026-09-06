@@ -6,9 +6,9 @@ import styles from "./landing.module.css";
 export default function HomePage() {
   return <PublicPage>
     <section className={styles.hero}>
-      <p className={styles.kicker}>Procurement intelligence for infrastructure suppliers</p>
+      <p className={styles.kicker}>Procurement intelligence for infrastructure suppliers in Lombardia</p>
       <h1>See which funded projects still have no matching TED procurement for specific equipment and services.</h1>
-      <p className={styles.intro}>ProcRun takes published funded-project scope, identifies the equipment and services described there, and checks those components against procurement notices in TED. The result is a project list with the component, the procurement state, the cutoff date and the evidence behind the decision.</p>
+      <p className={styles.intro}>ProcRun takes published funded-project scope from the approved OpenCoesione Lombardia route, identifies the equipment and services described there, and checks those components against procurement notices in TED. The result is a project list with the component, the procurement state, the cutoff date and the evidence behind the decision.</p>
       <p className={styles.reason}>It is a faster way to decide which funded projects deserve attention before you spend time reading project documents and procurement notices manually.</p>
       <div className={styles.heroActions}>
         <Link className="button large" href="/app">Open the demo workspace</Link>
@@ -22,7 +22,7 @@ export default function HomePage() {
           <p className={styles.sectionLabel}>What the customer sees</p>
           <h2>A project list, not another document library.</h2>
         </div>
-        <p>Each row ties a funded project to a specific purchasable component and shows whether relevant procurement evidence has been found in TED.</p>
+        <p>Each row ties a funded project in Lombardia to a specific purchasable component and shows whether relevant procurement evidence has been found in TED.</p>
       </div>
 
       <div className={styles.resultTable} role="table" aria-label="ProcRun demo results">
@@ -57,7 +57,7 @@ export default function HomePage() {
         <h2>Current source scope</h2>
       </div>
       <div className={styles.scopeCopy}>
-        <p>Funded-project scope currently comes from the approved OpenCoesione 2021–2027 EU-cohesion operation-list publication family. Procurement evidence comes from Tenders Electronic Daily (TED).</p>
+        <p>Funded-project scope currently comes from the approved OpenCoesione 2021–2027 EU-cohesion operation-list publication family, using the live PR FESR Lombardia route. Procurement evidence comes from Tenders Electronic Daily (TED).</p>
         <p><strong>OPEN is TED-scoped.</strong> It does not mean procurement cannot exist in national or below-threshold channels. ProcRun does not claim complete national procurement coverage, a complete bill of materials, every future purchase, win probability or buyer/contact intelligence.</p>
         <Link className={styles.plainLink} href="/methodology">Read the full methodology and source limits</Link>
       </div>
@@ -65,7 +65,7 @@ export default function HomePage() {
 
     <section className={styles.priceSection}>
       <div>
-        <p className={styles.sectionLabel}>ProcRun Portugal</p>
+        <p className={styles.sectionLabel}>ProcRun Lombardia</p>
         <h2>€149 <span>/ month</span></h2>
         <p>Procurement runway workspace, evidence detail, supplier profile, saved opportunities, market context and customer-safe CSV export.</p>
       </div>
