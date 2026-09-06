@@ -1,6 +1,6 @@
 # ProcRun source status
 
-Status date: 2026-09-05
+Status date: 2026-09-06
 Canonical product spec: `docs/PRODUCT_FOUNDATION_FINAL.md`
 Authoritative readiness gate: `docs/BUILD_GATES.md` A20
 
@@ -82,3 +82,26 @@ It does not mean that no procurement exists outside TED. `procrun.coverage` expo
 > **Do not receive a broad response containing prohibited fields and discard them afterwards.**
 
 No natural-person data may enter the intelligence plane. Account/billing/support PII belongs to the separate customer control plane built during the web phase.
+
+## 2026-09-06 source-boundary incident
+
+Status: **REMEDIATION IN PROGRESS — CUSTOMER-FACING UNIONCAMERE USE REMOVED**
+
+During investigation of whether the approved PR FESR Lombardia source could support more precise project geography, an ad hoc diagnostic script downloaded the approved OpenCoesione Lombardia ZIP and printed all non-empty fields for one identified operation row to an interactive production-server terminal. This included the source-only field `NomeBeneficiario_BeneficiaryName`.
+
+This diagnostic practice was outside the intended source-safety discipline. The approved runtime contract itself was not changed: beneficiary identity remains source-only and is not mapped into `FundingProject` or the customer-safe read model. Future diagnostics must not print complete row contents. Schema exploration must use public schema documentation, and any row-level diagnostic that is already within an approved route must use an explicit allowlist of admitted non-identity fields.
+
+The same investigation then introduced `Milano province` into the web branch using a separate Unioncamere Lombardia funding-decision PDF. **Unioncamere is not an approved ProcRun source.** It entered customer-facing code without RIGHTS / ACCESS / DATA SAFETY qualification and therefore violated the source-gate rule. The Unioncamere-derived location and source reference have been removed. Any future consideration of Unioncamere requires a full source qualification from the beginning; prior temporary use creates no presumption of approval.
+
+`CodicePostale_Postcode` is one of the approved 20 OpenCoesione Lombardia transport columns and is not source-only. However, the observed value in the inspected operation was not a normal five-digit Italian CAP. Its semantics remain unresolved. ProcRun must not derive or expose more precise customer geography from that field until official schema documentation establishes its format and an explicit customer-safe mapping is approved. Customer-facing geography therefore remains `Lombardia, Italy`.
+
+Persistence of the terminal output has not yet been established. No assumption is made that stdout was or was not retained by shell/session/audit logging. Before any deletion or cleanup, the production host's relevant shell/session/audit logging must be checked and the result added to this incident record. Logs must not be deleted blindly before that verification.
+
+### Closure criteria
+
+The incident may be marked closed only when:
+
+1. no customer-facing Unioncamere-derived field or source reference remains;
+2. production-host shell/session/audit logging has been checked and the persistence result recorded;
+3. `CodicePostale_Postcode` remains unused for precise geography unless its official documented semantics and approved mapping are established;
+4. future diagnostic practice is constrained to schema-level inspection and explicit admitted-field allowlists.
