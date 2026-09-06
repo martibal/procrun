@@ -1,10 +1,9 @@
 import Link from "next/link";
 
 const publicLinks = [
-  ["Product", "/product"],
+  ["Demo", "/app"],
   ["Methodology", "/methodology"],
   ["Pricing", "/pricing"],
-  ["FAQ", "/faq"],
 ] as const;
 
 export function PublicHeader() {
@@ -17,7 +16,7 @@ export function PublicHeader() {
         </nav>
         <div className="public-nav-actions">
           <Link href="/login" className="text-link">Sign in</Link>
-          <Link href="/pricing" className="button compact">View pricing</Link>
+          <Link href="/app" className="button compact">Open demo</Link>
         </div>
       </div>
     </header>
@@ -34,7 +33,7 @@ export function PublicFooter() {
         </div>
         <div>
           <div className="footer-label">Product</div>
-          <Link href="/product">How it works</Link>
+          <Link href="/app">Demo</Link>
           <Link href="/methodology">Methodology & coverage</Link>
           <Link href="/pricing">Pricing</Link>
           <Link href="/faq">FAQ</Link>
@@ -42,7 +41,6 @@ export function PublicFooter() {
         <div>
           <div className="footer-label">Account</div>
           <Link href="/login">Sign in</Link>
-          <Link href="/app">Demo workspace</Link>
         </div>
         <div>
           <div className="footer-label">Legal</div>
