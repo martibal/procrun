@@ -4,6 +4,7 @@ import { opportunities } from "@/lib/read-model";
 import styles from "./landing.module.css";
 
 const example = opportunities[0];
+const checkedThrough = "6 September 2026";
 
 export default function HomePage() {
   return <PublicPage>
@@ -13,45 +14,44 @@ export default function HomePage() {
         <p className={styles.intro}>ProcRun helps suppliers find sales opportunities in public infrastructure projects in Lombardia. It shows what each project needs, what has already been procured, and what may still be left to buy — based on published EU funding data and procurement notices in TED.</p>
 
         <article className={styles.record} aria-label="Current ProcRun opportunity">
-          <div className={styles.recordTop}>
-            <div>
-              <p className={styles.guideText}>Current opportunity</p>
-              <h2>{example.projectTitle}</h2>
-            </div>
-            <span className={styles.status}>{example.state}</span>
-          </div>
+          <header className={styles.opportunityHeader}>
+            <p className={styles.guideText}>Current opportunity</p>
+            <h2>LED lighting replacement for playing fields and walkways</h2>
+            <p className={styles.opportunityMeta}>Lombardia, Italy <span>·</span> €{(example.valueEur ?? 0).toLocaleString("en-GB")} approved funding</p>
+            <p className={styles.originalTitle}>Original project: <span>{example.projectTitle}</span></p>
+          </header>
 
-          <dl className={styles.facts}>
-            <div><dt>Region</dt><dd>{example.geography}</dd></div>
-            <div><dt>Approved funding</dt><dd>€{(example.valueEur ?? 0).toLocaleString("en-GB")}</dd></div>
-            <div><dt>Programme</dt><dd>{example.programme}</dd></div>
-            <div><dt>Project start</dt><dd>{example.projectStart}</dd></div>
-            <div><dt>Operation code</dt><dd>{example.projectId}</dd></div>
-            <div><dt>Procurement checked through</dt><dd>{example.cutoffDate}</dd></div>
-          </dl>
+          <section className={styles.primaryFinding}>
+            <p className={styles.guideText}>Potential purchasing need</p>
+            <p className={styles.resultValue}>LED lighting for playing fields and walkways</p>
+            <p className={styles.projectContext}>The published project scope explicitly states that LED lighting is to be replaced for playing fields and walkways.</p>
+          </section>
 
-          <div className={styles.resultStep}>
-            <p className={styles.guideText}>Identified purchasing need</p>
-            <p className={styles.resultValue}>{example.component}</p>
-            <p className={styles.projectContext}>The published project scope states that LED lighting is to be replaced for playing fields and walkways.</p>
-          </div>
-
-          <div className={styles.resultStep}>
-            <p className={styles.guideText}>Procurement status</p>
-            <p className={styles.resultValue}>{example.openWording}</p>
-            <p className={styles.coverageNote}>{example.coverageNote}</p>
-          </div>
+          <section className={styles.procurementFinding}>
+            <p className={styles.guideText}>Procurement check</p>
+            <p className={styles.procurementHeadline}>No matching procurement found in TED</p>
+            <p className={styles.checkedDate}>Checked through {checkedThrough}.</p>
+            <p className={styles.coverageNote}>ProcRun found no matching procurement in the complete TED query universe checked through that date. Purchases made through national or below-threshold procedures may not appear in TED.</p>
+          </section>
 
           <details className={styles.evidence}>
-            <summary>View full project evidence</summary>
+            <summary>View project and procurement evidence</summary>
             <div className={styles.evidenceBody}>
               <h3>Published project text</h3>
               <blockquote>“{example.projectEvidence}”</blockquote>
 
-              <h3>Why lighting is identified</h3>
-              <p>The source text explicitly refers to replacement of LED lighting for playing fields and walkways. The customer-safe production record classifies this as <code>energy_efficiency:lighting</code>.</p>
+              <h3>Project details</h3>
+              <dl className={styles.evidenceFacts}>
+                <div><dt>Programme</dt><dd>{example.programme}</dd></div>
+                <div><dt>Project start</dt><dd>{example.projectStart}</dd></div>
+                <div><dt>Operation code</dt><dd>{example.projectId}</dd></div>
+                <div><dt>Approved funding</dt><dd>€{(example.valueEur ?? 0).toLocaleString("en-GB")}</dd></div>
+              </dl>
 
-              <h3>What was checked in procurement data</h3>
+              <h3>Why this purchasing need is shown</h3>
+              <p>The source text explicitly refers to replacement of LED lighting for playing fields and walkways. The customer-safe production record classifies the identified component as <code>energy_efficiency:lighting</code>.</p>
+
+              <h3>Procurement evidence</h3>
               <p>{example.openWording}</p>
               <p>{example.coverageNote}</p>
 
@@ -62,7 +62,6 @@ export default function HomePage() {
 
               <h3>Production record</h3>
               <p>Read model: <code>{example.sourceVersion}</code></p>
-              <p>Operation code: <code>{example.projectId}</code></p>
               <p>Cutoff date: <code>{example.cutoffDate}</code></p>
             </div>
           </details>
