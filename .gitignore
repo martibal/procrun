@@ -59,3 +59,6 @@ logs/
 
 # Keep only explicitly curated tiny fixtures
 !tests/fixtures/**
+web/node_modules/
+web/.next/
+web/tsconfig.tsbuildinfo

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Pool } from "pg";
+import { procrunDb } from "@/lib/procrun-db";
 
 export type CategoryBaseline = {
   category: string;
@@ -12,17 +12,8 @@ export type CategoryBaseline = {
   latestClosedAt: string;
 };
 
-const databaseUrl = process.env.PROCRUN_DATABASE_URL;
-let pool: Pool | undefined;
-
-function db(): Pool | undefined {
-  if (!databaseUrl) return undefined;
-  pool ??= new Pool({ connectionString: databaseUrl, max: 3 });
-  return pool;
-}
-
 export async function loadCategoryBaselines(): Promise<CategoryBaseline[] | null> {
-  const activePool = db();
+  const activePool = procrunDb();
   if (!activePool) return null;
 
   try {
@@ -116,7 +107,7 @@ export async function loadOpenCategoryPercentile(
   componentId: string,
   asOfDate: string,
 ): Promise<OpenCategoryPercentile | null> {
-  const activePool = db();
+  const activePool = procrunDb();
   if (!activePool) return null;
 
   try {

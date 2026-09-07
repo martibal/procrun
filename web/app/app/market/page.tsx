@@ -1,4 +1,5 @@
 import { loadCategoryBaselines } from "@/lib/category-baselines";
+import { loadOpenNeedsByCategory } from "@/lib/market-needs";
 import { opportunities } from "@/lib/read-model";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export default async function MarketPage() {
   const openValue = opportunities.filter((item) => item.state === "OPEN").reduce((sum, item) => sum + (item.valueEur ?? 0), 0);
   const states = ["OPEN", "CLOSED", "UNRESOLVED"] as const;
   const baselines = await loadCategoryBaselines();
+  const openNeeds = await loadOpenNeedsByCategory();
 
   return <>
     <p className="small">Market Intelligence</p>
@@ -21,10 +23,60 @@ export default async function MarketPage() {
 
     <div className="grid">
       <div className="card"><div className="small">Current opportunities</div><div className="kpi">{opportunities.length}</div></div>
-      <div className="card"><div className="small">Current project value</div><div className="kpi">€{(total / 1_000_000).toFixed(1)}m</div></div>
-      <div className="card"><div className="small">TED-scoped OPEN value</div><div className="kpi">€{(openValue / 1_000_000).toFixed(1)}m</div></div>
+      <div className="card"><div className="small">Current project value</div><div className="kpi">â‚¬{(total / 1_000_000).toFixed(1)}m</div></div>
+      <div className="card"><div className="small">TED-scoped OPEN value</div><div className="kpi">â‚¬{(openValue / 1_000_000).toFixed(1)}m</div></div>
     </div>
+    <section className="section">
+      <p className="small">Open purchasing needs across funded projects</p>
+      <h2 className="h2">Where currently OPEN needs appear across the funded-project set</h2>
 
+      <p className="small">
+        Each row counts current effective OPEN component observations in one exact frozen category.
+        Project count is the number of distinct funded-project operation codes represented by those OPEN needs.
+        These are ProcRun-observed states within the indexed TED coverage, not a claim about total market demand.
+      </p>
+
+      {openNeeds === null ? (
+        <p className="small">
+          No production purchasing-needs aggregation is rendered without the configured history database.
+        </p>
+      ) : openNeeds.length === 0 ? (
+        <p className="small">No current OPEN purchasing needs are available.</p>
+      ) : (
+        <div style={{overflowX:"auto"}}>
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>OPEN needs</th>
+                <th>Funded projects</th>
+                <th>Observation cutoff</th>
+              </tr>
+            </thead>
+            <tbody>
+              {openNeeds.map((row) => (
+                <tr key={row.category}>
+                  <td>{row.category}</td>
+                  <td>{row.openNeeds}</td>
+                  <td>{row.fundedProjects}</td>
+                  <td>
+                    {row.earliestCutoffDate === row.latestCutoffDate
+                      ? row.latestCutoffDate
+                      : `${row.earliestCutoffDate} to ${row.latestCutoffDate}`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p className="micro">
+        A component contributes only when its latest effective procurement observation is OPEN.
+        Corrected observations are superseded by their correction history.
+        Counts contain no buyer, beneficiary or contact identity.
+      </p>
+    </section>
     <section className="section card flat">
       <p className="small">State distribution</p>
       <h2 className="h2">What the current evidence supports</h2>
@@ -64,7 +116,7 @@ export default async function MarketPage() {
 
     <section className="section grid two">
       <div className="card flat"><p className="small">Coverage</p><p><strong>TED only for MVP negative search.</strong></p><p className="small">No relevant procurement found in TED as of the item cutoff does not establish absence outside TED.</p></div>
-      <div className="card flat"><p className="small">Funded projects</p><p><strong>PR FESR Lombardia 2021–2027</strong></p><p className="small">The current live funded-project route is Lombardia only. Additional regions require separate source activation before customer-facing use.</p></div>
+      <div className="card flat"><p className="small">Funded projects</p><p><strong>PR FESR Lombardia 2021â€“2027</strong></p><p className="small">The current live funded-project route is Lombardia only. Additional regions require separate source activation before customer-facing use.</p></div>
     </section>
   </>;
 }
