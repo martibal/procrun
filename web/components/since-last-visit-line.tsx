@@ -54,7 +54,9 @@ export function SinceLastVisitLine({ summary }: { summary: SinceLastVisitSummary
     return cached;
   }, [cached, summary]);
 
-  if (!summary) return null;
+  // First visit has no previous visit to summarize. Keep the normal feed-top copy unchanged.
+  if (!summary || summary.firstVisit) return null;
+
   const changedCount = counts?.changedSavedIds.length ?? 0;
   const showActivity = Boolean(counts && (counts.newMatchesCount > 0 || changedCount > 0));
   const firstChanged = counts?.changedSavedIds[0];
@@ -77,7 +79,7 @@ export function SinceLastVisitLine({ summary }: { summary: SinceLastVisitSummary
           ) : null}
         </div>
       ) : null}
-      <div style={summary.freshness.stale ? { color: "var(--accent)" } : undefined}>
+      <div style={summary.freshness.stale ? { color: "var(--signal-rust, #B5482A)" } : undefined}>
         {summary.freshness.text}
       </div>
     </div>
