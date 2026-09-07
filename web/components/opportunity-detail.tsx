@@ -1,10 +1,49 @@
 import Link from "next/link";
 import type { Opportunity } from "@/lib/read-model";
 
-export function OpportunityDetail({ item, publicMode = false }: { item: Opportunity; publicMode?: boolean }) {
+type HistoricalPosition = {
+  currentAgeDays: number;
+  n: number;
+  percentile: number;
+};
+
+function ordinalPercentile(value: number): string {
+  const rounded = Math.round(value);
+  const mod100 = rounded % 100;
+
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${rounded}th percentile`;
+  }
+
+  switch (rounded % 10) {
+    case 1:
+      return `${rounded}st percentile`;
+    case 2:
+      return `${rounded}nd percentile`;
+    case 3:
+      return `${rounded}rd percentile`;
+    default:
+      return `${rounded}th percentile`;
+  }
+}
+
+export function OpportunityDetail({
+  item,
+  publicMode = false,
+  historicalPosition = null,
+}: {
+  item: Opportunity;
+  publicMode?: boolean;
+  historicalPosition?: HistoricalPosition | null;
+}) {
   const conclusion = item.state === "OPEN"
     ? item.openWording
     : item.procurementEvidence ?? "Evidence is insufficient for a safe OPEN/CLOSED conclusion.";
+
+  const showHistoricalPosition =
+    !publicMode &&
+    item.state === "OPEN" &&
+    historicalPosition !== null;
 
   return <>
     <p className="small">Opportunity evidence</p>
@@ -34,9 +73,37 @@ export function OpportunityDetail({ item, publicMode = false }: { item: Opportun
     <section className="section">
       <p className="small">ProcRun analysis</p>
       <div className="coverage-list">
-        <div><strong>Identified need</strong><p>{item.component}</p><p className="micro">Supported by the project evidence shown above.</p></div>
-        <div><strong>Procurement evidence</strong><p>{item.procurementEvidence ?? "No accepted relevant TED procurement evidence at the cutoff."}</p><p className="micro">Matching cannot be inferred from similarity alone.</p></div>
-        <div><strong>Conclusion</strong><p>{conclusion}</p><p className="micro">State: {item.state}<br />Coverage: {item.coverage}</p></div>
+        <div>
+          <strong>Identified need</strong>
+          <p>{item.component}</p>
+          <p className="micro">Supported by the project evidence shown above.</p>
+        </div>
+
+        <div>
+          <strong>Procurement evidence</strong>
+          <p>{item.procurementEvidence ?? "No accepted relevant TED procurement evidence at the cutoff."}</p>
+          <p className="micro">Matching cannot be inferred from similarity alone.</p>
+        </div>
+
+        <div>
+          <strong>Conclusion</strong>
+          <p>{conclusion}</p>
+          <p className="micro">State: {item.state}<br />Coverage: {item.coverage}</p>
+        </div>
+
+        {showHistoricalPosition ? (
+          <div>
+            <strong>Historical position</strong>
+            <p>{ordinalPercentile(historicalPosition.percentile)}</p>
+            <p className="micro">
+              Current observed OPEN duration: {historicalPosition.currentAgeDays} days.
+              {" "}Compared with {historicalPosition.n} completed {historicalPosition.n === 1 ? "procurement" : "procurements"} in the same component category.
+            </p>
+            <p className="micro">
+              Descriptive historical position only. It is not a prediction or a delay assessment.
+            </p>
+          </div>
+        ) : null}
       </div>
     </section>
 
