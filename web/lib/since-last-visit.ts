@@ -84,8 +84,10 @@ async function snapshotSavedStates(client: PoolClient, id: string): Promise<void
 export async function loadSinceLastVisitSummary(): Promise<SinceLastVisitSummary | null> {
   const activePool = db();
   if (!activePool || !accountId) return null;
-  const client = await activePool.connect();
+
+  let client: PoolClient | undefined;
   try {
+    client = await activePool.connect();
     await client.query("BEGIN");
     const account = await client.query<{ last_active_summary_at: Date | null }>(`
       SELECT last_active_summary_at
@@ -170,10 +172,16 @@ export async function loadSinceLastVisitSummary(): Promise<SinceLastVisitSummary
       sameDayRepeat: false,
       freshness: fresh,
     };
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
+  } catch {
+    if (client) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // The optional activity database may already be unavailable.
+      }
+    }
+    return null;
   } finally {
-    client.release();
+    client?.release();
   }
 }
