@@ -66,15 +66,18 @@ async function freshness(client: PoolClient): Promise<SinceLastVisitSummary["fre
 async function snapshotSavedStates(client: PoolClient, id: string): Promise<void> {
   await client.query(`
     UPDATE procrun.saved_opportunities s
-    SET state_at_last_summary = latest.state
-    FROM LATERAL (
+    SET state_at_last_summary = (
       SELECT po.state
       FROM procrun.procurement_observations po
       WHERE po.component_id = s.component_id
       ORDER BY po.observed_at DESC, po.inserted_at DESC
       LIMIT 1
-    ) latest
+    )
     WHERE s.account_id = $1
+      AND EXISTS (
+        SELECT 1 FROM procrun.procurement_observations po
+        WHERE po.component_id = s.component_id
+      )
   `, [id]);
 }
 
