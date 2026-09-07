@@ -2,6 +2,7 @@ export type OpportunityState = "OPEN" | "CLOSED" | "UNRESOLVED";
 
 export type Opportunity = {
   id: string;
+  componentId: string;
   projectId: string;
   projectTitle: string;
   component: string;
@@ -24,6 +25,7 @@ export type Opportunity = {
 export const opportunities: readonly Opportunity[] = [
   {
     id: "opp-led-playing-fields",
+    componentId: "cmp_189f5fb56b0d7357cc24",
     projectId: "F28C25000130007",
     projectTitle: "SOSTITUZIONE LED PER ILLUMINAZIONE CAMPI DA GIOCO E VIALETTI",
     component: "Lighting",
@@ -43,6 +45,7 @@ export const opportunities: readonly Opportunity[] = [
   },
   {
     id: "opp-rail-signalling",
+    componentId: "fixture-cmp-rail-signalling",
     projectId: "fixture-it-rail-002",
     projectTitle: "Regional rail corridor modernisation",
     component: "Signalling equipment",
@@ -58,6 +61,7 @@ export const opportunities: readonly Opportunity[] = [
   },
   {
     id: "opp-grid-controls",
+    componentId: "fixture-cmp-grid-controls",
     projectId: "fixture-it-grid-003",
     projectTitle: "Local energy-network upgrade",
     component: "Grid monitoring and control systems",
@@ -75,11 +79,16 @@ export function getOpportunity(id: string): Opportunity | undefined {
   return opportunities.find((item) => item.id === id);
 }
 
+export function getOpportunityByComponentId(componentId: string): Opportunity | undefined {
+  return opportunities.find((item) => item.componentId === componentId);
+}
+
 export function toCsv(items: readonly Opportunity[]): string {
-  const header = ["id","project_title","component","state","cutoff_date","coverage","coverage_wording","geography","source_version"];
+  const header = ["id","component_id","project_title","component","state","cutoff_date","coverage","coverage_wording","geography","source_version"];
   const quote = (value: string | number | undefined) => `"${String(value ?? "").replaceAll('"', '""')}"`;
   return [header.join(","), ...items.map((item) => [
     item.id,
+    item.componentId,
     item.projectTitle,
     item.component,
     item.state,
