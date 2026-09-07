@@ -32,6 +32,16 @@ class CategoryBaseline:
     latest_closed_at: date
 
 
+@dataclass(frozen=True)
+class CategoryPercentilePosition:
+    """Objective historical position of one current OPEN duration."""
+
+    category: str
+    current_age_days: int
+    n: int
+    percentile: float
+
+
 def percentile(values: Sequence[int], q: float) -> float:
     """Return a deterministic linear-interpolated percentile for integer durations."""
 
@@ -73,6 +83,47 @@ def build_category_baselines(samples: Sequence[ClosedDurationSample]) -> tuple[C
         )
     return tuple(baselines)
 
+
+def category_percentile_position(
+    samples: Sequence[ClosedDurationSample],
+    *,
+    category: str,
+    current_age_days: int,
+) -> CategoryPercentilePosition | None:
+    """Return the empirical historical percentile for one current OPEN duration.
+
+    Only completed historical OPEN-to-CLOSED durations from the exact same taxonomy
+    category are compared. The result is descriptive only; it is not a probability
+    of future procurement or a qualitative delay assessment.
+
+    Ties use deterministic midrank:
+        (count(duration < current) + 0.5 * count(duration == current)) / n
+    """
+
+    if current_age_days < 0:
+        raise ValueError("current open duration cannot be negative")
+
+    durations = sorted(
+        sample.duration_days
+        for sample in samples
+        if sample.category == category
+    )
+
+    if not durations:
+        return None
+
+    below = sum(duration < current_age_days for duration in durations)
+    equal = sum(duration == current_age_days for duration in durations)
+
+    position = (below + 0.5 * equal) / len(durations)
+    percentile_value = max(0.0, min(100.0, position * 100.0))
+
+    return CategoryPercentilePosition(
+        category=category,
+        current_age_days=current_age_days,
+        n=len(durations),
+        percentile=percentile_value,
+    )
 
 def load_closed_duration_samples(conn: Connection[Any]) -> tuple[ClosedDurationSample, ...]:
     """Load one first effective OPEN-to-CLOSED duration per component.
