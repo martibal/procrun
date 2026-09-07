@@ -12,6 +12,18 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     <p className="lede">{first.geography}</p>
     <div className="notice"><strong>Development route.</strong> Only customer-safe read-model fields may render here; fixture records are not customer-facing production data.</div>
     <section className="card"><p className="small">Source-evidenced project scope</p><p className="evidence">{first.projectEvidence}</p></section>
-    <div className="list">{items.map((item) => <div className="row" key={item.id}><div><strong>{item.component}</strong></div><div><span className="pill">{item.state}</span><p className="small">Coverage: {item.coverage} · {item.cutoffDate}</p></div><div className="small">{item.sourceVersion}</div></div>)}</div>
+    <div className="list">
+      {items.map((item) => (
+        <div className="row" key={item.id}>
+          <div><strong>{item.component}</strong></div>
+          <div>
+            <span className="pill">{item.state}</span>
+            <p className="small">Coverage: {item.coverage}</p>
+            <p className="small">As of {item.cutoffDate}</p>
+          </div>
+          <div className="small">{item.sourceVersion}</div>
+        </div>
+      ))}
+    </div>
   </>;
 }
