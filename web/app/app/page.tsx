@@ -17,7 +17,12 @@ export default async function RunwayPage() {
 
     <p className="lede">The MVP combines a deterministic supplier profile with TED procurement evidence. OPEN is always a bounded negative-search conclusion, never a statement that procurement does not exist elsewhere.</p>
 
-    <div className="notice scope"><strong>Development workspace.</strong> Fixture records are interface-only; customer-facing production data must come through the frozen customer-safe read model. OPEN means “No relevant procurement found in TED as of the stated date.”</div>
+    <div
+      className="notice"
+      style={{ borderLeft: 0, borderRight: 0, borderRadius: 0, paddingLeft: 0, paddingRight: 0 }}
+    >
+      <strong>Development workspace.</strong> Fixture records are interface-only; customer-facing production data must come through the frozen customer-safe read model. OPEN means “No relevant procurement found in TED as of the stated date.”
+    </div>
 
     <div className="actions">
       <Link className="button" href="/app/profile">Configure Supplier Profile</Link>
