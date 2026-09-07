@@ -65,17 +65,20 @@ export function SinceLastVisitLine({ summary }: { summary: SinceLastVisitSummary
     <div className="small" style={{ marginTop: 8, marginBottom: 18 }}>
       {showActivity ? (
         <div>
-          {counts!.newMatchesCount > 0
-            ? plural(counts!.newMatchesCount, "new match since your last visit", "new matches since your last visit")
-            : null}
-          {counts!.newMatchesCount > 0 && changedCount > 0 ? " · " : null}
+          {counts!.newMatchesCount > 0 ? (
+            <div>
+              {plural(counts!.newMatchesCount, "new match since your last visit", "new matches since your last visit")}
+            </div>
+          ) : null}
           {changedCount > 0 ? (
-            <Link
-              className="text-link strong"
-              href={`/app/saved?changed=${encodeURIComponent(firstChanged!)}#${encodeURIComponent(firstChanged!)}`}
-            >
-              {plural(changedCount, "saved opportunity changed status", "saved opportunities changed status")}
-            </Link>
+            <div>
+              <Link
+                className="text-link strong"
+                href={`/app/saved?changed=${encodeURIComponent(firstChanged!)}#${encodeURIComponent(firstChanged!)}`}
+              >
+                {plural(changedCount, "saved opportunity changed status", "saved opportunities changed status")}
+              </Link>
+            </div>
           ) : null}
         </div>
       ) : null}
