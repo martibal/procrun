@@ -18,7 +18,7 @@ export default function HomePage() {
           <header className={styles.opportunityHeader}>
             <p className={styles.guideText}>Current opportunity</p>
             <h2>LED lighting replacement for playing fields and walkways</h2>
-            <p className={styles.opportunityMeta}>{example.geography} <span>·</span> €{(example.valueEur ?? 0).toLocaleString("en-GB")} approved funding</p>
+            <p className={styles.opportunityMeta}><span>{example.geography}</span><span>€{(example.valueEur ?? 0).toLocaleString("en-GB")} approved funding</span></p>
             <p className={styles.originalTitle}>Original project: <span>{example.projectTitle}</span></p>
           </header>
 

@@ -13,7 +13,10 @@ export function OpportunityList({ items }: { items: readonly Opportunity[] }) {
       {items.map((item) => (
         <article className="row" id={item.componentId} key={item.id}>
           <div>
-            <div className="small">{item.projectTitle} · {item.geography}</div>
+            <div className="small">
+              <span>{item.projectTitle}</span><br />
+              <span>{item.geography}</span>
+            </div>
             <div className="row-title">{item.component}</div>
             <div className="evidence">{item.projectEvidence}</div>
           </div>
@@ -24,7 +27,7 @@ export function OpportunityList({ items }: { items: readonly Opportunity[] }) {
                 ? item.openWording
                 : item.procurementEvidence ?? "Evidence remains insufficient for a safe OPEN/CLOSED conclusion."}
             </p>
-            <p className="micro">Coverage: {item.coverage} · as of {item.cutoffDate}</p>
+            <p className="micro">Coverage: {item.coverage}<br />As of {item.cutoffDate}</p>
             <p className="micro">Version: {item.sourceVersion}</p>
           </div>
           <div>
