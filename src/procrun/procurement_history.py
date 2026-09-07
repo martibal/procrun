@@ -87,6 +87,103 @@ class ProcurementObservation:
     correction_reason: str | None = None
 
 
+ObservationDiffKind = Literal[
+    "FIRST_OBSERVATION",
+    "STATE_CHANGED",
+    "EVIDENCE_CHANGED",
+    "COVERAGE_CHANGED",
+    "CORRECTION",
+    "HEARTBEAT",
+]
+
+
+@dataclass(frozen=True)
+class ProcurementObservationDiff:
+    """Deterministic read-time description of one append-only history step."""
+
+    kind: ObservationDiffKind
+    previous_state: ComponentState | None
+    state: ComponentState
+    changed_fields: tuple[str, ...]
+    summary: str
+
+
+def diff_procurement_observations(
+    previous: ProcurementObservation | None,
+    current: ProcurementObservation,
+) -> ProcurementObservationDiff:
+    """Describe only customer-safe changes between two stored observations.
+
+    This function does not infer causes, read new source fields, or mutate history.
+    Arbitrary correction reasons are deliberately not copied into the summary.
+    """
+
+    if previous is None:
+        return ProcurementObservationDiff(
+            kind="FIRST_OBSERVATION",
+            previous_state=None,
+            state=current.state,
+            changed_fields=("state",),
+            summary=f"First stored observation: {current.state.value}.",
+        )
+
+    changed_fields: list[str] = []
+    if previous.state is not current.state:
+        changed_fields.append("state")
+    for field_name in ("evidence_reference", "evidence_url", "evidence_excerpt"):
+        if getattr(previous, field_name) != getattr(current, field_name):
+            changed_fields.append(field_name)
+    if previous.coverage_note != current.coverage_note:
+        changed_fields.append("coverage_note")
+
+    if current.correction_of_id is not None:
+        summary = "Correction appended to the immutable history."
+        if previous.state is not current.state:
+            summary += f" State changed from {previous.state.value} to {current.state.value}."
+        return ProcurementObservationDiff(
+            kind="CORRECTION",
+            previous_state=previous.state,
+            state=current.state,
+            changed_fields=tuple(changed_fields),
+            summary=summary,
+        )
+
+    if previous.state is not current.state:
+        return ProcurementObservationDiff(
+            kind="STATE_CHANGED",
+            previous_state=previous.state,
+            state=current.state,
+            changed_fields=tuple(changed_fields),
+            summary=f"State changed from {previous.state.value} to {current.state.value}.",
+        )
+
+    if any(field.startswith("evidence_") for field in changed_fields):
+        return ProcurementObservationDiff(
+            kind="EVIDENCE_CHANGED",
+            previous_state=previous.state,
+            state=current.state,
+            changed_fields=tuple(changed_fields),
+            summary=f"Procurement evidence changed while state remained {current.state.value}.",
+        )
+
+    if "coverage_note" in changed_fields:
+        return ProcurementObservationDiff(
+            kind="COVERAGE_CHANGED",
+            previous_state=previous.state,
+            state=current.state,
+            changed_fields=tuple(changed_fields),
+            summary=f"Coverage wording changed while state remained {current.state.value}.",
+        )
+
+    return ProcurementObservationDiff(
+        kind="HEARTBEAT",
+        previous_state=previous.state,
+        state=current.state,
+        changed_fields=(),
+        summary="No material change; scheduled verification heartbeat.",
+    )
+
+
 def apply_procurement_history_migration(conn: Connection[Any]) -> None:
     """Apply the append-only observation/sync-run migration."""
 
@@ -110,14 +207,15 @@ def should_store_observation(
     previous_observed_at: date | None,
     state: ComponentState,
     observed_at: date,
+    material_change: bool = False,
 ) -> bool:
-    """Store state transitions and a 30-day heartbeat for unchanged states."""
+    """Store first observations, material changes and a 30-day unchanged heartbeat."""
 
     if previous_state is None or previous_observed_at is None:
         return True
     if observed_at < previous_observed_at:
         raise ValueError("normal observations cannot move backwards in time")
-    if state is not previous_state:
+    if state is not previous_state or material_change:
         return True
     return (observed_at - previous_observed_at).days >= 30
 
@@ -136,7 +234,7 @@ def append_procurement_observation(
     correction_of_id: UUID | None = None,
     correction_reason: str | None = None,
 ) -> ProcurementObservation | None:
-    """Append one immutable observation when the transition/30-day rule requires it."""
+    """Append one immutable observation when a material change/heartbeat requires it."""
 
     if state is ComponentState.CLOSED and not all(
         (evidence_reference, evidence_url, evidence_excerpt)
@@ -147,7 +245,8 @@ def append_procurement_observation(
 
     previous = conn.execute(
         """
-        SELECT state, observed_at
+        SELECT state, observed_at, evidence_reference, evidence_url,
+               evidence_excerpt, coverage_note
         FROM procrun.procurement_observations
         WHERE component_id = %s
         ORDER BY observed_at DESC, inserted_at DESC
@@ -157,12 +256,21 @@ def append_procurement_observation(
     ).fetchone()
     previous_state = ComponentState(str(previous[0])) if previous is not None else None
     previous_date = previous[1] if previous is not None else None
+    material_change = False
+    if previous is not None:
+        material_change = (
+            previous[2] != evidence_reference
+            or previous[3] != evidence_url
+            or previous[4] != evidence_excerpt
+            or previous[5] != coverage_note
+        )
 
     if correction_of_id is None and not should_store_observation(
         previous_state=previous_state,
         previous_observed_at=previous_date,
         state=state,
         observed_at=observed_at,
+        material_change=material_change,
     ):
         return None
 

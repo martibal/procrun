@@ -9,6 +9,7 @@ export type PublicHistoryObservation = {
   evidenceUrl?: string;
   evidenceExcerpt?: string;
   coverageNote: string;
+  correction?: boolean;
   fixture: boolean;
 };
 

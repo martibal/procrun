@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { PublicPage } from "@/components/public-site";
+import { describeHistoryChange } from "@/lib/history-diff";
 import { HISTORY_FOOTNOTE } from "@/lib/public-copy";
 import { getPublicOpportunityHistory } from "@/lib/public-history";
 import { getPublicShowcaseOpportunity } from "@/lib/public-showcase";
@@ -30,20 +31,27 @@ export default async function PublicOpportunityHistoryPage({
     </section>
 
     <section className={`public-section ${styles.timeline}`}>
-      {history.length === 0 ? <p>No stored public history is available for this showcase opportunity yet.</p> : history.map((observation) => (
-        <article className={styles.entry} key={`${observation.observedAt}-${observation.state}`}>
-          <div className={styles.marker} aria-hidden="true" />
-          <div>
-            <div className={styles.date}>{observation.observedAt}</div>
-            <div className={`${styles.state} ${stateClass(observation.state)}`}>{observation.state}</div>
-            {observation.state === "CLOSED" ? <>
-              <blockquote className={styles.excerpt}>{observation.evidenceExcerpt}</blockquote>
-              <a className="text-link strong" href={observation.evidenceUrl} target="_blank" rel="noreferrer">Open TED notice {observation.evidenceReference}</a>
-            </> : null}
-            <p className="small">{observation.coverageNote}</p>
-          </div>
-        </article>
-      ))}
+      {history.length === 0 ? <p>No stored public history is available for this showcase opportunity yet.</p> : history.map((observation, index) => {
+        const change = describeHistoryChange(history[index - 1], observation);
+        return (
+          <article className={styles.entry} key={`${observation.observedAt}-${observation.state}-${index}`}>
+            <div className={styles.marker} aria-hidden="true" />
+            <div>
+              <div className={styles.date}>{observation.observedAt}</div>
+              <div className={`${styles.state} ${stateClass(observation.state)}`}>{observation.state}</div>
+              <div>
+                <strong>What changed</strong>
+                <p>{change.summary}</p>
+              </div>
+              {observation.state === "CLOSED" ? <>
+                <blockquote className={styles.excerpt}>{observation.evidenceExcerpt}</blockquote>
+                <a className="text-link strong" href={observation.evidenceUrl} target="_blank" rel="noreferrer">Open TED notice {observation.evidenceReference}</a>
+              </> : null}
+              <p className="small">{observation.coverageNote}</p>
+            </div>
+          </article>
+        );
+      })}
     </section>
 
     <section className="public-section legal-copy">
