@@ -1,24 +1,23 @@
 import Link from "next/link";
 import { OpportunityList } from "@/components/opportunity-list";
+import { SinceLastVisitLine } from "@/components/since-last-visit-line";
 import { opportunities } from "@/lib/read-model";
+import { loadSinceLastVisitSummary } from "@/lib/since-last-visit";
 
-export default function RunwayPage() {
-  const open = opportunities.filter((item) => item.state === "OPEN").length;
-  const closed = opportunities.filter((item) => item.state === "CLOSED").length;
-  const unresolved = opportunities.filter((item) => item.state === "UNRESOLVED").length;
+export const dynamic = "force-dynamic";
+
+export default async function RunwayPage() {
+  const summary = await loadSinceLastVisitSummary();
 
   return <>
     <p className="small">Opportunities</p>
     <h1 className="h1">See what the evidence supports — and where it stops.</h1>
+    <p className="small">{opportunities.length} opportunities match your profile</p>
+    <SinceLastVisitLine summary={summary} />
+
     <p className="lede">The MVP combines a deterministic supplier profile with TED procurement evidence. OPEN is always a bounded negative-search conclusion, never a statement that procurement does not exist elsewhere.</p>
 
     <div className="notice scope"><strong>Development workspace.</strong> Fixture records are interface-only; customer-facing production data must come through the frozen customer-safe read model. OPEN means “No relevant procurement found in TED as of the stated date.”</div>
-
-    <div className="grid">
-      <div className="card"><div className="small">TED-scoped OPEN</div><div className="kpi">{open}</div><div className="micro">No relevant TED match at cutoff</div></div>
-      <div className="card"><div className="small">Evidence matched</div><div className="kpi">{closed}</div><div className="micro">Accepted procurement evidence exists</div></div>
-      <div className="card"><div className="small">Unresolved</div><div className="kpi">{unresolved}</div><div className="micro">Ambiguity stays visible</div></div>
-    </div>
 
     <div className="actions">
       <Link className="button" href="/app/profile">Configure Supplier Profile</Link>

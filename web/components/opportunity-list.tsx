@@ -11,7 +11,7 @@ export function OpportunityList({ items }: { items: readonly Opportunity[] }) {
   return (
     <div className="list">
       {items.map((item) => (
-        <article className="row" key={item.id}>
+        <article className="row" id={item.id} key={item.id}>
           <div>
             <div className="small">{item.projectTitle} · {item.geography}</div>
             <div className="row-title">{item.component}</div>
