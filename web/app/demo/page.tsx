@@ -14,18 +14,22 @@ export default function DemoPage() {
     </section>
 
     <section className="public-section">
-      {showcase.length === 0 ? <div className="notice scope">No approved customer-safe opportunity is currently in the public showcase.</div> : showcase.map((item) => (
-        <article className="card flat" key={item.id}>
-          <p className="small">{item.geography}</p>
-          <h2 className="h2">{item.projectTitle}</h2>
-          <p><strong>Demand identified:</strong> {item.component}</p>
-          <p className="evidence">{item.projectEvidence}</p>
-          <p className="small">{item.openWording ?? item.procurementEvidence ?? "Insufficient evidence for a safe conclusion."}</p>
-          <div className="actions">
-            <Link className="button" href={`/demo/opportunities/${item.id}`}>View full evidence</Link>
-          </div>
-        </article>
-      ))}
+      {showcase.length === 0 ? <div className="notice scope">No approved customer-safe opportunity is currently in the public showcase.</div> : (
+        <div className="source-cards">
+          {showcase.map((item) => (
+            <article key={item.id}>
+              <p className="small">{item.geography}</p>
+              <h3>{item.projectTitle}</h3>
+              <p><strong>Demand identified:</strong> {item.component}</p>
+              <p className="evidence">{item.projectEvidence}</p>
+              <p className="small">{item.openWording ?? item.procurementEvidence ?? "Insufficient evidence for a safe conclusion."}</p>
+              <div className="actions">
+                <Link className="button" href={`/demo/opportunities/${item.id}`}>View full evidence</Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
 
     <section className="public-section legal-copy">

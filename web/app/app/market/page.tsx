@@ -23,7 +23,7 @@ export default function MarketPage() {
       {states.map((state) => {
         const count = opportunities.filter((item) => item.state === state).length;
         const pct = opportunities.length ? Math.round((count / opportunities.length) * 100) : 0;
-        return <div key={state} style={{marginTop:18}}><div className="small"><strong>{state}</strong> · {count} item{count === 1 ? "" : "s"}</div><div className="bar"><span style={{width:`${pct}%`}} /></div></div>;
+        return <div key={state} style={{marginTop:18}}><div className="small"><strong>{state}</strong>: {count} item{count === 1 ? "" : "s"}</div><div className="bar"><span style={{width:`${pct}%`}} /></div></div>;
       })}
     </section>
 
