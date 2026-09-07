@@ -42,6 +42,29 @@ class CategoryPercentilePosition:
     percentile: float
 
 
+
+
+@dataclass(frozen=True)
+class CurrentOpenComponent:
+    """Current effective OPEN lifecycle for one component."""
+
+    component_id: str
+    category: str
+    opened_at: date
+
+
+@dataclass(frozen=True)
+class OpenCategoryPercentile:
+    """Objective historical percentile for one current OPEN component."""
+
+    component_id: str
+    category: str
+    opened_at: date
+    as_of_date: date
+    current_age_days: int
+    n: int
+    percentile: float
+
 def percentile(values: Sequence[int], q: float) -> float:
     """Return a deterministic linear-interpolated percentile for integer durations."""
 
@@ -189,6 +212,155 @@ def load_closed_duration_samples(conn: Connection[Any]) -> tuple[ClosedDurationS
         for row in rows
     )
 
+
+
+
+def build_open_category_percentiles(
+    current_components: Sequence[CurrentOpenComponent],
+    samples: Sequence[ClosedDurationSample],
+    *,
+    as_of_date: date,
+) -> tuple[OpenCategoryPercentile, ...]:
+    """Place current OPEN components in their exact-category historical distribution."""
+
+    result: list[OpenCategoryPercentile] = []
+
+    for component in current_components:
+        current_age_days = (as_of_date - component.opened_at).days
+        if current_age_days < 0:
+            raise ValueError("OPEN lifecycle cannot start after as_of_date")
+
+        position = category_percentile_position(
+            samples,
+            category=component.category,
+            current_age_days=current_age_days,
+        )
+
+        if position is None:
+            continue
+
+        result.append(
+            OpenCategoryPercentile(
+                component_id=component.component_id,
+                category=component.category,
+                opened_at=component.opened_at,
+                as_of_date=as_of_date,
+                current_age_days=current_age_days,
+                n=position.n,
+                percentile=position.percentile,
+            )
+        )
+
+    return tuple(
+        sorted(
+            result,
+            key=lambda item: (
+                item.category,
+                -item.percentile,
+                item.component_id,
+            ),
+        )
+    )
+
+
+def load_current_open_components(
+    conn: Connection[Any],
+) -> tuple[CurrentOpenComponent, ...]:
+    """Load current effective OPEN lifecycles from existing immutable history.
+
+    Explicitly corrected observations are removed from the effective history.
+    A new OPEN lifecycle starts only when state transitions from a non-OPEN
+    state into OPEN. Repeated OPEN heartbeats do not reset opened_at.
+    """
+
+    rows = conn.execute(
+        """
+        WITH latest_component AS (
+            SELECT DISTINCT ON (component_id)
+                component_id,
+                category
+            FROM procrun.component_versions
+            ORDER BY component_id, as_of DESC, inserted_at DESC
+        ),
+        effective_observation AS (
+            SELECT o.*
+            FROM procrun.procurement_observations o
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM procrun.procurement_observations correction
+                WHERE correction.correction_of_id = o.id
+            )
+        )
+        SELECT
+            o.component_id,
+            c.category,
+            o.observed_at,
+            o.state
+        FROM effective_observation o
+        JOIN latest_component c
+          ON c.component_id = o.component_id
+        ORDER BY
+            o.component_id,
+            o.observed_at,
+            o.inserted_at,
+            o.id
+        """
+    ).fetchall()
+
+    grouped: dict[str, list[tuple[str, date, str]]] = defaultdict(list)
+
+    for component_id, category, observed_at, state in rows:
+        grouped[str(component_id)].append(
+            (str(category), observed_at, str(state))
+        )
+
+    current: list[CurrentOpenComponent] = []
+
+    for component_id, history in grouped.items():
+        opened_at: date | None = None
+        previous_state: str | None = None
+        category = history[-1][0]
+
+        for row_category, observed_at, state in history:
+            category = row_category
+
+            if state == "OPEN":
+                if previous_state != "OPEN":
+                    opened_at = observed_at
+            else:
+                opened_at = None
+
+            previous_state = state
+
+        if previous_state == "OPEN" and opened_at is not None:
+            current.append(
+                CurrentOpenComponent(
+                    component_id=component_id,
+                    category=category,
+                    opened_at=opened_at,
+                )
+            )
+
+    return tuple(
+        sorted(
+            current,
+            key=lambda item: (item.category, item.component_id),
+        )
+    )
+
+
+def load_open_category_percentiles(
+    conn: Connection[Any],
+    *,
+    as_of_date: date,
+) -> tuple[OpenCategoryPercentile, ...]:
+    """Load current OPEN components and place them in historical category distributions."""
+
+    return build_open_category_percentiles(
+        load_current_open_components(conn),
+        load_closed_duration_samples(conn),
+        as_of_date=as_of_date,
+    )
 
 def load_category_baselines(conn: Connection[Any]) -> tuple[CategoryBaseline, ...]:
     """Load and aggregate current category baselines from the immutable history."""
