@@ -15,12 +15,12 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
   return (
     <div className="shell">
       <header className="topbar">
-        <div className="topbar-inner">
+        <div className="topbar-inner" style={{ paddingRight: 40 }}>
           <Link href="/app" className="brand">ProcRun</Link>
           <nav className="workspace-nav" aria-label="Workspace navigation">
             {primaryNav.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
           </nav>
-          <nav className="workspace-nav secondary" aria-label="Account navigation">
+          <nav className="workspace-nav secondary" aria-label="Account navigation" style={{ paddingRight: 4 }}>
             {accountNav.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
           </nav>
         </div>
