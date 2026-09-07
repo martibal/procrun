@@ -39,7 +39,6 @@ export default function HomePage() {
             <div className={styles.evidenceBody}>
               <h3>Published project text</h3>
               <blockquote>“{example.projectEvidence}”</blockquote>
-
               <h3>Project details</h3>
               <dl className={styles.evidenceFacts}>
                 <div><dt>Location</dt><dd>{example.geography}</dd></div>
@@ -48,19 +47,15 @@ export default function HomePage() {
                 <div><dt>Operation code</dt><dd>{example.projectId}</dd></div>
                 <div><dt>Approved funding</dt><dd>€{(example.valueEur ?? 0).toLocaleString("en-GB")}</dd></div>
               </dl>
-
               <h3>Why this purchasing need is shown</h3>
               <p>The source text explicitly refers to replacement of LED lighting for playing fields and walkways. The customer-safe production record classifies the identified component as <code>energy_efficiency:lighting</code>.</p>
-
               <h3>Procurement evidence</h3>
               <p>{example.openWording}</p>
               <p>{example.coverageNote}</p>
-
               <h3>Source</h3>
               <p>{example.programme}</p>
               <p>OpenCoesione 2021–2027 beneficiary publication used by the approved Lombardia production route.</p>
               {example.sourceUrl ? <a className={styles.textLink} href={example.sourceUrl}>Open source publication</a> : null}
-
               <h3>Production record</h3>
               <p>Read model: <code>{example.sourceVersion}</code></p>
               <p>Cutoff date: <code>{example.cutoffDate}</code></p>
@@ -75,11 +70,10 @@ export default function HomePage() {
       </section>
 
       <section className={styles.explainer}>
-        <h2>This is what ProcRun does across funded projects in Lombardia.</h2>
+        <h2>Two working surfaces, built from the same evidence.</h2>
         <div className={styles.explainerRows}>
-          <div><strong>Find the project.</strong><p>See funded projects and what they are expected to purchase.</p></div>
-          <div><strong>Check the procurement.</strong><p>See whether ProcRun has found procurement evidence for those purchasing needs.</p></div>
-          <div><strong>Focus your sales work.</strong><p>Filter the resulting opportunities to the products and services your company supplies.</p></div>
+          <div><strong>Opportunity Feed.</strong><p>Find and review funded-project opportunities matched to what your company supplies, with the evidence and TED coverage boundary attached.</p></div>
+          <div><strong>Market Intelligence.</strong><p>See aggregated market context from the same customer-safe data, with coverage and missingness stated instead of hidden.</p></div>
         </div>
       </section>
 

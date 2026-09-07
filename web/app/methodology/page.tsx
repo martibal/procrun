@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PublicPage } from "@/components/public-site";
 import { DATA_COMPLETENESS_DISCLOSURE, OPENCOESIONE_ATTRIBUTION, TED_ATTRIBUTION } from "@/lib/public-copy";
 
@@ -16,6 +17,18 @@ export default function MethodologyPage() {
         <article><p className="step">03</p><h3>TED evidence search</h3><p>Procurement evidence is retrieved from Tenders Electronic Daily under bounded field projection, pagination and schema checks. Incomplete retrieval fails closed.</p></article>
         <article><p className="step">04</p><h3>Conservative state</h3><p>Strong accepted evidence can support CLOSED. Absence inside the complete approved TED search scope can support OPEN. Ambiguity or insufficient evidence produces UNRESOLVED.</p></article>
       </div>
+    </section>
+
+    <section className="public-section">
+      <p className="small">Supplier relevance</p>
+      <h2 className="display-h2 compact-heading">Relevance changes prioritisation, never evidence state.</h2>
+      <div className="coverage-list">
+        <div><strong>High</strong><p>CPV, domain and geography match, plus a documented demand tag supported by exact source-text evidence. Visible in the standard feed.</p></div>
+        <div><strong>Medium</strong><p>CPV, domain and geography match without requiring documented demand-tag evidence. Visible in the standard feed.</p></div>
+        <div><strong>Low</strong><p>Weak or partial match. Hidden from the standard feed.</p></div>
+        <div><strong>Not relevant</strong><p>No meaningful supplier match. Excluded.</p></div>
+      </div>
+      <p className="small">A missing demand tag never means there is no need; it means the published project text did not provide sufficient documentation for that tag.</p>
     </section>
 
     <section className="public-section">
@@ -41,8 +54,8 @@ export default function MethodologyPage() {
     <section className="public-section split-section">
       <div><p className="small">Source attribution</p><h2 className="display-h2">The derived analysis is ProcRun's, not the source publisher's.</h2></div>
       <div className="source-cards">
-        <article><h3>TED</h3><p>{TED_ATTRIBUTION}</p></article>
-        <article><h3>OpenCoesione</h3><p>{OPENCOESIONE_ATTRIBUTION}</p></article>
+        <article><h3>TED</h3><p>{TED_ATTRIBUTION}</p><p><a className="text-link strong" href="https://ted.europa.eu/">Open TED</a></p></article>
+        <article><h3>OpenCoesione</h3><p>{OPENCOESIONE_ATTRIBUTION}</p><p><a className="text-link strong" href="https://opencoesione.gov.it/it/beneficiari_operazioni_2021_2027/">Open OpenCoesione publication</a></p></article>
       </div>
       <p className="small">{DATA_COMPLETENESS_DISCLOSURE}</p>
     </section>
@@ -53,6 +66,7 @@ export default function MethodologyPage() {
       <div className="coverage-list">
         <div>Complete national procurement coverage</div><div>Complete Italian public-investment coverage</div><div>A complete bill of materials</div><div>Discovery of every future purchase</div><div>Win probability or GO/NO-GO scoring</div><div>Buyer-person or contact intelligence</div><div>100% accuracy</div><div>Government, source or EU endorsement</div>
       </div>
+      <div className="actions"><Link className="button" href="/pricing">View pricing</Link></div>
     </section>
   </PublicPage>;
 }

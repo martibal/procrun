@@ -26,7 +26,7 @@ export default async function RunwayPage() {
 
     <div className="actions">
       <Link className="button" href="/app/profile">Configure Supplier Profile</Link>
-      <Link className="button secondary" href="/api/export">Export fixture CSV</Link>
+      <button className="button secondary disabled" disabled type="button">CSV export after auth wiring</button>
     </div>
 
     <section className="section">
