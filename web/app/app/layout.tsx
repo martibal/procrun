@@ -1,9 +1,12 @@
 import Link from "next/link";
 
-const nav = [
+const primaryNav = [
   ["Opportunities", "/app"],
   ["Saved", "/app/saved"],
   ["Market", "/app/market"],
+] as const;
+
+const accountNav = [
   ["Supplier Profile", "/app/profile"],
   ["Account", "/app/account"],
 ] as const;
@@ -14,16 +17,15 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
       <header className="topbar">
         <div className="topbar-inner">
           <Link href="/app" className="brand">ProcRun</Link>
-          <div className="topmeta"><span className="status-dot" /> Development workspace; TED-scoped MVP</div>
-          <nav className="nav"><Link href="/methodology">Methodology</Link><Link href="/pricing">Pricing</Link></nav>
+          <nav className="workspace-nav" aria-label="Workspace navigation">
+            {primaryNav.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
+          </nav>
+          <nav className="workspace-nav secondary" aria-label="Account navigation">
+            {accountNav.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
+          </nav>
         </div>
       </header>
       <div className="layout">
-        <aside className="side">
-          <div className="small">Workspace</div>
-          {nav.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
-          <div className="side-footer">Customer-safe read model only<br />No raw source payloads</div>
-        </aside>
         <main className="main">{children}</main>
       </div>
     </div>
