@@ -1,5 +1,5 @@
 import { loadCategoryBaselines } from "@/lib/category-baselines";
-import { loadOpenNeedsByCategory } from "@/lib/market-needs";
+import { loadOpenNeedsByCategory, loadProgrammeConcentration } from "@/lib/market-needs";
 import { opportunities } from "@/lib/read-model";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,7 @@ export default async function MarketPage() {
   const states = ["OPEN", "CLOSED", "UNRESOLVED"] as const;
   const baselines = await loadCategoryBaselines();
   const openNeeds = await loadOpenNeedsByCategory();
+  const programmeConcentration = await loadProgrammeConcentration();
 
   return <>
     <p className="small">Market Intelligence</p>
@@ -23,8 +24,8 @@ export default async function MarketPage() {
 
     <div className="grid">
       <div className="card"><div className="small">Current opportunities</div><div className="kpi">{opportunities.length}</div></div>
-      <div className="card"><div className="small">Current project value</div><div className="kpi">â‚¬{(total / 1_000_000).toFixed(1)}m</div></div>
-      <div className="card"><div className="small">TED-scoped OPEN value</div><div className="kpi">â‚¬{(openValue / 1_000_000).toFixed(1)}m</div></div>
+      <div className="card"><div className="small">Current project value</div><div className="kpi">Ã¢â€šÂ¬{(total / 1_000_000).toFixed(1)}m</div></div>
+      <div className="card"><div className="small">TED-scoped OPEN value</div><div className="kpi">Ã¢â€šÂ¬{(openValue / 1_000_000).toFixed(1)}m</div></div>
     </div>
     <section className="section">
       <p className="small">Open purchasing needs across funded projects</p>
@@ -86,7 +87,56 @@ export default async function MarketPage() {
         return <div key={state} style={{marginTop:18}}><div className="small"><strong>{state}</strong>: {count} item{count === 1 ? "" : "s"}</div><div className="bar"><span style={{width:`${pct}%`}} /></div></div>;
       })}
     </section>
+    <section className="section">
+      <p className="small">Programme concentration of current OPEN needs</p>
+      <h2 className="h2">How concentrated each category is within the funded-programme set</h2>
 
+      <p className="small">
+        For each component category, this shows the funded programme containing the largest number of current effective OPEN needs.
+        The share is calculated only across OPEN needs whose project has a programme value in the current funded-project ledger.
+        This is a descriptive portfolio concentration measure, not a buyer-concentration or market-risk claim.
+      </p>
+
+      {programmeConcentration === null ? (
+        <p className="small">
+          No production programme concentration is rendered without the configured history database.
+        </p>
+      ) : programmeConcentration.length === 0 ? (
+        <p className="small">
+          No current OPEN needs with programme metadata are available.
+        </p>
+      ) : (
+        <div style={{overflowX:"auto"}}>
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Top programme</th>
+                <th>OPEN needs in programme</th>
+                <th>Share of programme-known OPEN needs</th>
+                <th>Programme-known / total OPEN needs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {programmeConcentration.map((row) => (
+                <tr key={row.category}>
+                  <td>{row.category}</td>
+                  <td>{row.topProgramme}</td>
+                  <td>{row.topProgrammeOpenNeeds}</td>
+                  <td>{row.topProgrammeSharePct.toFixed(1)}%</td>
+                  <td>{row.openNeedsWithProgramme} / {row.totalOpenNeeds}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p className="micro">
+        Null programme values are excluded from the percentage denominator and disclosed through the programme-known / total count.
+        No buyer, contracting-authority, beneficiary or contact identity is used in this measure.
+      </p>
+    </section>
     <section className="section">
       <p className="small">Observed category baselines</p>
       <h2 className="h2">How long comparable needs stayed OPEN before a verified CLOSED observation</h2>
@@ -116,7 +166,7 @@ export default async function MarketPage() {
 
     <section className="section grid two">
       <div className="card flat"><p className="small">Coverage</p><p><strong>TED only for MVP negative search.</strong></p><p className="small">No relevant procurement found in TED as of the item cutoff does not establish absence outside TED.</p></div>
-      <div className="card flat"><p className="small">Funded projects</p><p><strong>PR FESR Lombardia 2021â€“2027</strong></p><p className="small">The current live funded-project route is Lombardia only. Additional regions require separate source activation before customer-facing use.</p></div>
+      <div className="card flat"><p className="small">Funded projects</p><p><strong>PR FESR Lombardia 2021Ã¢â‚¬â€œ2027</strong></p><p className="small">The current live funded-project route is Lombardia only. Additional regions require separate source activation before customer-facing use.</p></div>
     </section>
   </>;
 }
