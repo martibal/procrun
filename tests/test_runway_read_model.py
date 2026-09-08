@@ -145,7 +145,7 @@ def test_ted_only_coverage_can_never_create_open() -> None:
     assert result.assessment.state is ProjectState.UNRESOLVED
 
 
-def test_unmatched_scope_requires_fallback_and_can_never_create_open() -> None:
+def test_unmatched_scope_keeps_project_unresolved_without_erasing_resolved_component_boundaries() -> None:
     project = PROJECT.model_copy(
         update={
             "project_scope_text": (
@@ -166,9 +166,7 @@ def test_unmatched_scope_requires_fallback_and_can_never_create_open() -> None:
 
     assert result.extraction.model_fallback_required
     assert result.assessment.state is ProjectState.UNRESOLVED
-    assert all(
-        item.match.assessment.state is ComponentState.UNRESOLVED for item in result.components
-    )
+    assert all(item.match.assessment.state is ComponentState.OPEN for item in result.components)
 
 
 def test_missing_explicit_coverage_fails_before_a_state_is_built() -> None:

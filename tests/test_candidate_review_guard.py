@@ -8,11 +8,11 @@ from procrun.matching import MatchTier, evaluate_candidate
 def _project() -> FundingProject:
     return FundingProject(
         operation_code="OP-1",
-        project_title="Advanced Bridge Monitoring",
+        project_title="Advanced Port Monitoring",
         project_start=date(2025, 1, 1),
         project_end=date(2027, 12, 31),
         approved_funding_eur=10_000,
-        project_scope_text="Advanced Bridge Monitoring",
+        project_scope_text="Advanced Port Monitoring",
         programme="PR FESR Lombardia 2021-2027",
         region="Lombardia",
         nuts_code="ITC4",
@@ -38,7 +38,7 @@ def _evidence(*, title: str, nuts_code: str = "ITC4") -> ProcurementEvidence:
         publication_date=date(2026, 5, 1),
         title=title,
         scope_description="Monitoring services",
-        cpv_codes=("71700000",),
+        cpv_codes=("38400000",),
         nuts_code=nuts_code,
         source_url="https://example.invalid/notice",
     )
@@ -60,9 +60,10 @@ def test_actual_project_title_match_can_still_form_tier_c_review_candidate() -> 
     candidate = build_match_candidate(
         _project(),
         _component(),
-        _evidence(title="Advanced Bridge Monitoring - monitoring services"),
+        _evidence(title="Advanced Port Monitoring - monitoring services"),
     )
 
     assert candidate.features.geography_match is True
     assert candidate.features.project_title_or_location_match is True
+    assert candidate.features.cpv_or_category_match is True
     assert evaluate_candidate(candidate, date(2026, 9, 8)).tier is MatchTier.C
