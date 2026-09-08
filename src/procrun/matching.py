@@ -18,7 +18,7 @@ from procrun.domain import (
     PurchaseComponent,
 )
 
-MATCH_RULE_VERSION = "phase-b-conservative-v3-true-title-match"
+MATCH_RULE_VERSION = "phase-b-conservative-v4-projected-cup-linkage"
 
 
 class MatchTier(StrEnum):
