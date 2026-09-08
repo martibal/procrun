@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import type { ProductionProjectSummary } from "@/lib/production-projects";
+import type { ProductionProjectSummary, ProjectNeedState } from "@/lib/production-projects";
 import styles from "./project-browser.module.css";
 
-type StateFilter = "ALL" | "OPEN" | "UNRESOLVED" | "CLOSED";
+type StateFilter = "ALL" | ProjectNeedState;
 
 function eur(value: number | null): string {
   if (value === null) return "Unavailable";
@@ -17,27 +17,26 @@ function eur(value: number | null): string {
   }).format(value);
 }
 
-function categoryLabel(category: string): string {
-  const leaf = category.includes(":") ? category.split(":").at(-1) ?? category : category;
-  return leaf
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
 function cutoff(project: ProductionProjectSummary): string {
   return project.earliestCutoffDate === project.latestCutoffDate
     ? project.latestCutoffDate
     : `${project.earliestCutoffDate}–${project.latestCutoffDate}`;
 }
 
+function uniqueDescriptions(project: ProductionProjectSummary, state: ProjectNeedState): string[] {
+  return Array.from(
+    new Set(project.needs.filter((item) => item.state === state).map((item) => item.description)),
+  ).sort();
+}
+
 export function ProjectBrowser({ projects }: { projects: ProductionProjectSummary[] }) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("ALL");
+  const [need, setNeed] = useState("ALL");
   const [state, setState] = useState<StateFilter>("ALL");
   const [minimumFunding, setMinimumFunding] = useState(0);
 
-  const categories = useMemo(
-    () => Array.from(new Set(projects.flatMap((project) => project.categories))).sort(),
+  const needOptions = useMemo(
+    () => Array.from(new Set(projects.flatMap((project) => project.needs.map((item) => item.description)))).sort(),
     [projects],
   );
 
@@ -45,10 +44,8 @@ export function ProjectBrowser({ projects }: { projects: ProductionProjectSummar
     const normalizedQuery = query.trim().toLocaleLowerCase();
 
     return projects.filter((project) => {
-      if (category !== "ALL" && !project.categories.includes(category)) return false;
-      if (state === "OPEN" && project.openCount === 0) return false;
-      if (state === "UNRESOLVED" && project.unresolvedCount === 0) return false;
-      if (state === "CLOSED" && project.closedCount === 0) return false;
+      if (need !== "ALL" && !project.needs.some((item) => item.description === need)) return false;
+      if (state !== "ALL" && !project.needs.some((item) => item.state === state)) return false;
       if ((project.approvedFundingEur ?? 0) < minimumFunding) return false;
 
       if (!normalizedQuery) return true;
@@ -58,18 +55,18 @@ export function ProjectBrowser({ projects }: { projects: ProductionProjectSummar
         project.programme,
         project.region,
         project.nutsCode,
-        ...project.categories.map(categoryLabel),
+        ...project.needs.map((item) => item.description),
       ]
         .filter(Boolean)
         .join(" ")
         .toLocaleLowerCase();
       return haystack.includes(normalizedQuery);
     });
-  }, [category, minimumFunding, projects, query, state]);
+  }, [minimumFunding, need, projects, query, state]);
 
   const clearFilters = () => {
     setQuery("");
-    setCategory("ALL");
+    setNeed("ALL");
     setState("ALL");
     setMinimumFunding(0);
   };
@@ -98,10 +95,10 @@ export function ProjectBrowser({ projects }: { projects: ProductionProjectSummar
 
         <label>
           <span>Purchasing need</span>
-          <select value={category} onChange={(event) => setCategory(event.target.value)}>
+          <select value={need} onChange={(event) => setNeed(event.target.value)}>
             <option value="ALL">All needs</option>
-            {categories.map((item) => (
-              <option key={item} value={item}>{categoryLabel(item)}</option>
+            {needOptions.map((item) => (
+              <option key={item} value={item}>{item}</option>
             ))}
           </select>
         </label>
@@ -143,52 +140,65 @@ export function ProjectBrowser({ projects }: { projects: ProductionProjectSummar
         </div>
       ) : (
         <div className={styles.projectList}>
-          {filtered.map((project) => (
-            <article className={styles.projectRow} key={project.operationCode}>
-              <div className={styles.projectIdentity}>
-                <Link href={`/app/projects/${encodeURIComponent(project.operationCode)}`} className={styles.projectTitle}>
-                  {project.projectTitle ?? project.operationCode}
-                </Link>
-                <div className={styles.operationCode}>{project.operationCode}</div>
-                <div className={styles.categories}>
-                  {project.categories.map((item) => (
-                    <span key={item}>{categoryLabel(item)}</span>
-                  ))}
-                </div>
-              </div>
+          {filtered.map((project) => {
+            const openNeeds = uniqueDescriptions(project, "OPEN");
+            const unresolvedNeeds = uniqueDescriptions(project, "UNRESOLVED");
+            const closedNeeds = uniqueDescriptions(project, "CLOSED");
 
-              <dl className={styles.projectMeta}>
-                <div>
-                  <dt>Programme</dt>
-                  <dd>{project.programme ?? "Unavailable"}</dd>
+            return (
+              <article className={styles.projectRow} key={project.operationCode}>
+                <div className={styles.projectIdentity}>
+                  <Link href={`/app/projects/${encodeURIComponent(project.operationCode)}`} className={styles.projectTitle}>
+                    {project.projectTitle ?? project.operationCode}
+                  </Link>
+                  <div className={styles.operationCode}>{project.operationCode}</div>
                 </div>
-                <div>
-                  <dt>Location</dt>
-                  <dd>{project.region ?? project.nutsCode ?? "Unavailable"}</dd>
-                </div>
-                <div>
-                  <dt>Approved funding</dt>
-                  <dd className={styles.numeric}>{eur(project.approvedFundingEur)}</dd>
-                </div>
-                <div>
-                  <dt>Cutoff</dt>
-                  <dd className={styles.numeric}>{cutoff(project)}</dd>
-                </div>
-              </dl>
 
-              <div className={styles.stateCounts} aria-label="Procurement states">
-                <div className={project.openCount > 0 ? styles.openState : undefined}>
-                  <span>OPEN</span><strong>{project.openCount}</strong>
+                <div className={styles.needColumn}>
+                  <div className={styles.needHeading}>Potential purchasing needs</div>
+                  {openNeeds.length > 0 ? (
+                    <div className={styles.needGroup}>
+                      {openNeeds.map((item) => (
+                        <span className={styles.needOpen} key={`open-${item}`}>{item}<small>OPEN</small></span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {unresolvedNeeds.length > 0 ? (
+                    <div className={styles.needGroup}>
+                      {unresolvedNeeds.map((item) => (
+                        <span className={styles.needUnresolved} key={`unresolved-${item}`}>{item}<small>UNRESOLVED</small></span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {openNeeds.length === 0 && unresolvedNeeds.length === 0 ? (
+                    <p className={styles.noOutstanding}>No current OPEN or UNRESOLVED needs.</p>
+                  ) : null}
+                  {closedNeeds.length > 0 ? (
+                    <p className={styles.closedNote}>{closedNeeds.length} need{closedNeeds.length === 1 ? "" : "s"} with procurement evidence found</p>
+                  ) : null}
                 </div>
-                <div>
-                  <span>UNRESOLVED</span><strong>{project.unresolvedCount}</strong>
-                </div>
-                <div>
-                  <span>CLOSED</span><strong>{project.closedCount}</strong>
-                </div>
-              </div>
-            </article>
-          ))}
+
+                <dl className={styles.projectMeta}>
+                  <div>
+                    <dt>Programme</dt>
+                    <dd>{project.programme ?? "Unavailable"}</dd>
+                  </div>
+                  <div>
+                    <dt>Location</dt>
+                    <dd>{project.region ?? project.nutsCode ?? "Unavailable"}</dd>
+                  </div>
+                  <div>
+                    <dt>Approved funding</dt>
+                    <dd className={styles.numeric}>{eur(project.approvedFundingEur)}</dd>
+                  </div>
+                  <div>
+                    <dt>Cutoff</dt>
+                    <dd className={styles.numeric}>{cutoff(project)}</dd>
+                  </div>
+                </dl>
+              </article>
+            );
+          })}
         </div>
       )}
     </section>
