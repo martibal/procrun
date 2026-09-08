@@ -31,7 +31,7 @@ cleanup() {
 }
 trap cleanup EXIT
 sudo -u postgres env PYTHONPATH=$RemoteWorktree/src /opt/procrun/venv/bin/python -c 'import psycopg; from procrun.migrations import apply_all_migrations; conn=psycopg.connect("dbname=procrun"); apply_all_migrations(conn); conn.close()'
-sudo -u postgres psql -d procrun -Atqc "SELECT CASE WHEN to_regclass(''procrun.procurement_observations'') IS NOT NULL AND to_regclass(''procrun.sync_runs'') IS NOT NULL AND to_regclass(''procrun.accounts'') IS NOT NULL THEN ''READY'' ELSE ''MISSING'' END;"
+sudo -u postgres psql -d procrun -Atqc "SELECT CASE WHEN to_regclass('procrun.procurement_observations') IS NOT NULL AND to_regclass('procrun.sync_runs') IS NOT NULL AND to_regclass('procrun.accounts') IS NOT NULL THEN 'READY' ELSE 'MISSING' END;"
 "@
 
 $migrationResult = & ssh -i $SshKey "${SshUser}@${Server}" $remoteMigration
