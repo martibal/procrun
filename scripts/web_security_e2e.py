@@ -12,7 +12,7 @@ import os
 import sys
 from urllib.error import HTTPError
 from urllib.parse import urljoin
-from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -76,4 +76,4 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except Exception as exc:
         print(f"ProcRun remote security smoke: FAIL: {exc}", file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(1) from None

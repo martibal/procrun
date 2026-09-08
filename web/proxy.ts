@@ -13,8 +13,11 @@ function clerkConfigured(): boolean {
 const clerkProxy = clerkMiddleware();
 
 export default async function proxy(request: NextRequest, event: NextFetchEvent) {
-  const response = clerkConfigured()
+  const middlewareResult = clerkConfigured()
     ? await clerkProxy(request, event)
+    : NextResponse.next();
+  const response = middlewareResult instanceof Response
+    ? middlewareResult
     : NextResponse.next();
 
   return applySecurityHeaders(response, request.nextUrl.pathname);
