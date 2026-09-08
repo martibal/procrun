@@ -125,7 +125,7 @@ Write-Host "[5/6] OK"
 try {
     Write-Host "[6/6] Applying grants and setting the procrun_web_dev password..."
     Write-Host "      PostgreSQL remains loopback-only. The password prompt is interactive by design."
-    & ssh @SshOptions -t -i $SshKey "${SshUser}@${Server}" "sudo -u postgres psql -d procrun -f $RemoteSql && sudo -u postgres psql -d procrun -c '\\password procrun_web_dev'"
+    & ssh @SshOptions -t -i $SshKey "${SshUser}@${Server}" "sudo -u postgres psql -d procrun -f $RemoteSql && sudo -u postgres psql -d procrun -c '\password procrun_web_dev'"
     if ($LASTEXITCODE -ne 0) {
         throw "Step 6 failed: remote role setup failed."
     }
