@@ -166,3 +166,44 @@ def test_onboarding_and_profile_use_persisted_authenticated_supplier_profile() -
     assert 'name="cpvExclude"' in form
     assert "const { accountId } = await requireAccount();" in actions
     assert "saveSupplierProfile(accountId" in actions
+
+
+def test_saved_opportunities_are_account_scoped_and_only_accept_matched_components() -> None:
+    source = (REPO_ROOT / "web/lib/saved-opportunities.ts").read_text(encoding="utf-8")
+    actions = (REPO_ROOT / "web/app/app/saved/actions.ts").read_text(encoding="utf-8")
+
+    assert "FROM procrun.component_matches" in source
+    assert "WHERE account_id = $1 AND component_id = $2" in source
+    assert "INSERT INTO procrun.saved_opportunities (account_id, component_id)" in source
+    assert "DELETE FROM procrun.saved_opportunities WHERE account_id = $1 AND component_id = $2" in source
+    assert "WHERE s.account_id = $1" in source
+    assert "const { accountId } = await requireAccount();" in actions
+    assert "PROCRUN_DEV_ACCOUNT_ID" not in source
+
+
+def test_saved_page_uses_persisted_records_not_fixture_selections() -> None:
+    page = (REPO_ROOT / "web/app/app/saved/page.tsx").read_text(encoding="utf-8")
+
+    assert "loadSavedOpportunities(accountId)" in page
+    assert "opportunities.slice" not in page
+    assert "Development workspace" not in page
+    assert "Export saved CSV" in page
+    assert "removeSavedOpportunityAction" in page
+
+
+def test_customer_csv_export_is_authenticated_account_scoped_and_customer_safe() -> None:
+    route = (REPO_ROOT / "web/app/app/export/route.ts").read_text(encoding="utf-8")
+    browser = (REPO_ROOT / "web/components/project-browser.tsx").read_text(encoding="utf-8")
+
+    assert "const { accountId } = await requireAccount();" in route
+    assert 'scope === "saved"' in route
+    assert 'scope === "filtered"' in route
+    assert "loadSavedOpportunities(accountId)" in route
+    assert "loadSupplierProfile(accountId)" in route
+    assert "rankProjectsForProfile" in route
+    assert '"Cache-Control": "private, no-store"' in route
+    assert "municipality" not in route
+    assert "contracting_authority" not in route
+    assert "personal" not in route.casefold()
+    assert "Export filtered CSV" in browser
+    assert "saveNeedAction" in browser
