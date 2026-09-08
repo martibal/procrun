@@ -17,6 +17,12 @@ The published descriptive fields are:
 
 One component contributes at most one completed lifecycle to a baseline.
 
+## Minimum sample rule
+
+A category baseline is customer-publishable only when `n >= 20` completed comparable lifecycles are available. Categories with `n < 20` must fail closed: quartiles and current-opportunity percentiles are not rendered to customers as a valid baseline.
+
+The same `n >= 20` threshold applies before a current OPEN component may receive a category percentile. `n` remains visible whenever a baseline or percentile is published.
+
 ## Effective-history rule
 
 `procurement_observations` remains append-only. A historical observation that is explicitly referenced by a later correction is excluded as a baseline endpoint. Correction rows are not used to mutate history.
@@ -31,4 +37,4 @@ Category is taken only from the existing frozen `component_versions.category` va
 
 The measure is ProcRun-observed lifecycle duration. It is **not** total project duration, procurement lead time outside ProcRun observation history, a probability, or a prediction.
 
-The Market Intelligence view must always show `n` with the quartiles. It may display descriptive baselines for any available `n`, but a later feature that ranks a current opportunity by percentile must define and enforce its own minimum-sample threshold before customer-facing release.
+The Market Intelligence view must always show `n` with the quartiles. It must not present a baseline or derived percentile for a category below the `n >= 20` minimum.

@@ -10,7 +10,6 @@ export type ProductionProjectSummary = {
   approvedFundingEur: number | null;
   programme: string | null;
   region: string | null;
-  municipality: string | null;
   nutsCode: string | null;
   componentCount: number;
   openCount: number;
@@ -45,7 +44,6 @@ export type ProductionProjectDetail = {
   objective: string | null;
   theme: string | null;
   region: string | null;
-  municipality: string | null;
   nutsCode: string | null;
   projectScopeText: string;
   components: ProductionProjectComponent[];
@@ -64,7 +62,6 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
       approved_funding_eur: string | number | null;
       programme: string | null;
       region: string | null;
-      municipality: string | null;
       nuts_code: string | null;
       component_count: number;
       open_count: number;
@@ -82,7 +79,6 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
           approved_funding_eur,
           programme,
           region,
-          municipality,
           nuts_code
         FROM procrun.funding_project_versions
         ORDER BY
@@ -145,7 +141,6 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
         latest_project.approved_funding_eur,
         latest_project.programme,
         latest_project.region,
-        latest_project.municipality,
         latest_project.nuts_code,
         count(*)::int AS component_count,
         count(*) FILTER (WHERE current_components.state = 'OPEN')::int AS open_count,
@@ -164,7 +159,6 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
         latest_project.approved_funding_eur,
         latest_project.programme,
         latest_project.region,
-        latest_project.municipality,
         latest_project.nuts_code
       ORDER BY
         open_count DESC,
@@ -184,7 +178,6 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
           : Number(row.approved_funding_eur),
       programme: row.programme,
       region: row.region,
-      municipality: row.municipality,
       nutsCode: row.nuts_code,
       componentCount: row.component_count,
       openCount: row.open_count,
@@ -217,7 +210,6 @@ export async function loadProductionProject(
       objective: string | null;
       theme: string | null;
       region: string | null;
-      municipality: string | null;
       nuts_code: string | null;
       project_scope_text: string;
     }>(`
@@ -233,7 +225,6 @@ export async function loadProductionProject(
         objective,
         theme,
         region,
-        municipality,
         nuts_code,
         project_scope_text
       FROM procrun.funding_project_versions
@@ -346,7 +337,6 @@ export async function loadProductionProject(
       objective: project.objective,
       theme: project.theme,
       region: project.region,
-      municipality: project.municipality,
       nutsCode: project.nuts_code,
       projectScopeText: project.project_scope_text,
       components: componentResult.rows.map((row) => ({

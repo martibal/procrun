@@ -45,9 +45,7 @@ export default async function ProjectPage({
     </h1>
 
     <p className="lede">
-      {project.municipality
-        ? `${project.municipality}${project.region ? `, ${project.region}` : ""}`
-        : project.region ?? project.nutsCode ?? "Location unavailable"}
+      {project.region ?? project.nutsCode ?? "Location unavailable"}
     </p>
 
     <div className="coverage-list section">

@@ -127,11 +127,7 @@ export default async function RunwayPage() {
 
                       <td>{project.programme ?? "Unavailable"}</td>
 
-                      <td>
-                        {project.municipality
-                          ? `${project.municipality}${project.region ? `, ${project.region}` : ""}`
-                          : project.region ?? project.nutsCode ?? "Unavailable"}
-                      </td>
+                      <td>{project.region ?? project.nutsCode ?? "Unavailable"}</td>
 
                       <td>{eur(project.approvedFundingEur)}</td>
 

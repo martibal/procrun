@@ -2,6 +2,8 @@ import "server-only";
 
 import { procrunDb } from "@/lib/procrun-db";
 
+export const MIN_CATEGORY_BASELINE_N = 20;
+
 export type CategoryBaseline = {
   category: string;
   n: number;
@@ -76,6 +78,7 @@ export async function loadCategoryBaselines(): Promise<CategoryBaseline[] | null
         max(closed_at)::text AS latest_closed_at
       FROM durations
       GROUP BY category
+      HAVING count(*) >= ${MIN_CATEGORY_BASELINE_N}
       ORDER BY category
     `);
 
@@ -208,7 +211,7 @@ export async function loadOpenCategoryPercentile(
       .map((row) => row.duration_days)
       .filter((value): value is number => value !== null);
 
-    if (durations.length === 0) return null;
+    if (durations.length < MIN_CATEGORY_BASELINE_N) return null;
     if (first.current_age_days < 0) return null;
 
     const below = durations.filter(
