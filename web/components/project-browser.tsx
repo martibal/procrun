@@ -63,6 +63,15 @@ export function ProjectBrowser({ projects }: { projects: PersonalizedProject[] }
     });
   }, [minimumFunding, need, projects, query, relevance]);
 
+  const exportHref = useMemo(() => {
+    const params = new URLSearchParams({ scope: "filtered" });
+    if (query.trim()) params.set("q", query.trim());
+    if (relevance !== "ALL") params.set("relevance", relevance);
+    if (need !== "ALL") params.set("need", need);
+    if (minimumFunding > 0) params.set("minimumFunding", String(minimumFunding));
+    return `/app/export?${params.toString()}`;
+  }, [minimumFunding, need, query, relevance]);
+
   const clearFilters = () => {
     setQuery("");
     setRelevance("ALL");
@@ -85,11 +94,7 @@ export function ProjectBrowser({ projects }: { projects: PersonalizedProject[] }
       <div className={styles.filters} aria-label="Opportunity filters">
         <label className={styles.searchField}>
           <span>Search</span>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Project, code, programme or need"
-          />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Project, code, programme or need" />
         </label>
 
         <label>
@@ -105,9 +110,7 @@ export function ProjectBrowser({ projects }: { projects: PersonalizedProject[] }
           <span>Purchasing need</span>
           <select value={need} onChange={(event) => setNeed(event.target.value)}>
             <option value="ALL">All OPEN needs</option>
-            {needOptions.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
+            {needOptions.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
         </label>
 
@@ -122,69 +125,40 @@ export function ProjectBrowser({ projects }: { projects: PersonalizedProject[] }
           </select>
         </label>
 
-        <button type="button" className={styles.clearButton} onClick={clearFilters}>
-          Clear filters
-        </button>
+        <button type="button" className={styles.clearButton} onClick={clearFilters}>Clear filters</button>
       </div>
 
       <div className={styles.resultHeader}>
         <span>{filtered.length} matching projects</span>
-        <span>Sorted by relevance, then OPEN needs</span>
+        <span><Link className="text-link strong" href={exportHref}>Export filtered CSV</Link></span>
       </div>
 
       {filtered.length === 0 ? (
-        <div className={styles.emptyState}>
-          No High or Medium relevance projects match the current filters. Review your Supplier Profile or broaden the feed filters.
-        </div>
+        <div className={styles.emptyState}>No High or Medium relevance projects match the current filters. Review your Supplier Profile or broaden the feed filters.</div>
       ) : (
         <div className={styles.projectList}>
           {filtered.map((project) => {
             const openNeeds = uniqueOpenDescriptions(project);
             const closedCount = project.closedCount;
-
             return (
               <article className={styles.projectRow} key={project.operationCode}>
                 <div className={styles.projectIdentity}>
-                  <span className={project.relevanceBand === "HIGH" ? styles.relevanceHigh : styles.relevanceMedium}>
-                    {project.relevanceBand === "HIGH" ? "High relevance" : "Medium relevance"}
-                  </span>
-                  <div>
-                    <Link href={`/app/projects/${encodeURIComponent(project.operationCode)}`} className={styles.projectTitle}>
-                      {project.projectTitle ?? project.operationCode}
-                    </Link>
-                  </div>
+                  <span className={project.relevanceBand === "HIGH" ? styles.relevanceHigh : styles.relevanceMedium}>{project.relevanceBand === "HIGH" ? "High relevance" : "Medium relevance"}</span>
+                  <div><Link href={`/app/projects/${encodeURIComponent(project.operationCode)}`} className={styles.projectTitle}>{project.projectTitle ?? project.operationCode}</Link></div>
                   <div className={styles.operationCode}>{project.operationCode}</div>
                 </div>
 
                 <div className={styles.needColumn}>
                   <div className={styles.needHeading}>OPEN purchasing needs</div>
-                  <div className={styles.needGroup}>
-                    {openNeeds.map((item) => (
-                      <span className={styles.needOpen} key={`open-${item}`}>{item}<small>OPEN</small></span>
-                    ))}
-                  </div>
-                  {closedCount > 0 ? (
-                    <p className={styles.closedNote}>{closedCount} need{closedCount === 1 ? "" : "s"} with procurement evidence found</p>
-                  ) : null}
+                  <div className={styles.needGroup}>{openNeeds.map((item) => <span className={styles.needOpen} key={`open-${item}`}>{item}<small>OPEN</small></span>)}</div>
+                  {closedCount > 0 ? <p className={styles.closedNote}>{closedCount} need{closedCount === 1 ? "" : "s"} with procurement evidence found</p> : null}
                 </div>
 
                 <dl className={styles.projectMeta}>
-                  <div>
-                    <dt>Programme</dt>
-                    <dd>{project.programme ?? "Unavailable"}</dd>
-                  </div>
-                  <div>
-                    <dt>Location</dt>
-                    <dd>{project.region ?? project.nutsCode ?? "Unavailable"}</dd>
-                  </div>
-                  <div>
-                    <dt>Approved funding</dt>
-                    <dd className={styles.numeric}>{eur(project.approvedFundingEur)}</dd>
-                  </div>
-                  <div>
-                    <dt>Cutoff</dt>
-                    <dd className={styles.numeric}>{cutoff(project)}</dd>
-                  </div>
+                  <div><dt>Programme</dt><dd>{project.programme ?? "Unavailable"}</dd></div>
+                  <div><dt>Location</dt><dd>{project.region ?? project.nutsCode ?? "Unavailable"}</dd></div>
+                  <div><dt>Approved funding</dt><dd className={styles.numeric}>{eur(project.approvedFundingEur)}</dd></div>
+                  <div><dt>Cutoff</dt><dd className={styles.numeric}>{cutoff(project)}</dd></div>
                 </dl>
               </article>
             );
