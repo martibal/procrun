@@ -101,7 +101,13 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
           version_id DESC
       ),
       effective_observation AS (
-        SELECT o.*
+        SELECT
+          o.id,
+          o.component_id,
+          o.operation_code,
+          o.observed_at,
+          o.state,
+          o.inserted_at
         FROM procrun.procurement_observations o
         WHERE NOT EXISTS (
           SELECT 1
@@ -266,7 +272,17 @@ export async function loadProductionProject(
           version_id DESC
       ),
       effective_observation AS (
-        SELECT o.*
+        SELECT
+          o.id,
+          o.component_id,
+          o.operation_code,
+          o.observed_at,
+          o.state,
+          o.evidence_reference,
+          o.evidence_url,
+          o.evidence_excerpt,
+          o.coverage_note,
+          o.inserted_at
         FROM procrun.procurement_observations o
         WHERE o.operation_code = $1
           AND NOT EXISTS (
