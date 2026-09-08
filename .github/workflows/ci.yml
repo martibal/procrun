@@ -55,7 +55,7 @@ jobs:
       - name: Mypy
         run: mypy src/procrun
       - name: Python tests
-        run: pytest
+        run: python -m pytest
       - name: TED foundation total qualification
         if: github.event_name == 'pull_request' && github.head_ref == 'research/ted-foundation-total-test'
         run: python scripts/qualify_ted_foundation.py
