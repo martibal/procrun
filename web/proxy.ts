@@ -1,6 +1,8 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 
+import { applySecurityHeaders } from "@/lib/security-headers";
+
 function clerkConfigured(): boolean {
   return Boolean(
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() &&
@@ -10,11 +12,12 @@ function clerkConfigured(): boolean {
 
 const clerkProxy = clerkMiddleware();
 
-export default function proxy(request: NextRequest, event: NextFetchEvent) {
-  if (!clerkConfigured()) {
-    return NextResponse.next();
-  }
-  return clerkProxy(request, event);
+export default async function proxy(request: NextRequest, event: NextFetchEvent) {
+  const response = clerkConfigured()
+    ? await clerkProxy(request, event)
+    : NextResponse.next();
+
+  return applySecurityHeaders(response, request.nextUrl.pathname);
 }
 
 export const config = {
