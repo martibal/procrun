@@ -5,10 +5,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$RepoRoot = Split-Path -Parent $PSScriptRoot
 $SshKey = Join-Path $env:USERPROFILE ".ssh\procrun_hetzner"
 $SqlFile = Join-Path $PSScriptRoot "configure_web_dev_role.sql"
+$LocalProcrunPackage = Join-Path $RepoRoot "src\procrun"
 $RemoteSql = "/tmp/procrun_web_dev_role.sql"
-$RemoteWorktree = "/tmp/procrun-web-migrate"
+$RemoteMigrationRoot = "/tmp/procrun-web-migrate-src"
 $RemoteMigrationScript = "/tmp/procrun-web-migrate.sh"
 $LocalMigrationScript = Join-Path ([System.IO.Path]::GetTempPath()) "procrun-web-migrate.sh"
 
@@ -20,19 +22,31 @@ if (-not (Test-Path $SqlFile)) {
     throw "Missing SQL role definition: $SqlFile"
 }
 
+if (-not (Test-Path $LocalProcrunPackage)) {
+    throw "Missing local ProcRun Python package: $LocalProcrunPackage"
+}
+
 Write-Host "Checking the central ProcRun database schema before granting web-development access..."
+Write-Host "Uploading the current local migration code to a temporary server directory..."
+
+& ssh -i $SshKey "${SshUser}@${Server}" "rm -rf $RemoteMigrationRoot && mkdir -p $RemoteMigrationRoot"
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not prepare the temporary migration directory on the server."
+}
+
+& scp -r -i $SshKey $LocalProcrunPackage "${SshUser}@${Server}:${RemoteMigrationRoot}/"
+if ($LASTEXITCODE -ne 0) {
+    & ssh -i $SshKey "${SshUser}@${Server}" "rm -rf $RemoteMigrationRoot" | Out-Null
+    throw "Could not copy the current ProcRun migration code to the server."
+}
 
 $remoteMigration = @"
 set -e
-cd /opt/procrun
-git fetch origin web/customer-site-foundation
-git worktree remove --force $RemoteWorktree >/dev/null 2>&1 || true
-git worktree add --detach $RemoteWorktree origin/web/customer-site-foundation >/dev/null
 cleanup() {
-    git -C /opt/procrun worktree remove --force $RemoteWorktree >/dev/null 2>&1 || true
+    rm -rf $RemoteMigrationRoot
 }
 trap cleanup EXIT
-sudo -u postgres env PYTHONPATH=$RemoteWorktree/src /opt/procrun/venv/bin/python -c 'import psycopg; from procrun.migrations import apply_all_migrations; conn=psycopg.connect("dbname=procrun"); apply_all_migrations(conn); conn.close()'
+sudo -u postgres env PYTHONPATH=$RemoteMigrationRoot /opt/procrun/venv/bin/python -c 'import psycopg; from procrun.migrations import apply_all_migrations; conn=psycopg.connect("dbname=procrun"); apply_all_migrations(conn); conn.close()'
 sudo -u postgres psql -d procrun -Atqc "SELECT CASE WHEN to_regclass('procrun.procurement_observations') IS NOT NULL AND to_regclass('procrun.sync_runs') IS NOT NULL AND to_regclass('procrun.accounts') IS NOT NULL THEN 'READY' ELSE 'MISSING' END;"
 "@
 
@@ -56,7 +70,7 @@ try {
 }
 finally {
     Remove-Item $LocalMigrationScript -Force -ErrorAction SilentlyContinue
-    & ssh -i $SshKey "${SshUser}@${Server}" "rm -f $RemoteMigrationScript" | Out-Null
+    & ssh -i $SshKey "${SshUser}@${Server}" "rm -f $RemoteMigrationScript; rm -rf $RemoteMigrationRoot" | Out-Null
 }
 
 if (($migrationResult | Select-Object -Last 1).Trim() -ne "READY") {
