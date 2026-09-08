@@ -2,11 +2,24 @@ import "server-only";
 
 import { Pool } from "pg";
 
-const databaseUrl = process.env.PROCRUN_DATABASE_URL;
 let pool: Pool | undefined;
+let poolDatabaseUrl: string | undefined;
 
 export function procrunDb(): Pool | undefined {
-  if (!databaseUrl) return undefined;
-  pool ??= new Pool({ connectionString: databaseUrl, max: 3 });
+  const databaseUrl = process.env.PROCRUN_DATABASE_URL;
+
+  if (!databaseUrl) {
+    console.error("procrunDb: PROCRUN_DATABASE_URL is not available to the server runtime");
+    return undefined;
+  }
+
+  if (!pool || poolDatabaseUrl !== databaseUrl) {
+    pool = new Pool({
+      connectionString: databaseUrl,
+      max: 3,
+    });
+    poolDatabaseUrl = databaseUrl;
+  }
+
   return pool;
 }
