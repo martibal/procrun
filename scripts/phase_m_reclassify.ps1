@@ -1,7 +1,7 @@
 param(
     [string]$Server = "62.238.117.62",
     [string]$SshUser = "root",
-    [int]$TimeoutMinutes = 45
+    [int]$TimeoutMinutes = 15
 )
 
 $ErrorActionPreference = "Stop"
@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $SshKey = Join-Path $env:USERPROFILE ".ssh\procrun_hetzner"
 $LocalProcrunPackage = Join-Path $RepoRoot "src\procrun"
-$LocalDeliveryScript = Join-Path $PSScriptRoot "run_live_delivery.py"
+$LocalReclassifier = Join-Path $PSScriptRoot "phase_m_reclassify_stored.py"
 $RemoteRoot = "/tmp/procrun-phase-m-reclassify"
 $RemoteRunner = "/tmp/procrun-phase-m-reclassify.sh"
 $LocalRunner = Join-Path ([System.IO.Path]::GetTempPath()) "procrun-phase-m-reclassify.sh"
@@ -22,46 +22,31 @@ $SshOptions = @(
     "-o", "BatchMode=yes"
 )
 
-if (-not (Test-Path $SshKey)) {
-    throw "Missing SSH key: $SshKey"
-}
-if (-not (Test-Path $LocalProcrunPackage)) {
-    throw "Missing local ProcRun package: $LocalProcrunPackage"
-}
-if (-not (Test-Path $LocalDeliveryScript)) {
-    throw "Missing canonical live-delivery runner: $LocalDeliveryScript"
-}
+if (-not (Test-Path $SshKey)) { throw "Missing SSH key: $SshKey" }
+if (-not (Test-Path $LocalProcrunPackage)) { throw "Missing local ProcRun package: $LocalProcrunPackage" }
+if (-not (Test-Path $LocalReclassifier)) { throw "Missing Phase M stored-evidence reclassifier: $LocalReclassifier" }
 
-Write-Host "Phase M A2: controlled reclassification using the current local matching code."
-Write-Host "The production checkout, timers and published runway.jsonl are not modified."
-Write-Host "The run appends new ledger versions to the central production database."
+Write-Host "Phase M A2: controlled reclassification from the frozen production ledger."
+Write-Host "No source is re-downloaded. Production checkout, timers and published runway.jsonl are untouched."
+Write-Host "Only new append-only assessment/project-assessment versions are written."
 
 Write-Host "[1/5] Preparing isolated temporary source directory..."
 & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "timeout 20s sh -c 'rm -rf $RemoteRoot $RemoteRunner && mkdir -p $RemoteRoot'"
-if ($LASTEXITCODE -ne 0) {
-    throw "Step 1 failed: could not prepare the remote temporary directory."
-}
+if ($LASTEXITCODE -ne 0) { throw "Step 1 failed: could not prepare the remote temporary directory." }
 Write-Host "[1/5] OK"
 
 try {
-    Write-Host "[2/5] Uploading current ProcRun source and canonical delivery runner..."
+    Write-Host "[2/5] Uploading current ProcRun source and frozen-ledger reclassifier..."
     & scp @SshOptions -r -i $SshKey $LocalProcrunPackage "${SshUser}@${Server}:${RemoteRoot}/"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Step 2 failed while uploading src/procrun."
-    }
-    & scp @SshOptions -i $SshKey $LocalDeliveryScript "${SshUser}@${Server}:${RemoteRoot}/run_live_delivery.py"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Step 2 failed while uploading run_live_delivery.py."
-    }
+    if ($LASTEXITCODE -ne 0) { throw "Step 2 failed while uploading src/procrun." }
+    & scp @SshOptions -i $SshKey $LocalReclassifier "${SshUser}@${Server}:${RemoteRoot}/phase_m_reclassify_stored.py"
+    if ($LASTEXITCODE -ne 0) { throw "Step 2 failed while uploading phase_m_reclassify_stored.py." }
     Write-Host "[2/5] OK"
 
     $remoteScript = @"
 set -euo pipefail
 ACL_BACKUP=/tmp/procrun-phase-m-reclassify.acl
 REMOTE_ROOT=$RemoteRoot
-PROD_OC_CACHE=/var/lib/procrun/cache/opencoesione-lombardia.json
-TEMP_OC_CACHE="`$REMOTE_ROOT/opencoesione-lombardia.json"
-
 cleanup() {
     if [ -f "`$ACL_BACKUP" ]; then
         setfacl --restore="`$ACL_BACKUP" >/dev/null 2>&1 || true
@@ -78,7 +63,7 @@ fi
 
 cutoff=`$(sudo -u postgres psql -d procrun -Atqc "SELECT max(cutoff_date)::text FROM procrun.assessment_versions;")
 if [ -z "`$cutoff" ]; then
-    echo '[remote] ERROR: no existing production assessment cutoff was found.' >&2
+    echo '[remote] ERROR: no current production assessment cutoff found.' >&2
     exit 42
 fi
 
@@ -90,41 +75,18 @@ getfacl -p /opt/procrun /opt/procrun/venv /opt/procrun/venv/bin > "`$ACL_BACKUP"
 setfacl -m u:postgres:--x /opt/procrun
 setfacl -m u:postgres:--x /opt/procrun/venv
 setfacl -m u:postgres:--x /opt/procrun/venv/bin
-
-# Do not broaden postgres access to /var/lib/procrun. Root copies the already-approved
-# OpenCoesione production cache into the isolated Phase M directory, then postgres reads only
-# that temporary copy. If the canonical cache is absent, fail closed instead of changing source
-# behavior during the validation run.
-if [ ! -f "`$PROD_OC_CACHE" ]; then
-    echo "[remote] ERROR: canonical OpenCoesione cache is missing at `$PROD_OC_CACHE; Phase M will not bootstrap a new cache." >&2
-    exit 44
-fi
-cp --preserve=timestamps "`$PROD_OC_CACHE" "`$TEMP_OC_CACHE"
 chown -R postgres:postgres "`$REMOTE_ROOT"
-chmod 600 "`$TEMP_OC_CACHE"
 
 if ! sudo -u postgres test -x /opt/procrun/venv/bin/python; then
     echo '[remote] ERROR: postgres cannot execute the production virtualenv Python.' >&2
     exit 43
 fi
-if ! sudo -u postgres test -r "`$TEMP_OC_CACHE"; then
-    echo '[remote] ERROR: postgres cannot read the isolated OpenCoesione cache copy.' >&2
-    exit 45
-fi
 
-echo '[remote] Running canonical live delivery with current branch code.'
-echo '[remote] OpenCoesione input is the isolated copy of the already-approved production cache.'
-echo '[remote] TED is re-read through the same approved canonical route; this may take several minutes.'
-sudo -u postgres env \
-    PYTHONPATH="`$REMOTE_ROOT" \
-    PROCRUN_OPENCOESIONE_CACHE="`$TEMP_OC_CACHE" \
-    /opt/procrun/venv/bin/python "`$REMOTE_ROOT/run_live_delivery.py" \
-    --database-url 'dbname=procrun' \
-    --output "`$REMOTE_ROOT/phase-m-runway.jsonl" \
-    --cutoff "`$cutoff"
+echo '[remote] Reclassifying only from already-stored project and TED evidence.'
+sudo -u postgres env PYTHONPATH="`$REMOTE_ROOT" /opt/procrun/venv/bin/python "`$REMOTE_ROOT/phase_m_reclassify_stored.py" --database-url 'dbname=procrun'
 
 echo '[remote] AFTER latest component states:'
-sudo -u postgres psql -d procrun -Atqc "WITH latest AS (SELECT DISTINCT ON (component_id) component_id,state,rationale FROM procrun.assessment_versions ORDER BY component_id,cutoff_date DESC,as_of DESC,inserted_at DESC,version_id DESC) SELECT state || E'\\t' || count(*) FROM latest GROUP BY state ORDER BY state;"
+sudo -u postgres psql -d procrun -Atqc "WITH latest AS (SELECT DISTINCT ON (component_id) component_id,state FROM procrun.assessment_versions ORDER BY component_id,cutoff_date DESC,as_of DESC,inserted_at DESC,version_id DESC) SELECT state || E'\\t' || count(*) FROM latest GROUP BY state ORDER BY state;"
 
 echo '[remote] AFTER unresolved reasons:'
 sudo -u postgres psql -d procrun -Atqc "WITH latest AS (SELECT DISTINCT ON (component_id) component_id,state,rationale FROM procrun.assessment_versions ORDER BY component_id,cutoff_date DESC,as_of DESC,inserted_at DESC,version_id DESC) SELECT count(*)::text || E'\\t' || rationale FROM latest WHERE state='UNRESOLVED' GROUP BY rationale ORDER BY count(*) DESC,rationale;"
@@ -135,21 +97,15 @@ sudo -u postgres psql -d procrun -Atqc "WITH latest AS (SELECT DISTINCT ON (comp
 
     Write-Host "[3/5] Uploading fail-closed remote runner..."
     & scp @SshOptions -i $SshKey $LocalRunner "${SshUser}@${Server}:${RemoteRunner}"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Step 3 failed: could not upload the remote runner."
-    }
+    if ($LASTEXITCODE -ne 0) { throw "Step 3 failed: could not upload the remote runner." }
     Write-Host "[3/5] OK"
 
-    Write-Host "[4/5] Reclassifying against the frozen production cutoff (hard timeout: $TimeoutMinutes minutes)..."
+    Write-Host "[4/5] Reclassifying frozen ledger evidence (hard timeout: $TimeoutMinutes minutes)..."
     $timeoutSeconds = $TimeoutMinutes * 60
     & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "timeout ${timeoutSeconds}s bash $RemoteRunner"
     $runExit = $LASTEXITCODE
-    if ($runExit -eq 124) {
-        throw "Step 4 timed out after $TimeoutMinutes minutes."
-    }
-    if ($runExit -ne 0) {
-        throw "Step 4 failed with remote exit code $runExit."
-    }
+    if ($runExit -eq 124) { throw "Step 4 timed out after $TimeoutMinutes minutes." }
+    if ($runExit -ne 0) { throw "Step 4 failed with remote exit code $runExit." }
     Write-Host "[4/5] OK"
 
     Write-Host "[5/5] Reclassification complete."
