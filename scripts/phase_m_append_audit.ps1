@@ -155,15 +155,15 @@ $section = @"
 
 ### Exact SQL
 
-```sql
+~~~sql
 $sql
-```
+~~~
 
 ### Complete output
 
-```text
+~~~text
 $($output -join [Environment]::NewLine)
-```
+~~~
 "@
 
 $reportDir = Split-Path -Parent $ReportPath
