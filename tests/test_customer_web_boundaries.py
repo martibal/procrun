@@ -175,7 +175,10 @@ def test_saved_opportunities_are_account_scoped_and_only_accept_matched_componen
     assert "FROM procrun.component_matches" in source
     assert "WHERE account_id = $1 AND component_id = $2" in source
     assert "INSERT INTO procrun.saved_opportunities (account_id, component_id)" in source
-    assert "DELETE FROM procrun.saved_opportunities WHERE account_id = $1 AND component_id = $2" in source
+    assert (
+        "DELETE FROM procrun.saved_opportunities WHERE account_id = $1 AND component_id = $2"
+        in source
+    )
     assert "WHERE s.account_id = $1" in source
     assert "const { accountId } = await requireAccount();" in actions
     assert "PROCRUN_DEV_ACCOUNT_ID" not in source
