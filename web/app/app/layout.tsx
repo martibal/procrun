@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { requireAccount } from "@/lib/auth";
+
 const primaryNav = [
   ["Opportunities", "/app"],
   ["Saved", "/app/saved"],
@@ -11,7 +13,9 @@ const accountNav = [
   ["Account", "/app/account"],
 ] as const;
 
-export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  await requireAccount();
+
   return (
     <div className="shell">
       <header className="topbar">
