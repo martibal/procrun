@@ -33,6 +33,7 @@ export type ProductionProjectSummary = {
 
 export type ProductionProjectComponent = ProductionProjectNeed & {
   componentId: string;
+  coverageNote: string;
   evidenceReference: string | null;
   evidenceUrl: string | null;
   evidenceExcerpt: string | null;
