@@ -13,6 +13,7 @@ if (-not (Test-Path $SshKey)) {
 $sql = @'
 \pset tuples_only on
 \pset format unaligned
+\set ON_ERROR_STOP on
 
 \echo === Exact funded-project identifier paths in stored TED evidence ===
 WITH latest_project AS (
@@ -42,6 +43,7 @@ WITH latest_project AS (
     ORDER BY component_id, as_of DESC, inserted_at DESC, version_id DESC
 ), joined AS (
     SELECT
+        c.component_id,
         p.operation_code,
         e.evidence_id,
         e.title,
@@ -55,38 +57,51 @@ WITH latest_project AS (
     JOIN latest_component c ON c.component_id = e.component_id
     JOIN latest_project p ON p.operation_code = c.operation_code
 )
-SELECT 'evidence rows' || E'\t' || count(*) FROM joined;
-SELECT 'project_reference exact raw' || E'\t' || count(*)
-FROM joined
-WHERE nullif(project_reference,'') IS NOT NULL
-  AND lower(trim(project_reference)) = lower(trim(operation_code));
-SELECT 'project_reference exact normalized' || E'\t' || count(*)
-FROM joined
-WHERE op_norm <> '' AND ref_norm = op_norm;
-SELECT 'operation_code embedded in TED title (normalized)' || E'\t' || count(*)
-FROM joined
-WHERE op_norm <> '' AND position(op_norm in title_norm) > 0;
-SELECT 'operation_code embedded in TED scope (normalized)' || E'\t' || count(*)
-FROM joined
-WHERE op_norm <> '' AND position(op_norm in scope_norm) > 0;
-SELECT 'operation_code embedded in TED title OR scope (normalized)' || E'\t' || count(*)
-FROM joined
-WHERE op_norm <> '' AND (position(op_norm in title_norm) > 0 OR position(op_norm in scope_norm) > 0);
-SELECT 'distinct components with exact id in title/scope' || E'\t' || count(DISTINCT c.component_id)
-FROM latest_evidence e
-JOIN latest_component c ON c.component_id = e.component_id
-JOIN latest_project p ON p.operation_code = c.operation_code
-WHERE regexp_replace(lower(p.operation_code), '[^a-z0-9]', '', 'g') <> ''
-  AND (
-      position(
-          regexp_replace(lower(p.operation_code), '[^a-z0-9]', '', 'g')
-          in regexp_replace(lower(coalesce(e.title,'')), '[^a-z0-9]', '', 'g')
-      ) > 0
-      OR position(
-          regexp_replace(lower(p.operation_code), '[^a-z0-9]', '', 'g')
-          in regexp_replace(lower(coalesce(e.scope_description,'')), '[^a-z0-9]', '', 'g')
-      ) > 0
-  );
+SELECT label || E'\t' || value::text
+FROM (
+    SELECT 1 AS sort_order, 'evidence rows' AS label, count(*)::bigint AS value
+    FROM joined
+
+    UNION ALL
+
+    SELECT 2, 'project_reference exact raw', count(*)::bigint
+    FROM joined
+    WHERE nullif(project_reference,'') IS NOT NULL
+      AND lower(trim(project_reference)) = lower(trim(operation_code))
+
+    UNION ALL
+
+    SELECT 3, 'project_reference exact normalized', count(*)::bigint
+    FROM joined
+    WHERE op_norm <> '' AND ref_norm = op_norm
+
+    UNION ALL
+
+    SELECT 4, 'operation_code embedded in TED title (normalized)', count(*)::bigint
+    FROM joined
+    WHERE op_norm <> '' AND position(op_norm in title_norm) > 0
+
+    UNION ALL
+
+    SELECT 5, 'operation_code embedded in TED scope (normalized)', count(*)::bigint
+    FROM joined
+    WHERE op_norm <> '' AND position(op_norm in scope_norm) > 0
+
+    UNION ALL
+
+    SELECT 6, 'operation_code embedded in TED title OR scope (normalized)', count(*)::bigint
+    FROM joined
+    WHERE op_norm <> ''
+      AND (position(op_norm in title_norm) > 0 OR position(op_norm in scope_norm) > 0)
+
+    UNION ALL
+
+    SELECT 7, 'distinct components with exact id in title/scope', count(DISTINCT component_id)::bigint
+    FROM joined
+    WHERE op_norm <> ''
+      AND (position(op_norm in title_norm) > 0 OR position(op_norm in scope_norm) > 0)
+) counts
+ORDER BY sort_order;
 
 \echo === Current production projection context ===
 \echo production retains TED title and scope_description: YES
