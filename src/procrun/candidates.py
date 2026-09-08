@@ -131,9 +131,16 @@ def _geography_matches(project: FundingProject, evidence: ProcurementEvidence) -
     )
 
 
-def _title_or_location_matches(project: FundingProject, evidence: ProcurementEvidence) -> bool:
-    if _geography_matches(project, evidence):
-        return True
+def _project_title_matches(project: FundingProject, evidence: ProcurementEvidence) -> bool:
+    """Require actual project-title evidence; shared geography is not an independent match fact.
+
+    Geography already has its own feature. Treating the same NUTS match as both geography and
+    `project_title_or_location_match` double-counted one regional fact and promoted unrelated
+    Lombardia notices into Tier C review, which then vetoed OPEN. Tier C must have an independent
+    project-specific corroborator, so this feature is now true only when the funded-project title
+    itself occurs in the TED title or scope text.
+    """
+
     if not project.project_title:
         return False
     needle = project.project_title.strip().casefold()
@@ -172,7 +179,7 @@ def build_match_candidate(
             high_scope_overlap=high_scope_overlap,
             cpv_or_category_match=cpv_match,
             compatible_date_window=compatible_date,
-            project_title_or_location_match=_title_or_location_matches(project, evidence),
+            project_title_or_location_match=_project_title_matches(project, evidence),
             corroborating_amount_or_date=compatible_date,
             semantic_similarity=False,
         ),
