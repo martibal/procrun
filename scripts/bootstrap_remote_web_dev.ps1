@@ -9,6 +9,8 @@ $SshKey = Join-Path $env:USERPROFILE ".ssh\procrun_hetzner"
 $SqlFile = Join-Path $PSScriptRoot "configure_web_dev_role.sql"
 $RemoteSql = "/tmp/procrun_web_dev_role.sql"
 $RemoteWorktree = "/tmp/procrun-web-migrate"
+$RemoteMigrationScript = "/tmp/procrun-web-migrate.sh"
+$LocalMigrationScript = Join-Path ([System.IO.Path]::GetTempPath()) "procrun-web-migrate.sh"
 
 if (-not (Test-Path $SshKey)) {
     throw "Missing SSH key: $SshKey"
@@ -34,9 +36,27 @@ sudo -u postgres env PYTHONPATH=$RemoteWorktree/src /opt/procrun/venv/bin/python
 sudo -u postgres psql -d procrun -Atqc "SELECT CASE WHEN to_regclass('procrun.procurement_observations') IS NOT NULL AND to_regclass('procrun.sync_runs') IS NOT NULL AND to_regclass('procrun.accounts') IS NOT NULL THEN 'READY' ELSE 'MISSING' END;"
 "@
 
-$migrationResult = & ssh -i $SshKey "${SshUser}@${Server}" $remoteMigration
-if ($LASTEXITCODE -ne 0) {
-    throw "Could not apply/verify the required central database migrations."
+$remoteMigrationLf = $remoteMigration.Replace("`r`n", "`n").Replace("`r", "")
+[System.IO.File]::WriteAllText(
+    $LocalMigrationScript,
+    $remoteMigrationLf,
+    [System.Text.UTF8Encoding]::new($false)
+)
+
+try {
+    & scp -i $SshKey $LocalMigrationScript "${SshUser}@${Server}:${RemoteMigrationScript}"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not copy the migration bootstrap to the server."
+    }
+
+    $migrationResult = & ssh -i $SshKey "${SshUser}@${Server}" "bash $RemoteMigrationScript"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not apply/verify the required central database migrations."
+    }
+}
+finally {
+    Remove-Item $LocalMigrationScript -Force -ErrorAction SilentlyContinue
+    & ssh -i $SshKey "${SshUser}@${Server}" "rm -f $RemoteMigrationScript" | Out-Null
 }
 
 if (($migrationResult | Select-Object -Last 1).Trim() -ne "READY") {
