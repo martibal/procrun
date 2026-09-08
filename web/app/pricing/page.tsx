@@ -23,8 +23,8 @@ export default function PricingPage() {
           <div>Market Intelligence</div>
           <div>Customer-safe CSV export</div>
         </div>
-        <div className="notice scope"><strong>Checkout is not enabled in this development build.</strong> Authentication, billing, VAT/invoicing and final launch controls remain launch gates.</div>
-        <div className="actions"><button className="button disabled large" disabled type="button">Checkout not yet enabled</button><Link className="button secondary" href="/login">Sign in</Link></div>
+        <div className="notice scope"><strong>Checkout is merchant-gated.</strong> The billing flow exists, but remains fail-closed until VAT/invoicing, merchant configuration and final launch controls are explicitly enabled.</div>
+        <div className="actions"><Link className="button large" href="/login">Sign in to subscribe</Link></div>
       </div>
       <aside className="pricing-aside">
         <h2>Before you subscribe</h2>
