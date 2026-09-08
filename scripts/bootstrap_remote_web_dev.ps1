@@ -16,6 +16,7 @@ $LocalMigrationScript = Join-Path ([System.IO.Path]::GetTempPath()) "procrun-web
 
 $SshOptions = @(
     "-o", "ConnectTimeout=10",
+    "-o", "ConnectionAttempts=1",
     "-o", "ServerAliveInterval=10",
     "-o", "ServerAliveCountMax=2",
     "-o", "BatchMode=yes"
@@ -33,17 +34,21 @@ if (-not (Test-Path $LocalProcrunPackage)) {
     throw "Missing local ProcRun Python package: $LocalProcrunPackage"
 }
 
-Write-Host "[1/6] Preparing temporary migration directory on central server..."
-& ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "rm -rf $RemoteMigrationRoot && mkdir -p $RemoteMigrationRoot"
-if ($LASTEXITCODE -ne 0) {
-    throw "Step 1 failed: could not prepare the temporary migration directory on the server."
+Write-Host "[1/6] Preparing temporary migration directory on central server (remote timeout: 20 seconds)..."
+& ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "timeout 20s sh -c 'rm -rf $RemoteMigrationRoot && mkdir -p $RemoteMigrationRoot'"
+$step1Exit = $LASTEXITCODE
+if ($step1Exit -eq 124) {
+    throw "Step 1 timed out after 20 seconds on the central server."
+}
+if ($step1Exit -ne 0) {
+    throw "Step 1 failed: could not prepare the temporary migration directory on the server (exit code $step1Exit)."
 }
 Write-Host "[1/6] OK"
 
 Write-Host "[2/6] Uploading current ProcRun migration code..."
 & scp @SshOptions -r -i $SshKey $LocalProcrunPackage "${SshUser}@${Server}:${RemoteMigrationRoot}/"
 if ($LASTEXITCODE -ne 0) {
-    & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "rm -rf $RemoteMigrationRoot" | Out-Null
+    & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "timeout 10s rm -rf $RemoteMigrationRoot" | Out-Null
     throw "Step 2 failed: could not copy the current ProcRun migration code to the server."
 }
 Write-Host "[2/6] OK"
@@ -112,7 +117,7 @@ try {
 }
 finally {
     Remove-Item $LocalMigrationScript -Force -ErrorAction SilentlyContinue
-    & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "rm -f $RemoteMigrationScript; rm -rf $RemoteMigrationRoot; if [ -f /tmp/procrun-web-migrate.acl ]; then setfacl --restore=/tmp/procrun-web-migrate.acl >/dev/null 2>&1 || true; rm -f /tmp/procrun-web-migrate.acl; fi" | Out-Null
+    & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "timeout 10s sh -c 'rm -f $RemoteMigrationScript; rm -rf $RemoteMigrationRoot; if [ -f /tmp/procrun-web-migrate.acl ]; then setfacl --restore=/tmp/procrun-web-migrate.acl >/dev/null 2>&1 || true; rm -f /tmp/procrun-web-migrate.acl; fi'" | Out-Null
 }
 
 Write-Host "[5/6] Uploading least-privilege web-development role definition..."
@@ -131,7 +136,7 @@ try {
     }
 }
 finally {
-    & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "rm -f $RemoteSql" | Out-Null
+    & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "timeout 10s rm -f $RemoteSql" | Out-Null
 }
 
 Write-Host "[6/6] OK"
