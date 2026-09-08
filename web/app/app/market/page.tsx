@@ -1,6 +1,10 @@
 import { loadCategoryBaselines } from "@/lib/category-baselines";
-import { loadOpenNeedsByCategory, loadProgrammeConcentration } from "@/lib/market-needs";
-import { opportunities } from "@/lib/read-model";
+import {
+  loadMarketOverview,
+  loadMarketTrend,
+  loadOpenNeedsByCategory,
+  loadProgrammeConcentration,
+} from "@/lib/market-needs";
 
 export const dynamic = "force-dynamic";
 
@@ -8,103 +12,142 @@ function days(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+function cutoffWindow(earliest: string | null, latest: string | null): string {
+  if (!earliest || !latest) return "Unavailable";
+  return earliest === latest ? latest : `${earliest} to ${latest}`;
+}
+
 export default async function MarketPage() {
-  const total = opportunities.reduce((sum, item) => sum + (item.valueEur ?? 0), 0);
-  const openValue = opportunities.filter((item) => item.state === "OPEN").reduce((sum, item) => sum + (item.valueEur ?? 0), 0);
-  const states = ["OPEN", "CLOSED", "UNRESOLVED"] as const;
-  const baselines = await loadCategoryBaselines();
-  const openNeeds = await loadOpenNeedsByCategory();
-  const programmeConcentration = await loadProgrammeConcentration();
+  const [overview, trend, baselines, openNeeds, programmeConcentration] = await Promise.all([
+    loadMarketOverview(),
+    loadMarketTrend(),
+    loadCategoryBaselines(),
+    loadOpenNeedsByCategory(),
+    loadProgrammeConcentration(),
+  ]);
+
+  const productionUnavailable = overview === null;
 
   return <>
     <p className="small">Market Intelligence</p>
-    <h1 className="h1">Market context with the coverage boundary attached.</h1>
-    <p className="lede">This development view summarises only the current customer-safe set. Production market measures must disclose their observation window, missingness and exact indexed scope.</p>
-    <div className="notice scope"><strong>Development workspace.</strong> These totals are interface values, not a complete Lombardia or Italian procurement market-size claim.</div>
+    <h1 className="h1">Current procurement runway across the indexed Lombardia project set</h1>
+    <p className="lede">
+      Production aggregates are calculated from the current funded-project, component and assessment ledgers.
+      Missing fields and coverage limits are shown explicitly rather than treated as zero.
+    </p>
 
-    <div className="grid">
-      <div className="card"><div className="small">Current opportunities</div><div className="kpi">{opportunities.length}</div></div>
-      <div className="card"><div className="small">Current project value</div><div className="kpi">€{(total / 1_000_000).toFixed(1)}m</div></div>
-      <div className="card"><div className="small">TED-scoped OPEN value</div><div className="kpi">€{(openValue / 1_000_000).toFixed(1)}m</div></div>
-    </div>
+    {productionUnavailable ? (
+      <div className="notice scope">
+        <strong>Production market data unavailable.</strong> ProcRun does not replace unavailable production aggregates with fixtures or inferred totals.
+      </div>
+    ) : (
+      <>
+        <div className="grid">
+          <div className="card"><div className="small">Indexed funded projects</div><div className="kpi">{overview.fundedProjects}</div></div>
+          <div className="card"><div className="small">Projects with identified components</div><div className="kpi">{overview.projectsWithComponents}</div></div>
+          <div className="card"><div className="small">Currently assessed components</div><div className="kpi">{overview.assessedComponents}</div></div>
+          <div className="card"><div className="small">Current OPEN components</div><div className="kpi">{overview.openComponents}</div></div>
+        </div>
+
+        <section className="section">
+          <p className="small">Current assessment state</p>
+          <h2 className="h2">What the latest authoritative assessment supports</h2>
+          <div style={{overflowX:"auto"}}>
+            <table>
+              <thead><tr><th>State</th><th>Components</th></tr></thead>
+              <tbody>
+                <tr><td>OPEN</td><td>{overview.openComponents}</td></tr>
+                <tr><td>CLOSED</td><td>{overview.closedComponents}</td></tr>
+                <tr><td>UNRESOLVED</td><td>{overview.unresolvedComponents}</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="micro">
+            Current state comes from the latest deterministic record in <code>assessment_versions</code> for each component, not from raw observation history.
+            Assessment cutoff window: {cutoffWindow(overview.earliestCutoffDate, overview.latestCutoffDate)}.
+          </p>
+        </section>
+
+        <section className="section">
+          <p className="small">Metadata completeness</p>
+          <h2 className="h2">Missingness in projects that have identified components</h2>
+          <div style={{overflowX:"auto"}}>
+            <table>
+              <thead><tr><th>Field</th><th>Projects missing value</th><th>Denominator</th></tr></thead>
+              <tbody>
+                <tr><td>Programme</td><td>{overview.missingProgrammeProjects}</td><td>{overview.projectsWithComponents}</td></tr>
+                <tr><td>Approved funding</td><td>{overview.missingFundingProjects}</td><td>{overview.projectsWithComponents}</td></tr>
+                <tr><td>Region</td><td>{overview.missingRegionProjects}</td><td>{overview.projectsWithComponents}</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="micro">Missing values are excluded only where a measure requires that field. They are never converted to zero or silently imputed.</p>
+        </section>
+      </>
+    )}
+
+    <section className="section">
+      <p className="small">Assessment history</p>
+      <h2 className="h2">State snapshots across the latest 30 published cutoff dates</h2>
+      {trend === null ? (
+        <p className="small">No production assessment trend is rendered without the configured database.</p>
+      ) : trend.length === 0 ? (
+        <p className="small">No assessment history is currently available.</p>
+      ) : (
+        <div style={{overflowX:"auto"}}>
+          <table>
+            <thead><tr><th>Cutoff</th><th>Assessed</th><th>OPEN</th><th>CLOSED</th><th>UNRESOLVED</th></tr></thead>
+            <tbody>
+              {trend.map((row) => <tr key={row.cutoffDate}>
+                <td>{row.cutoffDate}</td>
+                <td>{row.assessedComponents}</td>
+                <td>{row.openComponents}</td>
+                <td>{row.closedComponents}</td>
+                <td>{row.unresolvedComponents}</td>
+              </tr>)}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="micro">Each row reconstructs the latest assessment known for every component as of that cutoff date. Later revisions do not overwrite earlier snapshots.</p>
+    </section>
+
     <section className="section">
       <p className="small">Open purchasing needs across funded projects</p>
       <h2 className="h2">Where currently OPEN needs appear across the funded-project set</h2>
-
       <p className="small">
-        Each row counts current effective OPEN component observations in one exact frozen category.
+        Each row counts components whose latest authoritative assessment is OPEN in one exact frozen category.
         Project count is the number of distinct funded-project operation codes represented by those OPEN needs.
-        These are ProcRun-observed states within the indexed TED coverage, not a claim about total market demand.
       </p>
-
       {openNeeds === null ? (
-        <p className="small">
-          No production purchasing-needs aggregation is rendered without the configured history database.
-        </p>
+        <p className="small">No production purchasing-needs aggregation is rendered without the configured database.</p>
       ) : openNeeds.length === 0 ? (
         <p className="small">No current OPEN purchasing needs are available.</p>
       ) : (
         <div style={{overflowX:"auto"}}>
           <table>
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>OPEN needs</th>
-                <th>Funded projects</th>
-                <th>Observation cutoff</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Category</th><th>OPEN needs</th><th>Funded projects</th><th>Assessment cutoff</th></tr></thead>
             <tbody>
-              {openNeeds.map((row) => (
-                <tr key={row.category}>
-                  <td>{row.category}</td>
-                  <td>{row.openNeeds}</td>
-                  <td>{row.fundedProjects}</td>
-                  <td>
-                    {row.earliestCutoffDate === row.latestCutoffDate
-                      ? row.latestCutoffDate
-                      : `${row.earliestCutoffDate} to ${row.latestCutoffDate}`}
-                  </td>
-                </tr>
-              ))}
+              {openNeeds.map((row) => <tr key={row.category}>
+                <td>{row.category}</td>
+                <td>{row.openNeeds}</td>
+                <td>{row.fundedProjects}</td>
+                <td>{row.earliestCutoffDate === row.latestCutoffDate ? row.latestCutoffDate : `${row.earliestCutoffDate} to ${row.latestCutoffDate}`}</td>
+              </tr>)}
             </tbody>
           </table>
         </div>
       )}
+      <p className="micro">Counts are ProcRun-observed states inside the indexed funded-project and TED evidence boundary. They are not a claim about total Lombardia market demand.</p>
+    </section>
 
-      <p className="micro">
-        A component contributes only when its latest effective procurement observation is OPEN.
-        Corrected observations are superseded by their correction history.
-        Counts contain no buyer, beneficiary or contact identity.
-      </p>
-    </section>
-    <section className="section card flat">
-      <p className="small">State distribution</p>
-      <h2 className="h2">What the current evidence supports</h2>
-      {states.map((state) => {
-        const count = opportunities.filter((item) => item.state === state).length;
-        const pct = opportunities.length ? Math.round((count / opportunities.length) * 100) : 0;
-        return <div key={state} style={{marginTop:18}}><div className="small"><strong>{state}</strong>: {count} item{count === 1 ? "" : "s"}</div><div className="bar"><span style={{width:`${pct}%`}} /></div></div>;
-      })}
-    </section>
     <section className="section">
       <p className="small">Programme concentration of current OPEN needs</p>
       <h2 className="h2">How concentrated each category is within the funded-programme set</h2>
-
-      <p className="small">
-        For each component category, this shows the funded programme containing the largest number of current effective OPEN needs.
-        The share is calculated only across OPEN needs whose project has a programme value in the current funded-project ledger.
-        This is a descriptive portfolio concentration measure, not a buyer-concentration or market-risk claim.
-      </p>
-
       {programmeConcentration === null ? (
-        <p className="small">
-          No production programme concentration is rendered without the configured history database.
-        </p>
+        <p className="small">No production programme concentration is rendered without the configured database.</p>
       ) : programmeConcentration.length === 0 ? (
-        <p className="small">
-          No current OPEN needs with programme metadata are available.
-        </p>
+        <p className="small">No current OPEN needs with programme metadata are available.</p>
       ) : (
         <div style={{overflowX:"auto"}}>
           <table>
@@ -118,29 +161,24 @@ export default async function MarketPage() {
               </tr>
             </thead>
             <tbody>
-              {programmeConcentration.map((row) => (
-                <tr key={row.category}>
-                  <td>{row.category}</td>
-                  <td>{row.topProgramme}</td>
-                  <td>{row.topProgrammeOpenNeeds}</td>
-                  <td>{row.topProgrammeSharePct.toFixed(1)}%</td>
-                  <td>{row.openNeedsWithProgramme} / {row.totalOpenNeeds}</td>
-                </tr>
-              ))}
+              {programmeConcentration.map((row) => <tr key={row.category}>
+                <td>{row.category}</td>
+                <td>{row.topProgramme}</td>
+                <td>{row.topProgrammeOpenNeeds}</td>
+                <td>{row.topProgrammeSharePct.toFixed(1)}%</td>
+                <td>{row.openNeedsWithProgramme} / {row.totalOpenNeeds}</td>
+              </tr>)}
             </tbody>
           </table>
         </div>
       )}
-
-      <p className="micro">
-        Null programme values are excluded from the percentage denominator and disclosed through the programme-known / total count.
-        No buyer, contracting-authority, beneficiary or contact identity is used in this measure.
-      </p>
+      <p className="micro">Null programme values are excluded from the percentage denominator and disclosed through the programme-known / total count. This is not buyer concentration.</p>
     </section>
+
     <section className="section">
       <p className="small">Observed category baselines</p>
       <h2 className="h2">How long comparable needs stayed OPEN before a verified CLOSED observation</h2>
-      <p className="small">Each row uses the exact frozen component category and one first effective OPEN-to-CLOSED lifecycle per component. Corrected observations are excluded as baseline endpoints. Baselines are shown only when at least 20 completed comparable lifecycles are available. These are descriptive ProcRun-observed durations, not total project duration and not a prediction.</p>
+      <p className="small">Baselines are shown only when at least 20 completed comparable lifecycles are available. These are descriptive ProcRun-observed durations, not total project duration and not a prediction.</p>
       {baselines === null ? (
         <p className="small">No production baseline is rendered without the configured history database.</p>
       ) : baselines.length === 0 ? (
@@ -161,7 +199,7 @@ export default async function MarketPage() {
           </table>
         </div>
       )}
-      <p className="micro">Observation window for each category runs from its earliest included OPEN observation through its latest included CLOSED observation. The same n ≥ 20 minimum applies before a current OPEN opportunity receives a category percentile.</p>
+      <p className="micro">The same n ≥ 20 minimum applies before a current OPEN opportunity receives a category percentile.</p>
     </section>
 
     <section className="section grid two">
