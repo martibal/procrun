@@ -41,5 +41,6 @@ def apply_all_migrations(conn: Connection[Any]) -> None:
     apply_ledger_migrations(conn)
     apply_evidence_provenance_migration(conn)
     apply_procurement_history_migration(conn)
-    _seed_current_procurement_history(conn)
+    with conn.transaction():
+        _seed_current_procurement_history(conn)
     apply_account_activity_migration(conn)
