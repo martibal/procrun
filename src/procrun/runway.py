@@ -19,7 +19,7 @@ from procrun.component_engine import (
     ExtractionResult,
     extract_components,
 )
-from procrun.domain import FundingProject, ProcurementEvidence, ProjectAssessment
+from procrun.domain import FundingProject, ProcurementEvidence, ProjectAssessment, ProjectState
 from procrun.matching import (
     MATCH_RULE_VERSION,
     ComponentMatchResult,
@@ -129,7 +129,6 @@ def assess_project_runway(
         unknown = ", ".join(sorted(unknown_coverage_keys))
         raise RunwayInvariantError(f"coverage supplied for unknown components: {unknown}")
 
-    deterministic_scope_complete = not extraction.model_fallback_required
     results: list[RunwayComponentResult] = []
     for extracted in extraction.components:
         component = extracted.component
@@ -142,9 +141,13 @@ def assess_project_runway(
 
         raw_evidence = tuple(evidence_by_component.get(component.component_id, ()))
         candidates = build_match_candidates(project, component, raw_evidence)
+
+        # Resolve each identified purchasing need on its own evidence boundary. Unmatched text
+        # elsewhere in the project scope may indicate additional needs that still require fallback,
+        # but it must not automatically make a clearly bounded identified component UNRESOLVED.
+        # The project-level aggregate remains fail-closed below while unmatched scope exists.
         boundary_resolved = (
             coverage.boundary_resolved
-            and deterministic_scope_complete
             and component_scope_boundary_resolved(project, extracted)
         )
         match = classify_component(
@@ -168,6 +171,13 @@ def assess_project_runway(
         cutoff_date,
         tuple(item.match.assessment for item in results),
     )
+
+    # A project with unmatched source scope is still not safe to call fully resolved because the
+    # unmatched text may contain an additional purchasing need. Keep the aggregate fail-closed while
+    # allowing already identified components to carry useful OPEN/CLOSED conclusions individually.
+    if extraction.model_fallback_required and assessment.state is not ProjectState.UNRESOLVED:
+        assessment = assessment.model_copy(update={"state": ProjectState.UNRESOLVED})
+
     return RunwayResult(
         project=project,
         cutoff_date=cutoff_date,
