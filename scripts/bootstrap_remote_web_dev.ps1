@@ -14,6 +14,13 @@ $RemoteMigrationRoot = "/tmp/procrun-web-migrate-src"
 $RemoteMigrationScript = "/tmp/procrun-web-migrate.sh"
 $LocalMigrationScript = Join-Path ([System.IO.Path]::GetTempPath()) "procrun-web-migrate.sh"
 
+$SshOptions = @(
+    "-o", "ConnectTimeout=10",
+    "-o", "ServerAliveInterval=10",
+    "-o", "ServerAliveCountMax=2",
+    "-o", "BatchMode=yes"
+)
+
 if (-not (Test-Path $SshKey)) {
     throw "Missing SSH key: $SshKey"
 }
@@ -26,27 +33,30 @@ if (-not (Test-Path $LocalProcrunPackage)) {
     throw "Missing local ProcRun Python package: $LocalProcrunPackage"
 }
 
-Write-Host "Checking the central ProcRun database schema before granting web-development access..."
-Write-Host "Uploading the current local migration code to a temporary server directory..."
-
-& ssh -i $SshKey "${SshUser}@${Server}" "rm -rf $RemoteMigrationRoot && mkdir -p $RemoteMigrationRoot"
+Write-Host "[1/6] Preparing temporary migration directory on central server..."
+& ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "rm -rf $RemoteMigrationRoot && mkdir -p $RemoteMigrationRoot"
 if ($LASTEXITCODE -ne 0) {
-    throw "Could not prepare the temporary migration directory on the server."
+    throw "Step 1 failed: could not prepare the temporary migration directory on the server."
 }
+Write-Host "[1/6] OK"
 
-& scp -r -i $SshKey $LocalProcrunPackage "${SshUser}@${Server}:${RemoteMigrationRoot}/"
+Write-Host "[2/6] Uploading current ProcRun migration code..."
+& scp @SshOptions -r -i $SshKey $LocalProcrunPackage "${SshUser}@${Server}:${RemoteMigrationRoot}/"
 if ($LASTEXITCODE -ne 0) {
-    & ssh -i $SshKey "${SshUser}@${Server}" "rm -rf $RemoteMigrationRoot" | Out-Null
-    throw "Could not copy the current ProcRun migration code to the server."
+    & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "rm -rf $RemoteMigrationRoot" | Out-Null
+    throw "Step 2 failed: could not copy the current ProcRun migration code to the server."
 }
+Write-Host "[2/6] OK"
 
 $remoteMigration = @"
 set -e
+echo '[remote] Starting canonical migrations' >&2
 cleanup() {
     rm -rf $RemoteMigrationRoot
 }
 trap cleanup EXIT
-sudo -u postgres env PYTHONPATH=$RemoteMigrationRoot /opt/procrun/venv/bin/python -c 'import psycopg; from procrun.migrations import apply_all_migrations; conn=psycopg.connect("dbname=procrun"); apply_all_migrations(conn); conn.close()'
+sudo -u postgres env PYTHONPATH=$RemoteMigrationRoot PGOPTIONS='-c lock_timeout=15s -c statement_timeout=60s' /opt/procrun/venv/bin/python -c 'import psycopg; from procrun.migrations import apply_all_migrations; conn=psycopg.connect("dbname=procrun"); apply_all_migrations(conn); conn.close()'
+echo '[remote] Migrations completed; verifying required tables' >&2
 sudo -u postgres psql -d procrun -Atqc "SELECT CASE WHEN to_regclass('procrun.procurement_observations') IS NOT NULL AND to_regclass('procrun.sync_runs') IS NOT NULL AND to_regclass('procrun.accounts') IS NOT NULL THEN 'READY' ELSE 'MISSING' END;"
 "@
 
@@ -58,42 +68,51 @@ $remoteMigrationLf = $remoteMigration.Replace("`r`n", "`n").Replace("`r", "")
 )
 
 try {
-    & scp -i $SshKey $LocalMigrationScript "${SshUser}@${Server}:${RemoteMigrationScript}"
+    Write-Host "[3/6] Uploading migration runner..."
+    & scp @SshOptions -i $SshKey $LocalMigrationScript "${SshUser}@${Server}:${RemoteMigrationScript}"
     if ($LASTEXITCODE -ne 0) {
-        throw "Could not copy the migration bootstrap to the server."
+        throw "Step 3 failed: could not copy the migration runner to the server."
     }
+    Write-Host "[3/6] OK"
 
-    $migrationResult = & ssh -i $SshKey "${SshUser}@${Server}" "bash $RemoteMigrationScript"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Could not apply/verify the required central database migrations."
+    Write-Host "[4/6] Running and verifying central database migrations (hard timeout: 90 seconds)..."
+    $migrationResult = & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "timeout 90s bash $RemoteMigrationScript"
+    $migrationExit = $LASTEXITCODE
+    if ($migrationExit -eq 124) {
+        throw "Step 4 timed out after 90 seconds. No further bootstrap steps were attempted."
     }
+    if ($migrationExit -ne 0) {
+        throw "Step 4 failed: central database migrations/verification returned exit code $migrationExit."
+    }
+    if (-not $migrationResult -or (($migrationResult | Select-Object -Last 1).Trim() -ne "READY")) {
+        throw "Step 4 failed: central database schema verification did not return READY."
+    }
+    Write-Host "[4/6] OK - central database schema is ready."
 }
 finally {
     Remove-Item $LocalMigrationScript -Force -ErrorAction SilentlyContinue
-    & ssh -i $SshKey "${SshUser}@${Server}" "rm -f $RemoteMigrationScript; rm -rf $RemoteMigrationRoot" | Out-Null
+    & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "rm -f $RemoteMigrationScript; rm -rf $RemoteMigrationRoot" | Out-Null
 }
 
-if (($migrationResult | Select-Object -Last 1).Trim() -ne "READY") {
-    throw "Central database schema is still missing required web tables."
-}
-
-Write-Host "Central database schema is ready."
-Write-Host "Copying the least-privilege web-development role definition to ProcRun production..."
-& scp -i $SshKey $SqlFile "${SshUser}@${Server}:${RemoteSql}"
+Write-Host "[5/6] Uploading least-privilege web-development role definition..."
+& scp @SshOptions -i $SshKey $SqlFile "${SshUser}@${Server}:${RemoteSql}"
 if ($LASTEXITCODE -ne 0) {
-    throw "Could not copy role definition to the server."
+    throw "Step 5 failed: could not copy role definition to the server."
 }
+Write-Host "[5/6] OK"
 
 try {
-    Write-Host "Applying role grants. PostgreSQL remains bound to loopback only."
-    & ssh -t -i $SshKey "${SshUser}@${Server}" "sudo -u postgres psql -d procrun -f $RemoteSql && sudo -u postgres psql -d procrun -c '\password procrun_web_dev'"
+    Write-Host "[6/6] Applying grants and setting the procrun_web_dev password..."
+    Write-Host "      PostgreSQL remains loopback-only. The password prompt is interactive by design."
+    & ssh @SshOptions -t -i $SshKey "${SshUser}@${Server}" "sudo -u postgres psql -d procrun -f $RemoteSql && sudo -u postgres psql -d procrun -c '\password procrun_web_dev'"
     if ($LASTEXITCODE -ne 0) {
-        throw "Remote role setup failed."
+        throw "Step 6 failed: remote role setup failed."
     }
 }
 finally {
-    & ssh -i $SshKey "${SshUser}@${Server}" "rm -f $RemoteSql" | Out-Null
+    & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "rm -f $RemoteSql" | Out-Null
 }
 
+Write-Host "[6/6] OK"
 Write-Host "Remote web-development access is configured."
 Write-Host "From web/, run: npm run dev:remote"
