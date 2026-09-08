@@ -11,6 +11,7 @@ from procrun.procurement_history import (
     apply_procurement_history_migration,
     record_latest_assessments_as_observations,
 )
+from procrun.supplier_profiles import apply_supplier_profile_migration
 
 
 def _seed_current_procurement_history(conn: Connection[Any]) -> None:
@@ -44,3 +45,4 @@ def apply_all_migrations(conn: Connection[Any]) -> None:
     with conn.transaction():
         _seed_current_procurement_history(conn)
     apply_account_activity_migration(conn)
+    apply_supplier_profile_migration(conn)

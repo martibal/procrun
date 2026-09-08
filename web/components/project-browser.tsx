@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import type { ProductionProjectSummary } from "@/lib/production-projects";
+import type { PersonalizedProject } from "@/lib/relevance";
 import styles from "./project-browser.module.css";
 
 function eur(value: number | null): string {
@@ -15,20 +15,21 @@ function eur(value: number | null): string {
   }).format(value);
 }
 
-function cutoff(project: ProductionProjectSummary): string {
+function cutoff(project: PersonalizedProject): string {
   return project.earliestCutoffDate === project.latestCutoffDate
     ? project.latestCutoffDate
     : `${project.earliestCutoffDate}–${project.latestCutoffDate}`;
 }
 
-function uniqueOpenDescriptions(project: ProductionProjectSummary): string[] {
+function uniqueOpenDescriptions(project: PersonalizedProject): string[] {
   return Array.from(
     new Set(project.needs.filter((item) => item.state === "OPEN").map((item) => item.description)),
   ).sort();
 }
 
-export function ProjectBrowser({ projects }: { projects: ProductionProjectSummary[] }) {
+export function ProjectBrowser({ projects }: { projects: PersonalizedProject[] }) {
   const [query, setQuery] = useState("");
+  const [relevance, setRelevance] = useState<"ALL" | "HIGH" | "MEDIUM">("ALL");
   const [need, setNeed] = useState("ALL");
   const [minimumFunding, setMinimumFunding] = useState(0);
 
@@ -42,6 +43,7 @@ export function ProjectBrowser({ projects }: { projects: ProductionProjectSummar
 
     return projects.filter((project) => {
       const openNeeds = project.needs.filter((item) => item.state === "OPEN");
+      if (relevance !== "ALL" && project.relevanceBand !== relevance) return false;
       if (need !== "ALL" && !openNeeds.some((item) => item.description === need)) return false;
       if ((project.approvedFundingEur ?? 0) < minimumFunding) return false;
 
@@ -59,10 +61,11 @@ export function ProjectBrowser({ projects }: { projects: ProductionProjectSummar
         .toLocaleLowerCase();
       return haystack.includes(normalizedQuery);
     });
-  }, [minimumFunding, need, projects, query]);
+  }, [minimumFunding, need, projects, query, relevance]);
 
   const clearFilters = () => {
     setQuery("");
+    setRelevance("ALL");
     setNeed("ALL");
     setMinimumFunding(0);
   };
@@ -71,15 +74,15 @@ export function ProjectBrowser({ projects }: { projects: ProductionProjectSummar
     <section className={styles.browser}>
       <div className={styles.headingRow}>
         <div>
-          <p className={styles.sectionLabel}>Project overview</p>
-          <h2>{filtered.length === projects.length ? `${projects.length} funded projects` : `${filtered.length} of ${projects.length} projects`}</h2>
+          <p className={styles.sectionLabel}>Opportunity feed</p>
+          <h2>{filtered.length === projects.length ? `${projects.length} matched projects` : `${filtered.length} of ${projects.length} projects`}</h2>
         </div>
         <p className={styles.scopeNote}>
-          Only purchasing needs ProcRun has resolved as OPEN are presented as current opportunities.
+          Standard feed shows only High and Medium relevance. Evidence state remains independent of relevance.
         </p>
       </div>
 
-      <div className={styles.filters} aria-label="Project filters">
+      <div className={styles.filters} aria-label="Opportunity filters">
         <label className={styles.searchField}>
           <span>Search</span>
           <input
@@ -87,6 +90,15 @@ export function ProjectBrowser({ projects }: { projects: ProductionProjectSummar
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Project, code, programme or need"
           />
+        </label>
+
+        <label>
+          <span>Relevance</span>
+          <select value={relevance} onChange={(event) => setRelevance(event.target.value as "ALL" | "HIGH" | "MEDIUM")}>
+            <option value="ALL">High + Medium</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+          </select>
         </label>
 
         <label>
@@ -117,12 +129,12 @@ export function ProjectBrowser({ projects }: { projects: ProductionProjectSummar
 
       <div className={styles.resultHeader}>
         <span>{filtered.length} matching projects</span>
-        <span>Sorted by OPEN needs, then total identified needs</span>
+        <span>Sorted by relevance, then OPEN needs</span>
       </div>
 
       {filtered.length === 0 ? (
         <div className={styles.emptyState}>
-          No projects match the current filters. Try a broader purchasing need or funding range.
+          No High or Medium relevance projects match the current filters. Review your Supplier Profile or broaden the feed filters.
         </div>
       ) : (
         <div className={styles.projectList}>
@@ -133,9 +145,14 @@ export function ProjectBrowser({ projects }: { projects: ProductionProjectSummar
             return (
               <article className={styles.projectRow} key={project.operationCode}>
                 <div className={styles.projectIdentity}>
-                  <Link href={`/app/projects/${encodeURIComponent(project.operationCode)}`} className={styles.projectTitle}>
-                    {project.projectTitle ?? project.operationCode}
-                  </Link>
+                  <span className={project.relevanceBand === "HIGH" ? styles.relevanceHigh : styles.relevanceMedium}>
+                    {project.relevanceBand === "HIGH" ? "High relevance" : "Medium relevance"}
+                  </span>
+                  <div>
+                    <Link href={`/app/projects/${encodeURIComponent(project.operationCode)}`} className={styles.projectTitle}>
+                      {project.projectTitle ?? project.operationCode}
+                    </Link>
+                  </div>
                   <div className={styles.operationCode}>{project.operationCode}</div>
                 </div>
 

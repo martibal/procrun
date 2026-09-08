@@ -10,6 +10,7 @@ export type ProductionProjectNeed = {
   scopeEvidence: string;
   state: ProjectNeedState;
   cutoffDate: string;
+  componentIds: string[];
 };
 
 export type ProductionProjectSummary = {
@@ -31,7 +32,7 @@ export type ProductionProjectSummary = {
   latestCutoffDate: string;
 };
 
-export type ProductionProjectComponent = ProductionProjectNeed & {
+export type ProductionProjectComponent = Omit<ProductionProjectNeed, "componentIds"> & {
   componentId: string;
   coverageNote: string;
   evidenceReference: string | null;
@@ -56,8 +57,7 @@ export type ProductionProjectDetail = {
   components: ProductionProjectComponent[];
 };
 
-type RawNeed = ProductionProjectNeed;
-
+type RawNeed = Omit<ProductionProjectNeed, "componentIds"> & { componentId: string };
 type RawComponent = ProductionProjectComponent;
 
 function canonicalCategory(categories: string[], description: string): string {
@@ -89,8 +89,12 @@ function normalizeNeeds(rows: RawNeed[]): ProductionProjectNeed[] {
 
   return Array.from(grouped.values())
     .map((group) => ({
-      ...group[0],
       category: canonicalCategory(group.map((item) => item.category), group[0].description),
+      description: group[0].description,
+      scopeEvidence: group[0].scopeEvidence,
+      state: group[0].state,
+      cutoffDate: group[0].cutoffDate,
+      componentIds: Array.from(new Set(group.map((item) => item.componentId))).sort(),
     }))
     .sort((a, b) => {
       const rank = { OPEN: 0, UNRESOLVED: 1, CLOSED: 2 } as const;
@@ -145,13 +149,7 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
       programme: string | null;
       region: string | null;
       nuts_code: string | null;
-      raw_needs: Array<{
-        category: string;
-        description: string;
-        scopeEvidence: string;
-        state: ProjectNeedState;
-        cutoffDate: string;
-      }>;
+      raw_needs: RawNeed[];
     }>(`
       WITH latest_project AS (
         SELECT DISTINCT ON (operation_code)
@@ -215,6 +213,7 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
         latest_project.nuts_code,
         jsonb_agg(
           jsonb_build_object(
+            'componentId', current_components.component_id,
             'category', current_components.category,
             'description', current_components.description,
             'scopeEvidence', current_components.scope_evidence,

@@ -93,3 +93,76 @@ def test_login_and_registration_fail_closed_when_clerk_is_unconfigured() -> None
     assert "Registration is not configured." in signup
     assert "ClerkProvider" in root_layout
     assert "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" in root_layout
+
+
+def test_supplier_profile_schema_is_account_scoped_and_excludes_personal_contact_fields() -> None:
+    migration = (REPO_ROOT / "src/procrun/supplier_profiles.py").read_text(encoding="utf-8")
+    migrations = (REPO_ROOT / "src/procrun/migrations.py").read_text(encoding="utf-8")
+
+    assert 'SUPPLIER_PROFILE_MIGRATION_ID = "005_supplier_profiles"' in migration
+    assert "account_id text PRIMARY KEY REFERENCES procrun.accounts(account_id)" in migration
+    assert "company_name text NOT NULL" in migration
+    assert "target_market = 'LOMBARDIA'" in migration
+    assert "category_prefixes text[]" in migration
+    assert "cpv_include text[]" in migration
+    assert "cpv_exclude text[]" in migration
+    assert "personal_email" not in migration
+    assert "phone" not in migration.casefold()
+    assert "employee" not in migration.casefold().replace("named employees", "")
+    assert "apply_supplier_profile_migration(conn)" in migrations
+
+
+def test_supplier_profile_queries_are_parameterized_and_account_scoped() -> None:
+    source = (REPO_ROOT / "web/lib/supplier-profile.ts").read_text(encoding="utf-8")
+
+    assert "SELECT *" not in source
+    assert "WHERE account_id = $1" in source
+    assert "ON CONFLICT (account_id) DO UPDATE" in source
+    assert "DELETE FROM procrun.component_matches" in source
+    assert "WHERE account_id = $1" in source
+    assert "PROCRUN_DEV_ACCOUNT_ID" not in source
+
+
+def test_relevance_matching_is_deterministic_and_cpv_constraints_fail_closed() -> None:
+    relevance = (REPO_ROOT / "web/lib/relevance.ts").read_text(encoding="utf-8")
+
+    assert 'export type RelevanceBand = "HIGH" | "MEDIUM" | "LOW" | "NOT_RELEVANT"' in relevance
+    assert 'project.region?.trim().toLocaleLowerCase() !== "lombardia"' in relevance
+    assert "profile.cpvInclude.length > 0 || profile.cpvExclude.length > 0" in relevance
+    assert 'return { relevanceBand: "LOW", matchingComponentIds: [] };' in relevance
+    assert 'relevance.relevanceBand !== "HIGH" && relevance.relevanceBand !== "MEDIUM"' in relevance
+    assert "need.scopeEvidence.trim()" in relevance
+
+
+def test_authenticated_feed_requires_profile_and_persists_only_personalized_matches() -> None:
+    page = (REPO_ROOT / "web/app/app/page.tsx").read_text(encoding="utf-8")
+    browser = (REPO_ROOT / "web/components/project-browser.tsx").read_text(encoding="utf-8")
+
+    assert "loadSupplierProfile(accountId)" in page
+    assert 'redirect("/app/onboarding")' in page
+    assert "rankProjectsForProfile(actionableProjects, profile)" in page
+    assert "syncComponentMatches(" in page
+    assert "matchingComponentIds" in page
+    assert "High relevance" in browser
+    assert "Medium relevance" in browser
+    assert 'useState<"ALL" | "HIGH" | "MEDIUM">' in browser
+
+
+def test_onboarding_and_profile_use_persisted_authenticated_supplier_profile() -> None:
+    onboarding = (REPO_ROOT / "web/app/app/onboarding/page.tsx").read_text(encoding="utf-8")
+    profile = (REPO_ROOT / "web/app/app/profile/page.tsx").read_text(encoding="utf-8")
+    form = (REPO_ROOT / "web/components/supplier-profile-form.tsx").read_text(encoding="utf-8")
+    actions = (REPO_ROOT / "web/lib/supplier-profile-actions.ts").read_text(encoding="utf-8")
+
+    assert "await requireAccount()" in onboarding
+    assert "loadSupplierProfile(accountId)" in onboarding
+    assert 'redirect("/app")' in onboarding
+    assert "await requireAccount()" in profile
+    assert "loadSupplierProfile(accountId)" in profile
+    assert "saveSupplierProfileAction" in form
+    assert 'name="companyName"' in form
+    assert 'name="category"' in form
+    assert 'name="cpvInclude"' in form
+    assert 'name="cpvExclude"' in form
+    assert "const { accountId } = await requireAccount();" in actions
+    assert "saveSupplierProfile(accountId" in actions
