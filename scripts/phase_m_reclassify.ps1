@@ -59,6 +59,8 @@ try {
 set -euo pipefail
 ACL_BACKUP=/tmp/procrun-phase-m-reclassify.acl
 REMOTE_ROOT=$RemoteRoot
+PROD_OC_CACHE=/var/lib/procrun/cache/opencoesione-lombardia.json
+TEMP_OC_CACHE="`$REMOTE_ROOT/opencoesione-lombardia.json"
 
 cleanup() {
     if [ -f "`$ACL_BACKUP" ]; then
@@ -88,16 +90,35 @@ getfacl -p /opt/procrun /opt/procrun/venv /opt/procrun/venv/bin > "`$ACL_BACKUP"
 setfacl -m u:postgres:--x /opt/procrun
 setfacl -m u:postgres:--x /opt/procrun/venv
 setfacl -m u:postgres:--x /opt/procrun/venv/bin
+
+# Do not broaden postgres access to /var/lib/procrun. Root copies the already-approved
+# OpenCoesione production cache into the isolated Phase M directory, then postgres reads only
+# that temporary copy. If the canonical cache is absent, fail closed instead of changing source
+# behavior during the validation run.
+if [ ! -f "`$PROD_OC_CACHE" ]; then
+    echo "[remote] ERROR: canonical OpenCoesione cache is missing at `$PROD_OC_CACHE; Phase M will not bootstrap a new cache." >&2
+    exit 44
+fi
+cp --preserve=timestamps "`$PROD_OC_CACHE" "`$TEMP_OC_CACHE"
 chown -R postgres:postgres "`$REMOTE_ROOT"
+chmod 600 "`$TEMP_OC_CACHE"
 
 if ! sudo -u postgres test -x /opt/procrun/venv/bin/python; then
     echo '[remote] ERROR: postgres cannot execute the production virtualenv Python.' >&2
     exit 43
 fi
+if ! sudo -u postgres test -r "`$TEMP_OC_CACHE"; then
+    echo '[remote] ERROR: postgres cannot read the isolated OpenCoesione cache copy.' >&2
+    exit 45
+fi
 
 echo '[remote] Running canonical live delivery with current branch code.'
-echo '[remote] This re-reads the already approved OpenCoesione/TED publication routes and may take several minutes.'
-sudo -u postgres env PYTHONPATH="`$REMOTE_ROOT" /opt/procrun/venv/bin/python "`$REMOTE_ROOT/run_live_delivery.py" \
+echo '[remote] OpenCoesione input is the isolated copy of the already-approved production cache.'
+echo '[remote] TED is re-read through the same approved canonical route; this may take several minutes.'
+sudo -u postgres env \
+    PYTHONPATH="`$REMOTE_ROOT" \
+    PROCRUN_OPENCOESIONE_CACHE="`$TEMP_OC_CACHE" \
+    /opt/procrun/venv/bin/python "`$REMOTE_ROOT/run_live_delivery.py" \
     --database-url 'dbname=procrun' \
     --output "`$REMOTE_ROOT/phase-m-runway.jsonl" \
     --cutoff "`$cutoff"
