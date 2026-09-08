@@ -28,6 +28,10 @@ def _actual_title_match(project_title: str | None, normalized: dict[str, object]
     return needle in title.casefold() or needle in scope.casefold()
 
 
+def _review_candidates(candidates: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [candidate for candidate in candidates if candidate.get("disposition") == "REVIEW"]
+
+
 def _latest_component_rows(conn: psycopg.Connection[object]) -> list[tuple[object, ...]]:
     return conn.execute(
         """
@@ -121,16 +125,17 @@ def main() -> int:
                 )
 
                 if state == "UNRESOLVED" and rationale == REVIEW_RATIONALE:
-                    candidates = list(matching_candidates or [])
-                    if len(candidates) != 1:
+                    candidates = [dict(item) for item in list(matching_candidates or [])]
+                    reviews = _review_candidates(candidates)
+                    if len(reviews) != 1:
                         raise RuntimeError(
-                            f"expected exactly one review candidate for {component_id}; got {len(candidates)}"
+                            f"expected exactly one REVIEW candidate for {component_id}; got {len(reviews)}"
                         )
-                    candidate = dict(candidates[0])
-                    if candidate.get("tier") != "C" or candidate.get("disposition") != "REVIEW":
-                        raise RuntimeError(f"unexpected stored review candidate for {component_id}")
-                    features = dict(candidate.get("features") or {})
-                    evidence_id = str(candidate.get("evidence_id") or "")
+                    review = reviews[0]
+                    if review.get("tier") != "C":
+                        raise RuntimeError(f"unexpected stored review tier for {component_id}")
+                    features = dict(review.get("features") or {})
+                    evidence_id = str(review.get("evidence_id") or "")
                     if not evidence_id:
                         raise RuntimeError(f"missing evidence_id for {component_id}")
 
@@ -141,12 +146,23 @@ def main() -> int:
                     if actual_title_match:
                         retained_review += 1
                     else:
-                        features["project_title_or_location_match"] = False
-                        candidate["features"] = features
-                        candidate["tier"] = "NONE"
-                        candidate["disposition"] = "REJECTED"
-                        candidate["reason"] = "candidate does not satisfy a frozen Tier A-C structural rule"
-                        corrected_candidates = [candidate]
+                        corrected_candidates: list[dict[str, object]] = []
+                        for candidate in candidates:
+                            current = dict(candidate)
+                            if current.get("evidence_id") == evidence_id and current.get("disposition") == "REVIEW":
+                                corrected_features = dict(current.get("features") or {})
+                                corrected_features["project_title_or_location_match"] = False
+                                current["features"] = corrected_features
+                                current["tier"] = "NONE"
+                                current["disposition"] = "REJECTED"
+                                current["reason"] = "candidate does not satisfy a frozen Tier A-C structural rule"
+                            corrected_candidates.append(current)
+
+                        rejected = [
+                            candidate
+                            for candidate in corrected_candidates
+                            if candidate.get("disposition") == "REJECTED"
+                        ]
                         assessment = ComponentAssessment(
                             component_id=component_id,
                             state=ComponentState.OPEN,
@@ -165,7 +181,7 @@ def main() -> int:
                             model_version=None,
                             matching_candidates=corrected_candidates,
                             accepted_evidence_version_ids=(),
-                            rejected_evidence=corrected_candidates,
+                            rejected_evidence=rejected,
                         )
                         new_version_id = write.version_id
                         changed += 1
