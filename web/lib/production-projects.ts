@@ -176,30 +176,19 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
         FROM procrun.component_versions
         ORDER BY component_id, as_of DESC, inserted_at DESC, version_id DESC
       ),
-      effective_observation AS (
-        SELECT
-          o.id,
-          o.component_id,
-          o.operation_code,
-          o.observed_at,
-          o.state,
-          o.inserted_at,
-          o.correction_of_id
-        FROM procrun.procurement_observations o
-        WHERE NOT EXISTS (
-          SELECT 1
-          FROM procrun.procurement_observations correction
-          WHERE correction.correction_of_id = o.id
-        )
-      ),
-      current_observation AS (
+      current_assessment AS (
         SELECT DISTINCT ON (component_id)
           component_id,
           operation_code,
-          observed_at,
+          cutoff_date,
           state
-        FROM effective_observation
-        ORDER BY component_id, observed_at DESC, inserted_at DESC, id DESC
+        FROM procrun.assessment_versions
+        ORDER BY
+          component_id,
+          cutoff_date DESC,
+          as_of DESC,
+          inserted_at DESC,
+          version_id DESC
       ),
       current_components AS (
         SELECT
@@ -208,12 +197,12 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
           latest_component.category,
           latest_component.description,
           latest_component.scope_evidence,
-          current_observation.observed_at,
-          current_observation.state
+          current_assessment.cutoff_date,
+          current_assessment.state
         FROM latest_component
-        JOIN current_observation
-          ON current_observation.component_id = latest_component.component_id
-         AND current_observation.operation_code = latest_component.operation_code
+        JOIN current_assessment
+          ON current_assessment.component_id = latest_component.component_id
+         AND current_assessment.operation_code = latest_component.operation_code
       )
       SELECT
         latest_project.operation_code,
@@ -230,7 +219,7 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
             'description', current_components.description,
             'scopeEvidence', current_components.scope_evidence,
             'state', current_components.state,
-            'cutoffDate', current_components.observed_at::text
+            'cutoffDate', current_components.cutoff_date::text
           )
           ORDER BY current_components.state, current_components.description, current_components.category
         ) AS raw_needs
