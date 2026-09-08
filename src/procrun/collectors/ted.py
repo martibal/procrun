@@ -26,6 +26,8 @@ TED_THROTTLE_BACKOFF_SECONDS = 2.0
 TED_TRANSIENT_HTTP_STATUSES = frozenset({429, 502, 503, 504})
 
 # Frozen production subset of scripts/qualify_ted_foundation.py SAFE_FIELDS.
+# eu-funds-financing-id-lot was already qualified by that foundation run and is now admitted
+# because it is the eForms lot-level EU-financing identifier needed for exact CUP linkage.
 # Deliberately excluded until separately qualified for the intelligence plane:
 # buyer-name, place-of-performance-city-proc, result-value-notice and
 # result-value-cur-notice.
@@ -40,6 +42,7 @@ TED_PROJECTED_FIELDS = (
     "estimated-value-proc",
     "estimated-value-cur-proc",
     "place-of-performance-subdiv-proc",
+    "eu-funds-financing-id-lot",
     "eu-funds-identifier",
     "links",
 )
@@ -121,6 +124,28 @@ def _string_tuple(value: Any) -> tuple[str, ...]:
     return ()
 
 
+def _project_references(notice: Mapping[str, Any]) -> tuple[str, ...]:
+    """Return a stable, de-duplicated set of non-person project identifiers.
+
+    The lot-level financing identifier is evaluated first because Italian eForms notices may use it
+    for the CUP. Contract-level EU-funds identifiers remain as a secondary already-qualified path.
+    No title/description inference is performed here.
+    """
+
+    ordered = (
+        *_string_tuple(notice.get("eu-funds-financing-id-lot")),
+        *_string_tuple(notice.get("eu-funds-identifier")),
+    )
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in ordered:
+        key = value.casefold()
+        if key not in seen:
+            seen.add(key)
+            out.append(value)
+    return tuple(out)
+
+
 def _whole_eur(value: Any, currency: Any) -> int | None:
     if value in (None, "") or str(currency).upper() != "EUR":
         return None
@@ -158,7 +183,7 @@ def canonicalize_ted_notice(notice: Mapping[str, Any]) -> dict[str, Any]:
         notice.get("estimated-value-proc"), notice.get("estimated-value-cur-proc")
     )
     nuts_codes = _string_tuple(notice.get("place-of-performance-subdiv-proc"))
-    references = _string_tuple(notice.get("eu-funds-identifier"))
+    references = _project_references(notice)
 
     return {
         "notice_id": notice_id,
@@ -177,7 +202,9 @@ def canonicalize_ted_notice(notice: Mapping[str, Any]) -> dict[str, Any]:
         "place_of_performance": None,
         "nuts_code": nuts_codes[0] if nuts_codes else None,
         "municipality": None,
-        "project_reference": references[0] if references else None,
+        # ProcurementEvidence keeps the legacy scalar contract. Multiple independently published
+        # identifiers are encoded with a reserved pipe separator and matched only as whole tokens.
+        "project_reference": "|".join(references) if references else None,
         "source_url": _source_url(notice.get("links"), notice_id),
     }
 
