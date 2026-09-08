@@ -102,12 +102,30 @@ def bind_exact_component_evidence(
     return None
 
 
+def _normalized_identifier(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", value.casefold())
+
+
 def _reference_matches(project: FundingProject, evidence: ProcurementEvidence) -> bool:
+    """Match a funded-project CUP only as a complete published identifier token.
+
+    TED can publish more than one independently projected financing identifier for a notice. The
+    collector stores those values with a reserved pipe separator. Normalization removes formatting
+    punctuation but never permits substring matching, so a partial or merely similar identifier
+    cannot establish Tier A.
+    """
+
     if not evidence.project_reference:
         return False
-    reference = evidence.project_reference.strip().casefold()
-    operation_code = project.operation_code.strip().casefold()
-    return reference == operation_code
+    operation_code = _normalized_identifier(project.operation_code.strip())
+    if not operation_code:
+        return False
+    references = (
+        _normalized_identifier(part.strip())
+        for part in evidence.project_reference.split("|")
+        if part.strip()
+    )
+    return any(reference == operation_code for reference in references if reference)
 
 
 def _date_compatible(project: FundingProject, publication_date: date) -> bool:
