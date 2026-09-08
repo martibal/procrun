@@ -54,3 +54,42 @@ def test_development_account_cannot_be_used_as_production_fallback() -> None:
     assert production_guard < dev_guard < dev_account
     assert dev_account < auth.index('redirect("/login")')
     assert session_lookup < auth.index('redirect("/login")')
+
+
+def test_clerk_is_the_production_control_plane_without_user_profile_leakage() -> None:
+    auth = (REPO_ROOT / "web/lib/auth.ts").read_text(encoding="utf-8")
+    proxy = (REPO_ROOT / "web/proxy.ts").read_text(encoding="utf-8")
+    package = (REPO_ROOT / "web/package.json").read_text(encoding="utf-8")
+
+    assert '@clerk/nextjs/server' in auth
+    assert "await auth()" in auth
+    assert "orgId" in auth and "userId" in auth
+    assert "currentUser" not in auth
+    assert "email" not in auth.casefold()
+    assert "clerkMiddleware" in proxy
+    assert '"@clerk/nextjs":"7.9.1"' in package
+
+
+def test_account_activity_is_explicitly_scoped_to_authenticated_account() -> None:
+    activity = (REPO_ROOT / "web/lib/since-last-visit.ts").read_text(encoding="utf-8")
+    page = (REPO_ROOT / "web/app/app/page.tsx").read_text(encoding="utf-8")
+
+    assert "PROCRUN_DEV_ACCOUNT_ID" not in activity
+    assert "loadSinceLastVisitSummary(\n  accountId: string," in activity
+    assert "WHERE account_id = $1" in activity
+    assert 'import { requireAccount } from "@/lib/auth"' in page
+    assert "const { accountId } = await requireAccount();" in page
+    assert "loadSinceLastVisitSummary(accountId)" in page
+
+
+def test_login_and_registration_fail_closed_when_clerk_is_unconfigured() -> None:
+    login = (REPO_ROOT / "web/app/login/page.tsx").read_text(encoding="utf-8")
+    signup = (REPO_ROOT / "web/app/signup/page.tsx").read_text(encoding="utf-8")
+    root_layout = (REPO_ROOT / "web/app/layout.tsx").read_text(encoding="utf-8")
+
+    assert "<SignIn" in login
+    assert "Sign in is not configured." in login
+    assert "<SignUp" in signup
+    assert "Registration is not configured." in signup
+    assert "ClerkProvider" in root_layout
+    assert "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" in root_layout

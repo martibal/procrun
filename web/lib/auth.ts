@@ -1,5 +1,6 @@
 import "server-only";
 
+import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 export type AuthenticatedAccount = {
@@ -7,11 +8,25 @@ export type AuthenticatedAccount = {
   source: "development" | "session";
 };
 
+function clerkConfigured(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() &&
+      process.env.CLERK_SECRET_KEY?.trim(),
+  );
+}
+
 async function resolveSessionAccountId(): Promise<string | null> {
-  // Production authentication is intentionally not wired yet. The real
-  // control-plane provider must replace this adapter without weakening the
-  // fail-closed boundary below.
-  return null;
+  if (!clerkConfigured()) return null;
+
+  try {
+    const { userId, orgId } = await auth();
+    if (!userId) return null;
+
+    return orgId ? `org:${orgId}` : `user:${userId}`;
+  } catch {
+    console.error("ProcRun authentication control plane is unavailable");
+    return null;
+  }
 }
 
 export async function requireAccount(): Promise<AuthenticatedAccount> {

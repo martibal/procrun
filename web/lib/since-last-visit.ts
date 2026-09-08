@@ -12,7 +12,6 @@ export type SinceLastVisitSummary = {
 };
 
 const databaseUrl = process.env.PROCRUN_DATABASE_URL;
-const accountId = process.env.PROCRUN_DEV_ACCOUNT_ID;
 let pool: Pool | undefined;
 
 function db(): Pool | undefined {
@@ -81,9 +80,11 @@ async function snapshotSavedStates(client: PoolClient, id: string): Promise<void
   `, [id]);
 }
 
-export async function loadSinceLastVisitSummary(): Promise<SinceLastVisitSummary | null> {
+export async function loadSinceLastVisitSummary(
+  accountId: string,
+): Promise<SinceLastVisitSummary | null> {
   const activePool = db();
-  if (!activePool || !accountId) return null;
+  if (!activePool || !accountId.trim()) return null;
 
   let client: PoolClient | undefined;
   try {
@@ -109,14 +110,7 @@ export async function loadSinceLastVisitSummary(): Promise<SinceLastVisitSummary
         [accountId],
       );
       await client.query("COMMIT");
-      return {
-        accountId,
-        newMatchesCount: null,
-        changedSavedIds: [],
-        firstVisit: true,
-        sameDayRepeat: false,
-        freshness: fresh,
-      };
+      return { accountId, newMatchesCount: null, changedSavedIds: [], firstVisit: true, sameDayRepeat: false, freshness: fresh };
     }
 
     const day = await client.query<{ same_day: boolean }>(`
@@ -126,14 +120,7 @@ export async function loadSinceLastVisitSummary(): Promise<SinceLastVisitSummary
     `, [previous]);
     if (day.rows[0].same_day) {
       await client.query("COMMIT");
-      return {
-        accountId,
-        newMatchesCount: null,
-        changedSavedIds: [],
-        firstVisit: false,
-        sameDayRepeat: true,
-        freshness: fresh,
-      };
+      return { accountId, newMatchesCount: null, changedSavedIds: [], firstVisit: false, sameDayRepeat: true, freshness: fresh };
     }
 
     const matches = await client.query<{ count: string }>(`

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ProjectBrowser } from "@/components/project-browser";
 import { SinceLastVisitLine } from "@/components/since-last-visit-line";
+import { requireAccount } from "@/lib/auth";
 import { loadProductionProjects } from "@/lib/production-projects";
 import { loadSinceLastVisitSummary } from "@/lib/since-last-visit";
 import styles from "./project-overview.module.css";
@@ -9,9 +10,10 @@ import styles from "./project-overview.module.css";
 export const dynamic = "force-dynamic";
 
 export default async function RunwayPage() {
+  const { accountId } = await requireAccount();
   const [projects, summary] = await Promise.all([
     loadProductionProjects(),
-    loadSinceLastVisitSummary(),
+    loadSinceLastVisitSummary(accountId),
   ]);
 
   const actionableProjects = projects?.filter((project) => project.openCount > 0) ?? null;
