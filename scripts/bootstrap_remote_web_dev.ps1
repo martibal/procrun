@@ -53,9 +53,9 @@ set -e
 echo '[remote] Starting canonical migrations' >&2
 ACL_BACKUP=/tmp/procrun-web-migrate.acl
 cleanup() {
-    if [ -f \"`$ACL_BACKUP\" ]; then
-        setfacl --restore=\"`$ACL_BACKUP\" >/dev/null 2>&1 || true
-        rm -f \"`$ACL_BACKUP\"
+    if [ -f "`$ACL_BACKUP" ]; then
+        setfacl --restore="`$ACL_BACKUP" >/dev/null 2>&1 || true
+        rm -f "`$ACL_BACKUP"
     fi
     rm -rf $RemoteMigrationRoot
 }
@@ -66,7 +66,7 @@ if ! command -v getfacl >/dev/null 2>&1 || ! command -v setfacl >/dev/null 2>&1;
     exit 41
 fi
 
-getfacl -p /opt/procrun /opt/procrun/venv /opt/procrun/venv/bin > \"`$ACL_BACKUP\"
+getfacl -p /opt/procrun /opt/procrun/venv /opt/procrun/venv/bin > "`$ACL_BACKUP"
 setfacl -m u:postgres:--x /opt/procrun
 setfacl -m u:postgres:--x /opt/procrun/venv
 setfacl -m u:postgres:--x /opt/procrun/venv/bin
@@ -78,7 +78,7 @@ fi
 
 sudo -u postgres env PYTHONPATH=$RemoteMigrationRoot PGOPTIONS='-c lock_timeout=15s -c statement_timeout=60s' /opt/procrun/venv/bin/python -c 'import psycopg; from procrun.migrations import apply_all_migrations; conn=psycopg.connect("dbname=procrun"); apply_all_migrations(conn); conn.close()'
 echo '[remote] Migrations completed; verifying required tables' >&2
-sudo -u postgres psql -d procrun -Atqc \"SELECT CASE WHEN to_regclass('procrun.procurement_observations') IS NOT NULL AND to_regclass('procrun.sync_runs') IS NOT NULL AND to_regclass('procrun.accounts') IS NOT NULL THEN 'READY' ELSE 'MISSING' END;\"
+sudo -u postgres psql -d procrun -Atqc "SELECT CASE WHEN to_regclass('procrun.procurement_observations') IS NOT NULL AND to_regclass('procrun.sync_runs') IS NOT NULL AND to_regclass('procrun.accounts') IS NOT NULL THEN 'READY' ELSE 'MISSING' END;"
 "@
 
 $remoteMigrationLf = $remoteMigration.Replace("`r`n", "`n").Replace("`r", "")
