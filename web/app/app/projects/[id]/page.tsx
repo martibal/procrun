@@ -25,10 +25,42 @@ function statusCopy(item: ProductionProjectComponent): string {
   if (item.state === "OPEN") {
     return `No relevant procurement found in TED as of ${item.cutoffDate}.`;
   }
-  if (item.state === "CLOSED") {
-    return `Relevant procurement evidence was found in TED as of ${item.cutoffDate}.`;
-  }
-  return `Procurement state could not be resolved from the current evidence as of ${item.cutoffDate}.`;
+  return `Relevant procurement evidence was found in TED as of ${item.cutoffDate}.`;
+}
+
+function NeedRow({ item }: { item: ProductionProjectComponent }) {
+  return (
+    <article className={styles.needRow}>
+      <div className={styles.needTitleBlock}>
+        <h3>{item.description}</h3>
+        <span className={styles.state}>{item.state}</span>
+      </div>
+
+      <div className={styles.needBody}>
+        <div>
+          <p className={styles.detailLabel}>Why ProcRun identified this need</p>
+          <p className={styles.evidenceQuote}>{item.scopeEvidence}</p>
+        </div>
+
+        <div>
+          <p className={styles.detailLabel}>Procurement result</p>
+          <p className={styles.resultCopy}>{statusCopy(item)}</p>
+          {item.state === "CLOSED" && item.evidenceExcerpt ? (
+            <p className={styles.procurementEvidence}>{item.evidenceExcerpt}</p>
+          ) : null}
+          {item.state === "CLOSED" && item.evidenceUrl ? (
+            <p><a className="text-link strong" href={item.evidenceUrl}>Open procurement source</a></p>
+          ) : null}
+        </div>
+      </div>
+
+      <details className={styles.methodDetails}>
+        <summary>Method details</summary>
+        <p>Customer-facing classification: {item.category}</p>
+        <p>Assessment cutoff: {item.cutoffDate}</p>
+      </details>
+    </article>
+  );
 }
 
 export default async function ProjectPage({
@@ -41,9 +73,9 @@ export default async function ProjectPage({
 
   if (!project) notFound();
 
-  const openCount = project.components.filter((item) => item.state === "OPEN").length;
-  const closedCount = project.components.filter((item) => item.state === "CLOSED").length;
-  const unresolvedCount = project.components.filter((item) => item.state === "UNRESOLVED").length;
+  const openComponents = project.components.filter((item) => item.state === "OPEN");
+  const closedComponents = project.components.filter((item) => item.state === "CLOSED");
+  const withheldCount = project.components.filter((item) => item.state === "UNRESOLVED").length;
   const remainingReported = project.approvedFundingEur !== null && project.executedFundingEur !== null
     ? project.approvedFundingEur - project.executedFundingEur
     : null;
@@ -97,47 +129,47 @@ export default async function ProjectPage({
     <section className={styles.needsSection}>
       <div className={styles.needsHeading}>
         <div>
-          <p className={styles.sectionLabel}>Potential purchasing needs</p>
+          <p className={styles.sectionLabel}>Current purchasing opportunities</p>
           <h2>What this project may still need to buy</h2>
         </div>
-        <p>{openCount} OPEN · {unresolvedCount} UNRESOLVED · {closedCount} CLOSED</p>
+        <p>{openComponents.length} OPEN purchasing need{openComponents.length === 1 ? "" : "s"}</p>
       </div>
 
-      <div className={styles.needList}>
-        {project.components.map((item) => (
-          <article className={styles.needRow} key={item.componentId}>
-            <div className={styles.needTitleBlock}>
-              <h3>{item.description}</h3>
-              <span className={`${styles.state} ${item.state === "UNRESOLVED" ? styles.unresolved : ""}`}>{item.state}</span>
-            </div>
-
-            <div className={styles.needBody}>
-              <div>
-                <p className={styles.detailLabel}>Why ProcRun identified this need</p>
-                <p className={styles.evidenceQuote}>{item.scopeEvidence}</p>
-              </div>
-
-              <div>
-                <p className={styles.detailLabel}>Procurement result</p>
-                <p className={styles.resultCopy}>{statusCopy(item)}</p>
-                {item.state === "CLOSED" && item.evidenceExcerpt ? (
-                  <p className={styles.procurementEvidence}>{item.evidenceExcerpt}</p>
-                ) : null}
-                {item.state === "CLOSED" && item.evidenceUrl ? (
-                  <p><a className="text-link strong" href={item.evidenceUrl}>Open procurement source</a></p>
-                ) : null}
-              </div>
-            </div>
-
-            <details className={styles.methodDetails}>
-              <summary>Method details</summary>
-              <p>Customer-facing classification: {item.category}</p>
-              <p>Assessment cutoff: {item.cutoffDate}</p>
-            </details>
-          </article>
-        ))}
-      </div>
+      {openComponents.length > 0 ? (
+        <div className={styles.needList}>
+          {openComponents.map((item) => <NeedRow item={item} key={item.componentId} />)}
+        </div>
+      ) : (
+        <p className={styles.resultCopy}>ProcRun is not presenting any current purchasing need for this project.</p>
+      )}
     </section>
+
+    {closedComponents.length > 0 ? (
+      <section className={styles.needsSection}>
+        <div className={styles.needsHeading}>
+          <div>
+            <p className={styles.sectionLabel}>Procurement already found</p>
+            <h2>Needs with matching TED evidence</h2>
+          </div>
+          <p>{closedComponents.length} CLOSED</p>
+        </div>
+        <div className={styles.needList}>
+          {closedComponents.map((item) => <NeedRow item={item} key={item.componentId} />)}
+        </div>
+      </section>
+    ) : null}
+
+    {withheldCount > 0 ? (
+      <section className={styles.coverageSection}>
+        <p className={styles.sectionLabel}>ProcRun verification status</p>
+        <p>
+          ProcRun is withholding {withheldCount} additional candidate purchasing need{withheldCount === 1 ? "" : "s"} from customer results because the current evidence is not sufficient to classify them safely as OPEN or CLOSED.
+        </p>
+        <p className={styles.coverageClarification}>
+          These are not presented as opportunities and do not require customer investigation. They will appear only if ProcRun resolves them.
+        </p>
+      </section>
+    ) : null}
 
     <section className={styles.coverageSection}>
       <p className={styles.sectionLabel}>Evidence and coverage</p>
