@@ -85,7 +85,14 @@ def render(closed: Score, open_: Score, closed_path: Path, open_path: Path) -> s
     overall = closed.passed and open_.passed
     status = "PASS" if overall else "FAIL — remediation and a new pre-registered sample are required"
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    return f"""
+    continuation_rule = (
+        "A failed result does not terminate ProcRun. It activates the documented "
+        "continuation rule: isolate the named root cause, implement a specific fix "
+        "or materially different matching/data approach, and repeat the affected "
+        "validation with a new deterministic sample without changing the locked thresholds."
+    )
+    return (
+        f"""
 ## {now} — Phase M human validation score
 
 - CLOSED review file: `{closed_path.as_posix()}`
@@ -101,7 +108,7 @@ def render(closed: Score, open_: Score, closed_path: Path, open_path: Path) -> s
 - Correct: {closed.numerator}
 - Doubtful excluded from denominator: {closed.excluded}
 - CLOSED precision: **{_pct(closed.rate)}**
-- Threshold: **{'PASS' if closed.passed else 'FAIL'}**
+- Threshold: **{"PASS" if closed.passed else "FAIL"}**
 
 ### OPEN
 
@@ -110,14 +117,16 @@ def render(closed: Score, open_: Score, closed_path: Path, open_path: Path) -> s
 - False OPEN: {open_.numerator}
 - Outside TED coverage excluded from denominator: {open_.excluded}
 - OPEN false-negative rate: **{_pct(open_.rate)}**
-- Threshold: **{'PASS' if open_.passed else 'FAIL'}**
+- Threshold: **{"PASS" if open_.passed else "FAIL"}**
 
 ### Overall Phase M result
 
 **{status}**
 
-A failed result does not terminate ProcRun. It activates the documented continuation rule: isolate the named root cause, implement a specific fix or materially different matching/data approach, and repeat the affected validation with a new deterministic sample without changing the locked thresholds.
-""".strip() + "\n"
+{continuation_rule}
+""".strip()
+        + "\n"
+    )
 
 
 def main() -> int:

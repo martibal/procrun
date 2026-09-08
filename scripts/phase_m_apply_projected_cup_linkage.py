@@ -26,11 +26,7 @@ def _norm(value: str) -> str:
 def _references(value: object) -> frozenset[str]:
     if not isinstance(value, str):
         return frozenset()
-    return frozenset(
-        normalized
-        for part in value.split("|")
-        if (normalized := _norm(part.strip()))
-    )
+    return frozenset(normalized for part in value.split("|") if (normalized := _norm(part.strip())))
 
 
 def _latest_components(conn: psycopg.Connection[object]) -> list[tuple[object, ...]]:
@@ -61,7 +57,10 @@ def _latest_evidence_map(
         ORDER BY evidence_id, as_of DESC, inserted_at DESC, version_id DESC
         """
     ).fetchall()
-    return {str(evidence_id): (UUID(str(version_id)), str(notice_id)) for evidence_id, version_id, notice_id in rows}
+    return {
+        str(evidence_id): (UUID(str(version_id)), str(notice_id))
+        for evidence_id, version_id, notice_id in rows
+    }
 
 
 def main() -> int:
@@ -150,7 +149,9 @@ def main() -> int:
                             candidate["tier"] = "A"
                             candidate["disposition"] = "HIGH_CONFIDENCE"
                             candidate["reason"] = TIER_A_REASON
-                            candidate["project_reference_source"] = "TED:eu-funds-financing-id-lot/eu-funds-identifier"
+                            candidate["project_reference_source"] = (
+                                "TED:eu-funds-financing-id-lot/eu-funds-identifier"
+                            )
                             qualifying.append(evidence_id)
                             accepted_versions.append(evidence_version_id)
                             matched_notices.add(notice_id)
@@ -185,9 +186,7 @@ def main() -> int:
                         changed += 1
                         matched_components.add(str(component_id))
 
-                by_operation.setdefault(str(operation_code), []).append(
-                    (new_version_id, new_assessment)
-                )
+                by_operation.setdefault(str(operation_code), []).append((new_version_id, new_assessment))
 
             for operation_code, items in by_operation.items():
                 assessments = tuple(item[1] for item in items)

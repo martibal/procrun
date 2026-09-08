@@ -139,13 +139,13 @@ def test_ted_only_coverage_can_never_create_open() -> None:
         evidence_by_component={},
         coverage_by_component=_coverage(ids, complete_source_ids=frozenset({"ted_search_api"})),
     )
-    assert all(
-        item.match.assessment.state is ComponentState.UNRESOLVED for item in result.components
-    )
+    assert all(item.match.assessment.state is ComponentState.UNRESOLVED for item in result.components)
     assert result.assessment.state is ProjectState.UNRESOLVED
 
 
-def test_unmatched_scope_keeps_project_unresolved_without_erasing_resolved_component_boundaries() -> None:
+def test_unmatched_scope_keeps_project_unresolved_without_erasing_resolved_component_boundaries() -> (
+    None
+):
     project = PROJECT.model_copy(
         update={
             "project_scope_text": (
@@ -195,8 +195,6 @@ def test_exact_project_reference_without_component_text_cannot_close_component()
         coverage_by_component=coverage,
     )
     pump_result = next(
-        item
-        for item in result.components
-        if item.extracted.component.component_id == pump.component_id
+        item for item in result.components if item.extracted.component.component_id == pump.component_id
     )
     assert pump_result.match.assessment.state is ComponentState.OPEN

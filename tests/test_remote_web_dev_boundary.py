@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -22,7 +21,7 @@ def test_remote_web_dev_uses_ssh_loopback_tunnel() -> None:
     assert "127.0.0.1:${LocalDbPort}:127.0.0.1:5432" in script
     assert "ExitOnForwardFailure=yes" in script
     assert "PROCRUN_DATABASE_URL" in script
-    assert "Read-Host \"Password for PostgreSQL role $DbUser\" -AsSecureString" in script
+    assert 'Read-Host "Password for PostgreSQL role $DbUser" -AsSecureString' in script
     assert "npm run dev" in script
 
 

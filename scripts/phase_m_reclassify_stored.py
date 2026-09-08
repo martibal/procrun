@@ -39,7 +39,7 @@ def _latest_component_rows(conn: psycopg.Connection[object]) -> list[tuple[objec
             SELECT DISTINCT ON (component_id)
                 version_id, assessment_id, component_id, operation_code, state, cutoff_date,
                 as_of, rule_version, matching_candidates, accepted_evidence_ids,
-                accepted_evidence_version_ids, rationale, coverage_note, inserted_at
+                _accepted_evidence_version_ids, rationale, coverage_note, inserted_at
             FROM procrun.assessment_versions
             ORDER BY component_id, cutoff_date DESC, as_of DESC, inserted_at DESC, version_id DESC
         )
@@ -110,7 +110,7 @@ def main() -> int:
                 cutoff_date,
                 matching_candidates,
                 accepted_evidence_ids,
-                accepted_evidence_version_ids,
+                _accepted_evidence_version_ids,
                 rationale,
                 coverage_note,
             ) in rows:
@@ -129,12 +129,12 @@ def main() -> int:
                     reviews = _review_candidates(candidates)
                     if len(reviews) != 1:
                         raise RuntimeError(
-                            f"expected exactly one REVIEW candidate for {component_id}; got {len(reviews)}"
+                            f"expected exactly one REVIEW candidate for "
+                            f"{component_id}; got {len(reviews)}"
                         )
                     review = reviews[0]
                     if review.get("tier") != "C":
                         raise RuntimeError(f"unexpected stored review tier for {component_id}")
-                    features = dict(review.get("features") or {})
                     evidence_id = str(review.get("evidence_id") or "")
                     if not evidence_id:
                         raise RuntimeError(f"missing evidence_id for {component_id}")
@@ -149,13 +149,18 @@ def main() -> int:
                         corrected_candidates: list[dict[str, object]] = []
                         for candidate in candidates:
                             current = dict(candidate)
-                            if current.get("evidence_id") == evidence_id and current.get("disposition") == "REVIEW":
+                            if (
+                                current.get("evidence_id") == evidence_id
+                                and current.get("disposition") == "REVIEW"
+                            ):
                                 corrected_features = dict(current.get("features") or {})
                                 corrected_features["project_title_or_location_match"] = False
                                 current["features"] = corrected_features
                                 current["tier"] = "NONE"
                                 current["disposition"] = "REJECTED"
-                                current["reason"] = "candidate does not satisfy a frozen Tier A-C structural rule"
+                                current["reason"] = (
+                                    "candidate does not satisfy a frozen Tier A-C structural rule"
+                                )
                             corrected_candidates.append(current)
 
                         rejected = [
