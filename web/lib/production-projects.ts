@@ -11,6 +11,7 @@ export type ProductionProjectSummary = {
   programme: string | null;
   region: string | null;
   nutsCode: string | null;
+  categories: string[];
   componentCount: number;
   openCount: number;
   closedCount: number;
@@ -63,6 +64,7 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
       programme: string | null;
       region: string | null;
       nuts_code: string | null;
+      categories: string[];
       component_count: number;
       open_count: number;
       closed_count: number;
@@ -107,7 +109,8 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
           o.operation_code,
           o.observed_at,
           o.state,
-          o.inserted_at
+          o.inserted_at,
+          o.correction_of_id
         FROM procrun.procurement_observations o
         WHERE NOT EXISTS (
           SELECT 1
@@ -132,6 +135,7 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
         SELECT
           latest_component.component_id,
           latest_component.operation_code,
+          latest_component.category,
           current_observation.observed_at,
           current_observation.state
         FROM latest_component
@@ -148,6 +152,7 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
         latest_project.programme,
         latest_project.region,
         latest_project.nuts_code,
+        array_agg(DISTINCT current_components.category ORDER BY current_components.category) AS categories,
         count(*)::int AS component_count,
         count(*) FILTER (WHERE current_components.state = 'OPEN')::int AS open_count,
         count(*) FILTER (WHERE current_components.state = 'CLOSED')::int AS closed_count,
@@ -185,6 +190,7 @@ export async function loadProductionProjects(): Promise<ProductionProjectSummary
       programme: row.programme,
       region: row.region,
       nutsCode: row.nuts_code,
+      categories: row.categories ?? [],
       componentCount: row.component_count,
       openCount: row.open_count,
       closedCount: row.closed_count,
@@ -282,7 +288,8 @@ export async function loadProductionProject(
           o.evidence_url,
           o.evidence_excerpt,
           o.coverage_note,
-          o.inserted_at
+          o.inserted_at,
+          o.correction_of_id
         FROM procrun.procurement_observations o
         WHERE o.operation_code = $1
           AND NOT EXISTS (
