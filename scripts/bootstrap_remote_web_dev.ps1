@@ -51,13 +51,34 @@ Write-Host "[2/6] OK"
 $remoteMigration = @"
 set -e
 echo '[remote] Starting canonical migrations' >&2
+ACL_BACKUP=/tmp/procrun-web-migrate.acl
 cleanup() {
+    if [ -f \"`$ACL_BACKUP\" ]; then
+        setfacl --restore=\"`$ACL_BACKUP\" >/dev/null 2>&1 || true
+        rm -f \"`$ACL_BACKUP\"
+    fi
     rm -rf $RemoteMigrationRoot
 }
 trap cleanup EXIT
+
+if ! command -v getfacl >/dev/null 2>&1 || ! command -v setfacl >/dev/null 2>&1; then
+    echo '[remote] ERROR: getfacl/setfacl are required for temporary least-privilege migration access.' >&2
+    exit 41
+fi
+
+getfacl -p /opt/procrun /opt/procrun/venv /opt/procrun/venv/bin > \"`$ACL_BACKUP\"
+setfacl -m u:postgres:--x /opt/procrun
+setfacl -m u:postgres:--x /opt/procrun/venv
+setfacl -m u:postgres:--x /opt/procrun/venv/bin
+
+if ! sudo -u postgres test -x /opt/procrun/venv/bin/python; then
+    echo '[remote] ERROR: postgres still cannot execute the production virtualenv Python after temporary ACL grant.' >&2
+    exit 42
+fi
+
 sudo -u postgres env PYTHONPATH=$RemoteMigrationRoot PGOPTIONS='-c lock_timeout=15s -c statement_timeout=60s' /opt/procrun/venv/bin/python -c 'import psycopg; from procrun.migrations import apply_all_migrations; conn=psycopg.connect("dbname=procrun"); apply_all_migrations(conn); conn.close()'
 echo '[remote] Migrations completed; verifying required tables' >&2
-sudo -u postgres psql -d procrun -Atqc "SELECT CASE WHEN to_regclass('procrun.procurement_observations') IS NOT NULL AND to_regclass('procrun.sync_runs') IS NOT NULL AND to_regclass('procrun.accounts') IS NOT NULL THEN 'READY' ELSE 'MISSING' END;"
+sudo -u postgres psql -d procrun -Atqc \"SELECT CASE WHEN to_regclass('procrun.procurement_observations') IS NOT NULL AND to_regclass('procrun.sync_runs') IS NOT NULL AND to_regclass('procrun.accounts') IS NOT NULL THEN 'READY' ELSE 'MISSING' END;\"
 "@
 
 $remoteMigrationLf = $remoteMigration.Replace("`r`n", "`n").Replace("`r", "")
@@ -91,7 +112,7 @@ try {
 }
 finally {
     Remove-Item $LocalMigrationScript -Force -ErrorAction SilentlyContinue
-    & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "rm -f $RemoteMigrationScript; rm -rf $RemoteMigrationRoot" | Out-Null
+    & ssh @SshOptions -i $SshKey "${SshUser}@${Server}" "rm -f $RemoteMigrationScript; rm -rf $RemoteMigrationRoot; if [ -f /tmp/procrun-web-migrate.acl ]; then setfacl --restore=/tmp/procrun-web-migrate.acl >/dev/null 2>&1 || true; rm -f /tmp/procrun-web-migrate.acl; fi" | Out-Null
 }
 
 Write-Host "[5/6] Uploading least-privilege web-development role definition..."
@@ -104,7 +125,7 @@ Write-Host "[5/6] OK"
 try {
     Write-Host "[6/6] Applying grants and setting the procrun_web_dev password..."
     Write-Host "      PostgreSQL remains loopback-only. The password prompt is interactive by design."
-    & ssh @SshOptions -t -i $SshKey "${SshUser}@${Server}" "sudo -u postgres psql -d procrun -f $RemoteSql && sudo -u postgres psql -d procrun -c '\password procrun_web_dev'"
+    & ssh @SshOptions -t -i $SshKey "${SshUser}@${Server}" "sudo -u postgres psql -d procrun -f $RemoteSql && sudo -u postgres psql -d procrun -c '\\password procrun_web_dev'"
     if ($LASTEXITCODE -ne 0) {
         throw "Step 6 failed: remote role setup failed."
     }
