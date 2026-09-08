@@ -6,6 +6,7 @@ import { controlDb, ensureControlSchema } from "@/lib/control-db";
 
 const STRIPE_API = "https://api.stripe.com/v1";
 const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
+const TERMINAL_STATUSES = new Set(["canceled", "incomplete_expired"]);
 
 export type BillingAccount = {
   accountId: string;
@@ -36,14 +37,17 @@ function requireBillingConfiguration(): void {
   }
 }
 
-async function stripeRequest(path: string, body: URLSearchParams): Promise<Record<string, unknown>> {
+function stripeSecret(): string {
   const secret = process.env.STRIPE_SECRET_KEY?.trim();
   if (!secret) throw new Error("Stripe secret is unavailable.");
+  return secret;
+}
 
+async function stripeRequest(path: string, body: URLSearchParams): Promise<Record<string, unknown>> {
   const response = await fetch(`${STRIPE_API}${path}`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${secret}`,
+      Authorization: `Bearer ${stripeSecret()}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body,
@@ -52,6 +56,16 @@ async function stripeRequest(path: string, body: URLSearchParams): Promise<Recor
   const payload = await response.json() as Record<string, unknown>;
   if (!response.ok) throw new Error("Stripe request failed.");
   return payload;
+}
+
+async function stripeDelete(path: string): Promise<void> {
+  const response = await fetch(`${STRIPE_API}${path}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${stripeSecret()}` },
+    cache: "no-store",
+  });
+  if (response.status === 404) return;
+  if (!response.ok) throw new Error("Stripe deletion request failed.");
 }
 
 function appUrl(): string {
@@ -138,6 +152,37 @@ export async function createBillingPortalSession(accountId: string): Promise<str
   return url;
 }
 
+export async function purgeBillingIdentity(accountId: string): Promise<void> {
+  if (!(await ensureControlSchema())) {
+    throw new Error("Billing control database is unavailable.");
+  }
+  const activePool = controlDb();
+  if (!activePool) throw new Error("Billing control database is unavailable.");
+
+  const account = await loadBillingAccount(accountId);
+  if (account?.stripeSubscriptionId && !TERMINAL_STATUSES.has(account.subscriptionStatus ?? "")) {
+    await stripeDelete(`/subscriptions/${encodeURIComponent(account.stripeSubscriptionId)}`);
+  }
+  if (account?.stripeCustomerId) {
+    await stripeDelete(`/customers/${encodeURIComponent(account.stripeCustomerId)}`);
+  }
+
+  await activePool.query(
+    "DELETE FROM procrun_control.billing_accounts WHERE account_id = $1",
+    [accountId],
+  );
+  const verification = await activePool.query<{ present: boolean }>(`
+    SELECT EXISTS(
+      SELECT 1
+      FROM procrun_control.billing_accounts
+      WHERE account_id = $1
+    ) AS present
+  `, [accountId]);
+  if (verification.rows[0]?.present) {
+    throw new Error("Billing-account deletion could not be verified.");
+  }
+}
+
 function secureEqual(a: string, b: string): boolean {
   const left = Buffer.from(a);
   const right = Buffer.from(b);
@@ -195,7 +240,10 @@ export async function applyStripeEvent(event: Record<string, unknown>): Promise<
       ) VALUES ($1, $2, $3, 'checkout_complete', now())
       ON CONFLICT (account_id) DO UPDATE SET
         stripe_customer_id = EXCLUDED.stripe_customer_id,
-        stripe_subscription_id = COALESCE(EXCLUDED.stripe_subscription_id, procrun_control.billing_accounts.stripe_subscription_id),
+        stripe_subscription_id = COALESCE(
+          EXCLUDED.stripe_subscription_id,
+          procrun_control.billing_accounts.stripe_subscription_id
+        ),
         updated_at = now()
     `, [accountId, customerId, subscriptionId]);
     return;

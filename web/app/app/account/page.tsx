@@ -5,7 +5,7 @@ import {
   loadBillingAccount,
   merchantGateOpen,
 } from "@/lib/billing";
-import { openBillingPortalAction, startCheckoutAction } from "./actions";
+import { deleteAccountAction, openBillingPortalAction, startCheckoutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,7 @@ export default async function AccountPage() {
   const configured = billingConfigured();
   const paid = hasPaidAccess(billing);
   const status = billing?.subscriptionStatus ?? "not subscribed";
+  const organizationWorkspace = accountId.startsWith("org:");
 
   return <>
     <p className="small">Account</p>
@@ -38,5 +39,41 @@ export default async function AccountPage() {
         {billing?.stripeCustomerId ? <form action={openBillingPortalAction}><button className="button secondary" type="submit">Manage subscription</button></form> : null}
       </div>
     )}
+
+    <section className="section">
+      <h2 className="h2">Delete account</h2>
+      <p>
+        This permanently removes the Supplier Profile, saved opportunities, match history and account
+        activity for this ProcRun workspace. Any Stripe subscription is cancelled before local data is
+        removed, and the linked Stripe customer is deleted. Deletion is verified before the Clerk
+        identity or organization is removed.
+      </p>
+      {organizationWorkspace ? (
+        <div className="notice scope">
+          <strong>Organization workspace.</strong> Only an organization administrator can delete it.
+          Deleting it removes the shared ProcRun organization, not only your membership.
+        </div>
+      ) : null}
+      <form action={deleteAccountAction} className="formgrid">
+        <label className="field" htmlFor="delete-confirmation">
+          <strong>Type DELETE to confirm</strong>
+          <input
+            id="delete-confirmation"
+            name="confirmation"
+            type="text"
+            autoComplete="off"
+            pattern="DELETE"
+            required
+          />
+        </label>
+        <div className="actions">
+          <button className="button" type="submit">Delete ProcRun account</button>
+        </div>
+      </form>
+      <p className="micro">
+        Payment processors may retain transaction records where required by law or their legal-retention
+        obligations. ProcRun does not copy those retained payment records into the intelligence plane.
+      </p>
+    </section>
   </>;
 }
