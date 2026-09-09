@@ -1,7 +1,5 @@
 from datetime import date
 
-import pytest
-
 from scripts.run_a21_ted_screening import (
     _candidate_score,
     _cup,
