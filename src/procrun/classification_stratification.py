@@ -6,9 +6,8 @@ import hashlib
 from enum import StrEnum
 from typing import Final
 
-from pydantic import BaseModel, ConfigDict, model_validator
-
 from procrun.domain import FundingProject, ProjectState
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 SUPPORTED_COMPONENT_DOMAINS: Final[tuple[str, ...]] = (
@@ -206,6 +205,7 @@ def select_stratified_benchmark(
             selected_codes.add(candidate.operation_code)
 
     for dimension in ("geography", "size_band", "time_band"):
+
         def value_for(record: StratificationRecord, field: str = dimension) -> str:
             return str(getattr(record, field))
 
