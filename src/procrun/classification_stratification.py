@@ -6,7 +6,7 @@ import hashlib
 from enum import StrEnum
 from typing import Final
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from procrun.domain import FundingProject, ProjectState
 
@@ -157,7 +157,10 @@ def select_stratified_benchmark(
         raise StratificationError("every screening project requires exactly one stratification record")
 
     validate_required_strata(records)
-    ranked = sorted(records, key=lambda r: (_rank(selection_seed, r.operation_code), r.operation_code))
+    ranked = sorted(
+        records,
+        key=lambda record: (_rank(selection_seed, record.operation_code), record.operation_code),
+    )
 
     selected: list[StratificationRecord] = []
     selected_codes: set[str] = set()
@@ -168,7 +171,11 @@ def select_stratified_benchmark(
     requirements.extend(("component_count", value) for value in ("ONE", "MULTI"))
     requirements.extend(
         ("procurement", value)
-        for value in ("KNOWN_PROCUREMENT", "NO_RELEVANT_TED_FOUND", "AMBIGUOUS_CANDIDATE")
+        for value in (
+            "KNOWN_PROCUREMENT",
+            "NO_RELEVANT_TED_FOUND",
+            "AMBIGUOUS_CANDIDATE",
+        )
     )
     requirements.append(("expected_state", ProjectState.UNRESOLVED.value))
     requirements.extend(("description_precision", value) for value in ("HIGH", "LOW"))
@@ -199,8 +206,8 @@ def select_stratified_benchmark(
             selected_codes.add(candidate.operation_code)
 
     for dimension in ("geography", "size_band", "time_band"):
-        def value_for(record: StratificationRecord) -> str:
-            return str(getattr(record, dimension))
+        def value_for(record: StratificationRecord, field: str = dimension) -> str:
+            return str(getattr(record, field))
 
         while len({value_for(record) for record in selected}) < 2:
             current = {value_for(record) for record in selected}
