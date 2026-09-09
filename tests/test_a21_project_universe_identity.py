@@ -3,9 +3,9 @@ from decimal import Decimal
 
 import pytest
 
+from procrun.a21_identity import a21_projects_by_local_operation_id
 from procrun.collectors.opencoesione import OpenCoesioneOperation
 from procrun.domain import FundingProject
-from scripts.export_a21_project_universe import _a21_projects
 
 
 def _operation(
@@ -53,7 +53,7 @@ def _project(operation_code: str = "CUP-1") -> FundingProject:
 
 def test_a21_uses_local_operation_identifier_and_collapses_exact_duplicates() -> None:
     operation = _operation()
-    projects = _a21_projects(
+    projects = a21_projects_by_local_operation_id(
         (operation, operation),
         (_project(), _project()),
     )
@@ -67,7 +67,7 @@ def test_a21_fails_closed_on_conflicting_rows_for_same_local_identifier() -> Non
     second = _operation(eligible="2000.00")
 
     with pytest.raises(RuntimeError, match="conflicting OpenCoesione rows"):
-        _a21_projects(
+        a21_projects_by_local_operation_id(
             (first, second),
             (_project(), _project()),
         )
