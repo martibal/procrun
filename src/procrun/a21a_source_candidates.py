@@ -57,16 +57,17 @@ CANDIDATES: dict[str, A21aSourceCandidate] = {
     ),
     "openbdap_mop_lombardia_odata": A21aSourceCandidate(
         source_id="openbdap_mop_lombardia_odata",
-        status=CandidateStatus.CONDITIONAL,
+        status=CandidateStatus.BLOCKED,
         route=(
             "https://bdap-opendata.rgs.mef.gov.it/opendata/"
             "spd_mop_prg_mon_reg03_01_9999"
         ),
         reason=(
-            "OpenBDAP publishes Lombardia MOP through an OData-capable surface, but the full "
-            "dataset contains identity-bearing fields including Codice Fiscale Titolare. The "
-            "candidate may proceed only if server-side projection is proven to return an exact "
-            "allowlist of project fields before any row is received."
+            "The remote metadata-only A21a utility probe found structured MOP attributes such as "
+            "CUP, status, nature, typology and sector, but no explicit project-title or project-"
+            "description field class that can support verbatim A21a source evidence. Because the "
+            "candidate fails the product-utility gate before row access, no OData projection or "
+            "project-row probe is permitted or necessary."
         ),
         row_ingest_allowed=False,
         metadata_probe_allowed=True,
