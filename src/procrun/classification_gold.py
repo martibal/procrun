@@ -51,7 +51,7 @@ class BenchmarkManifest(FrozenModel):
     holdout_operation_codes: tuple[str, ...]
 
     @model_validator(mode="after")
-    def validate_manifest(self) -> "BenchmarkManifest":
+    def validate_manifest(self) -> BenchmarkManifest:
         operation_codes = tuple(project.operation_code for project in self.projects)
         if len(set(operation_codes)) != len(operation_codes):
             raise GoldStandardError("benchmark contains duplicate operation_code values")
@@ -89,7 +89,7 @@ class GoldEvidence(FrozenModel):
     rationale: str
 
     @model_validator(mode="after")
-    def validate_evidence(self) -> "GoldEvidence":
+    def validate_evidence(self) -> GoldEvidence:
         if not self.notice_id.strip():
             raise GoldStandardError("gold evidence notice_id must not be blank")
         if not self.source_url.startswith(("https://", "http://")):
@@ -111,7 +111,7 @@ class GoldComponent(FrozenModel):
     evidence: tuple[GoldEvidence, ...] = ()
 
     @model_validator(mode="after")
-    def validate_component(self) -> "GoldComponent":
+    def validate_component(self) -> GoldComponent:
         if self.scope_evidence_end <= self.scope_evidence_start:
             raise GoldStandardError("gold component scope span is invalid")
         if not self.gold_component_id.strip() or not self.category.strip():
@@ -139,7 +139,7 @@ class GoldCase(FrozenModel):
     rationale: str
 
     @model_validator(mode="after")
-    def validate_case(self) -> "GoldCase":
+    def validate_case(self) -> GoldCase:
         if not self.operation_code.strip() or not self.rationale.strip():
             raise GoldStandardError("gold case identity and rationale must not be blank")
         ids = tuple(component.gold_component_id for component in self.components)
@@ -148,7 +148,8 @@ class GoldCase(FrozenModel):
         expected = aggregate_gold_project_state(self.components)
         if self.expected_project_state is not expected:
             raise GoldStandardError(
-                f"project state {self.expected_project_state} conflicts with component aggregate {expected}"
+                "project state "
+                f"{self.expected_project_state} conflicts with component aggregate {expected}"
             )
         return self
 
@@ -212,14 +213,25 @@ def build_benchmark_manifest(
     by_code: dict[str, FundingProject] = {}
     for project in projects:
         if project.operation_code in by_code:
-            raise GoldStandardError(f"duplicate operation_code in source universe: {project.operation_code}")
+            raise GoldStandardError(
+                f"duplicate operation_code in source universe: {project.operation_code}"
+            )
         by_code[project.operation_code] = project
-    ranked = sorted(projects, key=lambda item: (_rank(selection_seed, item.operation_code), item.operation_code))
+    ranked = sorted(
+        projects,
+        key=lambda item: (
+            _rank(selection_seed, item.operation_code),
+            item.operation_code,
+        ),
+    )
     selected = tuple(ranked[: min(target_benchmark_size, len(ranked))])
     holdout_count = math.ceil(len(selected) * holdout_fraction)
     holdout_ranked = sorted(
         selected,
-        key=lambda item: (_rank(f"{selection_seed}:holdout", item.operation_code), item.operation_code),
+        key=lambda item: (
+            _rank(f"{selection_seed}:holdout", item.operation_code),
+            item.operation_code,
+        ),
     )
     holdout_codes = tuple(item.operation_code for item in holdout_ranked[:holdout_count])
     return BenchmarkManifest(
@@ -277,19 +289,19 @@ def validate_gold_against_manifest(
             raise GoldStandardError(f"cutoff mismatch for {case.operation_code}")
         source = project_by_code[case.operation_code].project_scope_text
         for component in case.components:
+            case_component = f"{case.operation_code}/{component.gold_component_id}"
             if component.scope_evidence_end > len(source):
-                raise GoldStandardError(
-                    f"scope span exceeds source text for {case.operation_code}/{component.gold_component_id}"
-                )
+                raise GoldStandardError(f"scope span exceeds source text for {case_component}")
             observed = source[component.scope_evidence_start : component.scope_evidence_end]
             if observed != component.scope_evidence:
-                raise GoldStandardError(
-                    f"scope evidence is not verbatim for {case.operation_code}/{component.gold_component_id}"
-                )
+                raise GoldStandardError(f"scope evidence is not verbatim for {case_component}")
             for evidence in component.evidence:
-                if evidence.accepted_for_component and evidence.publication_date > manifest.cutoff_date:
+                if (
+                    evidence.accepted_for_component
+                    and evidence.publication_date > manifest.cutoff_date
+                ):
                     raise GoldStandardError(
-                        f"post-cutoff evidence cannot close {case.operation_code}/{component.gold_component_id}"
+                        f"post-cutoff evidence cannot close {case_component}"
                     )
     return tuple(by_code[project.operation_code] for project in manifest.projects)
 
