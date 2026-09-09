@@ -12,6 +12,7 @@ from pathlib import Path
 
 from prepare_a21a_evidence_development_set import build
 
+from procrun.a21_identity import a21_projects_by_local_operation_id
 from procrun.collectors.opencoesione import to_funding_projects
 from procrun.collectors.opencoesione_live import collect_open_coesione_live
 
@@ -20,7 +21,8 @@ SOURCE_POOL_SCHEMA = "a21a-sanitized-source-pool-v1"
 
 def build_source_pool() -> dict[str, object]:
     batch = collect_open_coesione_live()
-    projects = to_funding_projects(batch)
+    mapped_projects = to_funding_projects(batch)
+    projects = a21_projects_by_local_operation_id(batch.operations, mapped_projects)
 
     cases: list[dict[str, object]] = []
     for project in projects:
