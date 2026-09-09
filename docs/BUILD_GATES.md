@@ -83,7 +83,7 @@ No external legal review or human response is an allowed gate-closing mechanism.
 
 ## A19 — Launch readiness excluding customer web application and empirical classification validation
 
-**A19 PRE-WEB DELIVERY READINESS: PASS.**
+**A19 PRE-WEB RELEASE READINESS: PASS.**
 
 The non-web intelligence delivery path is operationally production-ready. Empirical classification-engine product validation is separately governed by A21 and remains open until its frozen real-project benchmark passes.
 
@@ -95,7 +95,7 @@ A20 remains authoritative for web-build authorization, source/delivery readiness
 
 **A20 WEB BUILD: GO — CUSTOMER APPLICATION DEVELOPMENT IS AUTHORIZED.**
 
-**A20 LIVE PORTUGAL OPEN CLASSIFICATION CONTRACT: APPROVED (TED-SCOPED).**
+**A20 LIVE PORTUGAL OPEN CLASSIFICATION: APPROVED (TED-SCOPED).**
 
 Exact definition: **No relevant procurement found in TED as of DATE.** This does not establish absence outside TED.
 
