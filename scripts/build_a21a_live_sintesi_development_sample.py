@@ -10,9 +10,9 @@ import argparse
 import json
 from pathlib import Path
 
+from prepare_a21a_evidence_development_set import build
 from procrun.collectors.opencoesione import to_funding_projects
 from procrun.collectors.opencoesione_live import collect_open_coesione_live
-from scripts.prepare_a21a_evidence_development_set import build
 
 SOURCE_POOL_SCHEMA = "a21a-sanitized-source-pool-v1"
 
