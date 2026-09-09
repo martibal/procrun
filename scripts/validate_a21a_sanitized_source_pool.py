@@ -90,13 +90,16 @@ def validate(document: dict[str, Any]) -> dict[str, Any]:
     if provenance.get("source_only_projection_confirmed") is not True:
         raise ValueError("source-only projection must be explicitly confirmed")
 
-    forbidden = _contains_forbidden_key(document)
-    if forbidden is not None:
-        raise ValueError(f"forbidden field detected: {forbidden}")
-
     cases = document.get("cases")
     if not isinstance(cases, list) or not cases:
         raise ValueError("cases must be a non-empty list")
+
+    # Search only the row-bearing case payload for prohibited fields. The top-level
+    # engine_output_present=false declaration is an intentional fail-closed attestation,
+    # not engine output itself.
+    forbidden = _contains_forbidden_key(cases)
+    if forbidden is not None:
+        raise ValueError(f"forbidden field detected: {forbidden}")
 
     seen: set[str] = set()
     for case in cases:
