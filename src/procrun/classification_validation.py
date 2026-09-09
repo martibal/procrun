@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -171,7 +172,7 @@ class ClassificationValidationMetrics:
         n = self.dedicated_open_adjudicated_count
         if n == 0 or self.dedicated_open_false_open_count != 0:
             return None
-        return 1.0 - 0.05 ** (1.0 / n)
+        return 1.0 - math.pow(0.05, 1.0 / n)
 
     @staticmethod
     def _rate(numerator: int, denominator: int) -> float:
