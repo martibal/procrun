@@ -16,11 +16,14 @@ from procrun.classification_gold import (
 
 def _write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
+    encoded = json.dumps(value, indent=2, ensure_ascii=False, default=str) + "\n"
+    path.write_text(encoded, encoding="utf-8")
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Prepare or freeze the blind A21 gold-standard package")
+    parser = argparse.ArgumentParser(
+        description="Prepare or freeze the blind A21 gold-standard package"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     prepare = sub.add_parser("prepare")
