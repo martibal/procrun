@@ -6,12 +6,15 @@ Pre-web baseline: `docs/PREWEB_RELEASE_BASELINE.md`
 Sequencing rule: `docs/DELIVERY_READINESS_GATE.md`
 Customer data/commercialization contract: `docs/CUSTOMER_DATA_AND_COMMERCIALIZATION_CONTRACT.md`
 Authoritative web-phase requirements: `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`
+Authoritative paid-launch classification quality gate: `docs/CLASSIFICATION_QUALITY_LAUNCH_GATE.md`
 
 These gates are authoritative. Historical product files cannot override them.
 
 ## A0 — Permanent validation rule
 
 ProcRun has no human-dependent validation path. No interview, outreach, authority/source-owner contact, customer contact, bespoke clarification, paid consultant/auditor/legal opinion or private assurance may close a source gate. Only already-public independently inspectable evidence and machine-verifiable behaviour may do so. Silence is never permission. If contact would be the only remaining route to approval, the source is rejected.
+
+Internal empirical quality review of already-public/customer-safe evidence under `docs/CLASSIFICATION_QUALITY_LAUNCH_GATE.md` does not widen a source gate and does not permit outbound contact. No source owner, authority, customer or external paid reviewer may be contacted to close the classification-quality gate.
 
 ## A1 — Funded-project source
 
@@ -86,13 +89,15 @@ All customer-facing use of source-derived information is additionally governed b
 
 Customer application concerns — auth, Stripe, subscriptions, VAT/invoicing implementation, merchant identity presentation, Terms/Privacy pages, customer-control-plane processors, domain/TLS, cookies/logging, final rendered attribution and customer-facing commercialization/source-consistency checks — are part of the authorized web product phase. They remain mandatory before public paid launch, but are not prerequisites for starting that phase.
 
+The later empirical classification-quality gate does not revoke A8's production-engineering PASS. It is a separate customer-value acceptance gate that must pass before paid launch.
+
 No external legal review or human response is an allowed gate-closing mechanism.
 
 ## A19 — Launch readiness excluding customer web application
 
 **A19 PRE-WEB RELEASE READINESS: PASS.**
 
-The non-web intelligence product is production-ready. The remaining work is the customer-facing application and the controls inherently attached to that application.
+The non-web intelligence product is production-ready. The remaining work is the customer-facing application plus the empirical paid-launch classification-quality acceptance defined in `docs/CLASSIFICATION_QUALITY_LAUNCH_GATE.md`.
 
 The production delivery evidence was established on runtime release `51c0071fe20011bb407d50c1df63a9d35ef68e76`. Subsequent pre-web housekeeping changes are documentation/regression-gate changes and do not alter production-delivery semantics; they require green repository CI but not a repeat of the 176,540-notice production ingest.
 
@@ -100,11 +105,15 @@ The production delivery evidence was established on runtime release `51c0071fe20
 
 A20 is the only authoritative readiness source.
 
-**A20 WEB BUILD: GO — CORE PRODUCT DELIVERY IS PRODUCTION-READY. CUSTOMER APPLICATION IS THE SOLE REMAINING PRODUCT-DEVELOPMENT PHASE.**
+**A20 WEB BUILD: GO — CORE PRODUCT DELIVERY IS PRODUCTION-READY.**
 
-**A20 MVP OPEN CLASSIFICATION: APPROVED (TED-SCOPED).**
+**A20 MVP OPEN CLASSIFICATION DEFINITION: APPROVED (TED-SCOPED).**
 
 Exact definition: **No relevant procurement found in TED as of DATE.** This does not establish absence outside TED.
+
+Approval of the OPEN definition and source scope is not an empirical claim that current customer-facing classifications already meet the paid-launch precision threshold.
+
+**A20 CLASSIFICATION QUALITY FOR PAID LAUNCH: NOT YET PASS — `docs/CLASSIFICATION_QUALITY_LAUNCH_GATE.md` IS ACTIVE.**
 
 **A20 OPENCOESIONE A1 SOURCE QUALIFICATION: APPROVED (EXACT 2021-2027 EU-COHESION OPERATION-LIST ROUTE).**
 
@@ -120,8 +129,13 @@ Exact definition: **No relevant procurement found in TED as of DATE.** This does
 
 **A20 PRE-WEB RELEASE HOUSEKEEPING: PASS.**
 
-**A20 PRODUCT LAUNCH READINESS: NOT YET COMPLETE — AUTHORIZED WEB PRODUCT PHASE REMAINS.**
+**A20 PRODUCT LAUNCH READINESS: NOT YET COMPLETE.**
 
-Web development may now proceed under `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`. Public/paid launch remains blocked until the web-phase launch controls in that specification — including authentication/authorization, billing/Stripe if used, customer legal/privacy presentation, control-plane privacy, TLS/domain, source attribution, commercialization/source-consistency, security and final end-to-end checkout/access tests — are green.
+Web development may proceed under `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`. Public paid launch remains blocked until both of these are green:
 
-No other README/spec/history file may claim broader source coverage, customer-data rights, commercialization rights or launch readiness than this A20 decision, the normative customer-data/commercialization contract and the authoritative web-phase specification permit.
+1. the web-phase launch controls in `docs/WEB_CUSTOMER_APPLICATION_SPEC.md`, including authentication/authorization, billing/Stripe if used, customer legal/privacy presentation, control-plane privacy, TLS/domain, source attribution, commercialization/source-consistency, security and final end-to-end checkout/access tests; and
+2. the empirical classification-quality launch gate in `docs/CLASSIFICATION_QUALITY_LAUNCH_GATE.md`, including the production benchmark, reference-truth reliability check, locked precision/error thresholds and golden regression corpus.
+
+No historical Phase M threshold or result may substitute for the canonical classification-quality gate.
+
+No other README/spec/history file may claim broader source coverage, customer-data rights, commercialization rights, launch readiness or classification-quality acceptance than this A20 decision, the normative customer-data/commercialization contract, the authoritative web-phase specification and the canonical classification-quality launch gate permit.
