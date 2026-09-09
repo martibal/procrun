@@ -1,6 +1,7 @@
+from datetime import date
+
 from procrun.classification import aggregate_project_state
 from procrun.domain import ComponentAssessment, ComponentState, ProjectState
-from datetime import date
 
 
 def _component(component_id: str, state: ComponentState) -> ComponentAssessment:
@@ -14,7 +15,7 @@ def _component(component_id: str, state: ComponentState) -> ComponentAssessment:
 
 
 def test_taxonomy_v2_does_not_change_project_state_aggregation_contract() -> None:
-    assert aggregate_project_state("P", date(2026, 9, 9), ()) .state is ProjectState.UNRESOLVED
+    assert aggregate_project_state("P", date(2026, 9, 9), ()).state is ProjectState.UNRESOLVED
     assert aggregate_project_state(
         "P", date(2026, 9, 9), (_component("a", ComponentState.OPEN),)
     ).state is ProjectState.OPEN
