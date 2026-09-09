@@ -14,26 +14,25 @@ Blocked for A21a row ingest. The published project-list serializer includes `sog
 
 Blocked for A21a row ingest. The export explicitly includes `SOGGETTI_PROGRAMMATORI` and `SOGGETTI_ATTUATORI`. Filtering those columns after download would violate the zero-PII boundary.
 
-## Current candidate: OpenBDAP MOP Lombardia OData
+### OpenBDAP MOP Lombardia OData
 
 Candidate route:
 
 `https://bdap-opendata.rgs.mef.gov.it/opendata/spd_mop_prg_mon_reg03_01_9999`
 
-The official Lombardia MOP dataset is public and machine-readable, but its full 48-field surface includes identity-bearing fields such as `Codice Fiscale Titolare` and `Descrizione Titolare`.
+Status: **BLOCKED FOR A21a**.
 
-Therefore the route remains **CONDITIONAL**. Metadata-only inspection is permitted. Project-row ingest remains prohibited until an automated probe proves all of the following before any project row is accepted:
+The remote metadata-only utility probe ran successfully without requesting any project or OData rows. The public metadata documents structured project attributes including CUP, status, nature, typology, sector, subsector and category, but it does not document an explicit project-title or project-description field class suitable for verbatim customer-facing source evidence.
 
-1. an official OData route can be discovered deterministically;
-2. the server supports an explicit projection/select operation;
-3. the response contains only a frozen allowlist of project fields;
-4. no tax identifier, holder identity, contact, address, beneficiary or other natural-person-capable field is present;
-5. unknown/additional fields fail closed;
-6. the route works from the remote execution environment used by ProcRun;
-7. the selected fields provide enough project wording to support A21a evidence retrieval.
+This fails the A21a product-utility gate before the privacy projection gate. ProcRun therefore does not proceed to `$select`, `$filter`, OData row retrieval or post-download sanitization for this candidate. The full dataset's identity-bearing fields, including `Codice Fiscale Titolare` and `Descrizione Titolare`, remain outside the ProcRun intelligence plane.
 
-A successful projection probe authorizes only creation of a sanitized source-only package. It does not by itself approve production use or change any existing source contract.
+## Current position
 
-## Next gate
+All three evaluated remote shortcuts are closed for A21a source-evidence input. No project-row ingest route is approved.
 
-Build and run a metadata/projection probe against OpenBDAP. It must inspect metadata first and may request a row only after the request itself is constrained to the frozen safe field allowlist. If server-side projection cannot be proven, this candidate is closed.
+The next source candidate must satisfy both conditions from public, machine-verifiable evidence before any row is received:
+
+1. it exposes human-readable project wording sufficient for exact source evidence; and
+2. it provides a pre-receipt server-side projection boundary that can exclude all identity/contact fields.
+
+A source that satisfies only structured project metadata is not enough for ProcRun 2.0 evidence retrieval.
