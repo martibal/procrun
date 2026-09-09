@@ -56,8 +56,8 @@ A separate gold standard must be frozen before release-gate scoring. For each ca
 - expected project state;
 - written rationale sufficient for later audit.
 
-The adjudication may use only already-public, independently inspectable material. It may not depend on
-contacting a source owner, authority, customer, consultant or other human outside the project.
+The adjudication may use only already-public, independently inspectable material and must remain
+entirely inside ProcRun's permanent no-human-response validation boundary.
 
 If engine output must be used mechanically to retrieve candidate notices, the final gold decision
 must still be made independently and documented before scoring.
