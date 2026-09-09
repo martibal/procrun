@@ -2,7 +2,7 @@
 
 These decisions are deliberately separate from production source contracts. A candidate remains
 non-ingestible until every required safety property is proven from public evidence and automated
-checks. In particular, download-then-filter is never an acceptable privacy boundary.
+checks. Download-then-filter is never an acceptable privacy boundary.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from enum import StrEnum
 
 
 class CandidateStatus(StrEnum):
+    APPROVED = "APPROVED"
     BLOCKED = "BLOCKED"
     CONDITIONAL = "CONDITIONAL"
 
@@ -29,6 +30,26 @@ class A21aSourceCandidate:
 
 
 CANDIDATES: dict[str, A21aSourceCandidate] = {
+    "opencoesione_2021_2027_operations": A21aSourceCandidate(
+        source_id="opencoesione_2021_2027_operations",
+        status=CandidateStatus.APPROVED,
+        route=(
+            "https://opencoesione.gov.it/it/opendata/beneficiari/2021-2027/"
+            "beneficiari_PR_FESR_LOMBARDIA.zip"
+        ),
+        reason=(
+            "The PR FESR Lombardia 2021-2027 operation list is already production-approved. "
+            "RGS Vademecum Monitoraggio v1.0 explicitly states that both TITOLO_PROGETTO and "
+            "SINTESI_PROG must not contain sensitive information attributable to natural persons, "
+            "including name, tax code, telephone number or email address. This corrects the prior "
+            "A21a review, which incorrectly treated the title rule as established while missing the "
+            "same explicit rule for SINTESI_PROG. The summary provides up to 1,300 characters of "
+            "project-specific scope and is therefore eligible as the primary A21a source-evidence text."
+        ),
+        row_ingest_allowed=True,
+        metadata_probe_allowed=True,
+        requires_server_side_projection=False,
+    ),
     "opencoesione_general_api": A21aSourceCandidate(
         source_id="opencoesione_general_api",
         status=CandidateStatus.BLOCKED,
