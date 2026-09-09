@@ -7,6 +7,7 @@ from enum import StrEnum
 from typing import Final
 
 from pydantic import BaseModel, ConfigDict, model_validator
+
 from procrun.domain import FundingProject, ProjectState
 
 
