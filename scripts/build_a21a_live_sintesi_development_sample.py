@@ -7,6 +7,7 @@ classification, matching, or evidence retrieval before the blind review set is f
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -17,6 +18,15 @@ from procrun.collectors.opencoesione import to_funding_projects
 from procrun.collectors.opencoesione_live import collect_open_coesione_live
 
 SOURCE_POOL_SCHEMA = "a21a-sanitized-source-pool-v1"
+
+
+def _canonical_bytes(value: object) -> bytes:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
 
 
 def build_source_pool() -> dict[str, object]:
@@ -62,6 +72,9 @@ def main() -> int:
     development_set["live_source_id"] = source_pool["source_id"]
     development_set["live_source_sha256"] = source_pool["source_sha256"]
     development_set["live_list_updated_on"] = source_pool["list_updated_on"]
+    development_set["canonical_sha256"] = hashlib.sha256(
+        _canonical_bytes(development_set)
+    ).hexdigest()
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
