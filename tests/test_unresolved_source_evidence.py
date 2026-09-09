@@ -1,97 +1,74 @@
 from __future__ import annotations
 
-from datetime import date
-
 import pytest
 
-from procrun.domain import ComponentState, ProjectState
-from procrun.read_model import (
-    ReadModelInvariantError,
-    RunwayComponent,
-    SourceSpan,
-    unresolved_source_evidence,
-)
+from procrun.component_engine import EvidenceSpan
+from procrun.domain import ProjectState
+from procrun.read_model import ReadModelInvariantError, unresolved_source_evidence
 
 
-def _component(
-    component_id: str,
-    state: ComponentState,
-    *,
-    text: str,
-    start: int,
-) -> RunwayComponent:
-    span = SourceSpan(
-        source_field="project_scope_text",
-        text=text,
+def _span(source: str, text: str) -> EvidenceSpan:
+    start = source.index(text)
+    return EvidenceSpan(
         start=start,
         end=start + len(text),
-    )
-    return RunwayComponent(
-        component_id=component_id,
-        category="test-category",
-        label="test component",
-        state=state,
-        cutoff_date=date(2026, 9, 10),
-        project_evidence=span,
-        procurement_matches=(),
-        coverage_note="test coverage",
-        state_explanation="test explanation",
+        text=text,
+        matched_phrases=(),
     )
 
 
-def test_unresolved_project_exposes_only_unresolved_component_source_text() -> None:
-    unresolved = _component(
-        "c1",
-        ComponentState.UNRESOLVED,
-        text="Il progetto prevede la fornitura e installazione di nuovi impianti.",
-        start=12,
+def test_unresolved_project_exposes_exact_unmatched_source_text() -> None:
+    source = (
+        "Installazione di pompe e valvole. "
+        "Sono previste inoltre ulteriori apparecchiature tecniche da definire."
     )
-    closed = _component(
-        "c2",
-        ComponentState.CLOSED,
-        text="Sono conclusi i lavori civili.",
-        start=100,
-    )
+    unresolved_text = "Sono previste inoltre ulteriori apparecchiature tecniche da definire."
 
-    evidence = unresolved_source_evidence(ProjectState.UNRESOLVED, (unresolved, closed))
-
-    assert evidence == (unresolved.project_evidence,)
-    assert evidence[0].text == (
-        "Il progetto prevede la fornitura e installazione di nuovi impianti."
+    evidence = unresolved_source_evidence(
+        ProjectState.UNRESOLVED,
+        source,
+        (_span(source, unresolved_text),),
     )
 
-
-def test_duplicate_source_span_is_exposed_once() -> None:
-    text = "È prevista una procedura per la fornitura delle apparecchiature."
-    first = _component("c1", ComponentState.UNRESOLVED, text=text, start=20)
-    second = _component("c2", ComponentState.UNRESOLVED, text=text, start=20)
-
-    evidence = unresolved_source_evidence(ProjectState.UNRESOLVED, (first, second))
-
-    assert evidence == (first.project_evidence,)
+    assert len(evidence) == 1
+    assert evidence[0].text == unresolved_text
+    assert source[evidence[0].start : evidence[0].end] == evidence[0].text
 
 
-def test_resolved_project_does_not_expose_unresolved_column_text() -> None:
-    component = _component(
-        "c1",
-        ComponentState.OPEN,
-        text="È prevista una fornitura.",
+def test_unresolved_for_non_text_reason_does_not_invent_project_text_cause() -> None:
+    source = "Installazione di pompe e valvole."
+
+    assert unresolved_source_evidence(ProjectState.UNRESOLVED, source, ()) == ()
+
+
+def test_resolved_project_does_not_expose_unmatched_text() -> None:
+    source = "Intervento tecnico da definire."
+    span = _span(source, source)
+
+    assert unresolved_source_evidence(ProjectState.OPEN, source, (span,)) == ()
+
+
+def test_duplicate_unmatched_span_is_exposed_once() -> None:
+    source = "Intervento tecnico da definire."
+    span = _span(source, source)
+
+    evidence = unresolved_source_evidence(ProjectState.UNRESOLVED, source, (span, span))
+
+    assert len(evidence) == 1
+    assert evidence[0].text == source
+
+
+def test_mismatched_span_fails_closed() -> None:
+    source = "Testo sorgente corretto."
+    invalid = EvidenceSpan(
         start=0,
-    )
-
-    assert unresolved_source_evidence(ProjectState.OPEN, (component,)) == ()
-
-
-def test_unresolved_project_without_unresolved_component_fails_closed() -> None:
-    component = _component(
-        "c1",
-        ComponentState.OPEN,
-        text="È prevista una fornitura.",
-        start=0,
+        end=5,
+        text="Altro",
+        matched_phrases=(),
     )
 
     with pytest.raises(
         ReadModelInvariantError,
-        match="UNRESOLVED project must expose at least one unresolved component source span",
+        match="must match the exact project source span",
     ):
-        unresolved_source_evidence(ProjectState.UNRESOLVED, (component,))
+        unresolved_source_evidence(ProjectState.UNRESOLVED, source, (invalid,))
