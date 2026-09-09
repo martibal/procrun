@@ -150,7 +150,10 @@ def build_report(document: dict[str, Any], input_sha256: str) -> dict[str, Any]:
         for predicted in first:
             if source_text[predicted.start_offset : predicted.end_offset] != predicted.original_text:
                 exact_span_integrity_failures += 1
-            if predicted.source_url != project.source_url or predicted.source_field != "project_scope_text":
+            if (
+                predicted.source_url != project.source_url
+                or predicted.source_field != "project_scope_text"
+            ):
                 provenance_failures += 1
             if predicted.english_translation is not None:
                 translation_violations += 1
