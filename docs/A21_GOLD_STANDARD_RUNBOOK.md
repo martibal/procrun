@@ -30,7 +30,7 @@ The screening process must remain blind to ProcRun engine output. For every scre
 - supported component domain(s);
 - short/long scope band;
 - zero-component / one-component / multi-component / ambiguous-component-count band;
-- known procurement / no relevant TED procurement found / ambiguous candidate band;
+- procurement band: `NOT_APPLICABLE` for `ZERO`, otherwise known procurement / no relevant TED procurement found / ambiguous candidate;
 - independently expected project state, including `UNRESOLVED` where justified;
 - geography;
 - project-size band;
@@ -38,7 +38,9 @@ The screening process must remain blind to ProcRun engine output. For every scre
 - high/low description-precision band;
 - written rationale.
 
-`ZERO` is required when no defensible purchasable component can be established from the public project scope. `AMBIGUOUS` is required when the public scope does not support a defensible exact component count. Neither condition may be coerced into `ONE` or `MULTI` merely to satisfy benchmark selection.
+`ZERO` is required when no defensible purchasable component can be established from the public project scope. A `ZERO` case has no defensible procurement search target and therefore must use `procurement_band=NOT_APPLICABLE` and `expected_project_state=UNRESOLVED`. It must never be coerced into `NO_RELEVANT_TED_FOUND`, because that would manufacture a negative procurement finding for a component that was never established.
+
+`AMBIGUOUS` is required when the public scope does not support a defensible exact component count. Neither `ZERO` nor `AMBIGUOUS` may be coerced into `ONE` or `MULTI` merely to satisfy benchmark selection. `NOT_APPLICABLE` is forbidden for non-`ZERO` component-count cases.
 
 These records are validated by `src/procrun/classification_stratification.py`.
 
@@ -54,7 +56,8 @@ The selector must:
 - cover every supported component domain;
 - include short and long scope descriptions;
 - include zero-component, one-component, multi-component and ambiguous-component-count cases;
-- include known procurement, no-relevant-TED-found and ambiguous-candidate cases;
+- include `NOT_APPLICABLE` procurement only through valid zero-component cases;
+- include known procurement, no-relevant-TED-found and ambiguous-candidate cases among cases with a defensible component search target;
 - include expected `UNRESOLVED` cases;
 - include multiple geographies, project-size bands and time bands;
 - include both high-precision and low-precision descriptions;
