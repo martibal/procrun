@@ -18,7 +18,7 @@ def _category(domain: ComponentDomain, category: str) -> AllowedComponentCategor
 
 
 def test_model_guidance_covers_every_frozen_taxonomy_category() -> None:
-    assert MODEL_CATEGORY_GUIDANCE_VERSION == "component-model-guidance-v1"
+    assert MODEL_CATEGORY_GUIDANCE_VERSION == "component-model-guidance-v2"
 
     categories = [
         AllowedComponentCategory(
@@ -39,11 +39,13 @@ def test_model_guidance_disambiguates_known_neighbor_categories() -> None:
     signalling = _category(ComponentDomain.RAIL_TRANSPORT, "signalling")
     marine = _category(ComponentDomain.PORTS_COASTAL, "marine_works")
     sensors = _category(ComponentDomain.RESILIENCE_FIRE, "sensors_cameras")
+    storage = _category(ComponentDomain.ENERGY_EFFICIENCY, "battery_storage")
 
     assert "monitoring" in automation.selection_rule
     assert "traction" in signalling.selection_rule
     assert "civil_works" in marine.selection_rule
     assert "vehicles" in sensors.selection_rule
+    assert "photovoltaic" in storage.selection_rule
 
 
 def test_prompt_serializes_selection_rules_with_allowed_categories() -> None:
