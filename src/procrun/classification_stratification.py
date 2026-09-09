@@ -10,7 +10,6 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from procrun.domain import FundingProject, ProjectState
 
-
 SUPPORTED_COMPONENT_DOMAINS: Final[tuple[str, ...]] = (
     "water_wastewater",
     "rail_transport",
