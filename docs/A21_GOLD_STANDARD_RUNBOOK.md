@@ -29,7 +29,7 @@ The screening process must remain blind to ProcRun engine output. For every scre
 
 - supported component domain(s);
 - short/long scope band;
-- one-component/multi-component band;
+- zero-component / one-component / multi-component / ambiguous-component-count band;
 - known procurement / no relevant TED procurement found / ambiguous candidate band;
 - independently expected project state, including `UNRESOLVED` where justified;
 - geography;
@@ -37,6 +37,8 @@ The screening process must remain blind to ProcRun engine output. For every scre
 - time-period band;
 - high/low description-precision band;
 - written rationale.
+
+`ZERO` is required when no defensible purchasable component can be established from the public project scope. `AMBIGUOUS` is required when the public scope does not support a defensible exact component count. Neither condition may be coerced into `ONE` or `MULTI` merely to satisfy benchmark selection.
 
 These records are validated by `src/procrun/classification_stratification.py`.
 
@@ -51,7 +53,7 @@ The selector must:
 - use only independently produced stratification records;
 - cover every supported component domain;
 - include short and long scope descriptions;
-- include one-component and multi-component projects;
+- include zero-component, one-component, multi-component and ambiguous-component-count cases;
 - include known procurement, no-relevant-TED-found and ambiguous-candidate cases;
 - include expected `UNRESOLVED` cases;
 - include multiple geographies, project-size bands and time bands;
