@@ -10,6 +10,16 @@ from procrun.a21a_source_candidates import (
 )
 
 
+def test_opencoesione_operation_list_is_approved_for_a21a() -> None:
+    candidate = require_row_ingest("opencoesione_2021_2027_operations")
+    assert candidate.status is CandidateStatus.APPROVED
+    assert candidate.row_ingest_allowed is True
+    assert candidate.requires_server_side_projection is False
+    assert "SINTESI_PROG" in candidate.reason
+    assert "1,300" in candidate.reason
+    assert "natural persons" in candidate.reason
+
+
 def test_opencoesione_general_api_is_blocked() -> None:
     candidate = CANDIDATES["opencoesione_general_api"]
     assert candidate.status is CandidateStatus.BLOCKED
@@ -49,7 +59,15 @@ def test_lombardia_socrata_is_closed_after_content_safety_review() -> None:
     )
 
 
-def test_no_candidate_can_ingest_rows() -> None:
-    for source_id in CANDIDATES:
-        with pytest.raises(RuntimeError, match="row ingest not approved"):
-            require_row_ingest(source_id)
+@pytest.mark.parametrize(
+    "source_id",
+    [
+        "opencoesione_general_api",
+        "opencoesione_search_csv",
+        "openbdap_mop_lombardia_odata",
+        "lombardia_pr_fesr_socrata",
+    ],
+)
+def test_blocked_candidates_cannot_ingest_rows(source_id: str) -> None:
+    with pytest.raises(RuntimeError, match="row ingest not approved"):
+        require_row_ingest(source_id)
