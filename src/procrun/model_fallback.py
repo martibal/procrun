@@ -20,7 +20,7 @@ from procrun.component_engine import (
 from procrun.domain import FundingProject, PurchaseComponent, StrictModel
 
 MODEL_FALLBACK_CONTRACT_VERSION = "local-component-proposal-v1"
-MODEL_CATEGORY_GUIDANCE_VERSION = "component-model-guidance-v1"
+MODEL_CATEGORY_GUIDANCE_VERSION = "component-model-guidance-v2"
 _SHA256_PATTERN = r"^[0-9a-f]{64}$"
 _RULE_BY_KEY = {(rule.domain, rule.category): rule for rule in RULES}
 
@@ -148,7 +148,8 @@ _MODEL_CATEGORY_SELECTION_RULES: dict[tuple[ComponentDomain, str], str] = {
     (ComponentDomain.ENERGY_EFFICIENCY, "building_works"): (
         "Select for general building rehabilitation or construction works undertaken for energy "
         "efficiency when no narrower frozen energy category is explicitly named. "
-        "Prefer HVAC, envelope, lighting, photovoltaic, metering, or controls when those are named."
+        "Prefer HVAC, envelope, lighting, photovoltaic, metering, storage, or controls when those "
+        "are named."
     ),
     (ComponentDomain.ENERGY_EFFICIENCY, "hvac"): (
         "Select for heating, ventilation, air-conditioning, heat pumps, heat recovery, and related "
@@ -168,6 +169,11 @@ _MODEL_CATEGORY_SELECTION_RULES: dict[tuple[ComponentDomain, str], str] = {
     (ComponentDomain.ENERGY_EFFICIENCY, "photovoltaic"): (
         "Select for photovoltaic panels, arrays, inverters, or solar PV generation systems. "
         "Do not use for generic electrical works or non-PV renewable equipment."
+    ),
+    (ComponentDomain.ENERGY_EFFICIENCY, "battery_storage"): (
+        "Select for batteries or battery energy-storage systems whose named function is storing "
+        "electrical energy. Do not use for photovoltaic generation, generic electrical works, "
+        "or non-battery thermal storage."
     ),
     (ComponentDomain.ENERGY_EFFICIENCY, "lighting"): (
         "Select for lighting systems, luminaires, LED retrofits, or lighting controls when "
