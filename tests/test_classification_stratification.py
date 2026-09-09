@@ -40,29 +40,39 @@ def _records() -> tuple[StratificationRecord, ...]:
         "energy_efficiency",
         "resilience_fire",
     )
+    component_counts = (
+        ComponentCountBand.ZERO,
+        ComponentCountBand.ONE,
+        ComponentCountBand.MULTI,
+        ComponentCountBand.AMBIGUOUS,
+    )
     rows = []
-    for i in range(12):
+    for i in range(16):
+        component_count = component_counts[i % len(component_counts)]
+        record_domains = () if component_count is ComponentCountBand.ZERO else (
+            domains[i % len(domains)],
+        )
         rows.append(
             StratificationRecord(
                 operation_code=f"OP-{i:02d}",
-                domains=(domains[i % len(domains)],),
+                domains=record_domains,
                 scope_length_band=(
                     ScopeLengthBand.SHORT if i % 2 == 0 else ScopeLengthBand.LONG
                 ),
-                component_count_band=(
-                    ComponentCountBand.ONE if i % 3 == 0 else ComponentCountBand.MULTI
-                ),
+                component_count_band=component_count,
                 procurement_band=(
                     ProcurementBand.KNOWN_PROCUREMENT,
                     ProcurementBand.NO_RELEVANT_TED_FOUND,
                     ProcurementBand.AMBIGUOUS_CANDIDATE,
                 )[i % 3],
                 expected_project_state=(
-                    ProjectState.UNRESOLVED if i == 4 else ProjectState.CLOSED
+                    ProjectState.UNRESOLVED
+                    if component_count in {ComponentCountBand.ZERO, ComponentCountBand.AMBIGUOUS}
+                    else ProjectState.CLOSED
                 ),
-                geography="Lombardia" if i < 6 else "Other",
+                geography="Lombardia" if i < 8 else "Sardegna",
                 size_band="SMALL" if i % 2 == 0 else "LARGE",
-                time_band="EARLY" if i < 6 else "LATE",
+                time_band="EARLY" if i < 8 else "LATE",
                 description_precision_band=(
                     DescriptionPrecisionBand.HIGH
                     if i % 2 == 0
@@ -82,19 +92,26 @@ def test_stratified_selection_is_deterministic_and_covers_required_strata() -> N
         projects,
         records,
         selection_seed="round-001",
-        target_size=10,
+        target_size=12,
     )
     second = select_stratified_benchmark(
         tuple(reversed(projects)),
         tuple(reversed(records)),
         selection_seed="round-001",
-        target_size=10,
+        target_size=12,
     )
 
     assert [p.operation_code for p in first.projects] == [
         p.operation_code for p in second.projects
     ]
-    assert len(first.projects) == 10
+    assert len(first.projects) == 12
+    counts = {record.component_count_band for record in first.records}
+    assert counts == {
+        ComponentCountBand.ZERO,
+        ComponentCountBand.ONE,
+        ComponentCountBand.MULTI,
+        ComponentCountBand.AMBIGUOUS,
+    }
 
 
 def test_missing_domain_fails_closed() -> None:
@@ -115,7 +132,7 @@ def test_missing_domain_fails_closed() -> None:
             projects,
             records,
             selection_seed="round-001",
-            target_size=10,
+            target_size=12,
         )
 
 
@@ -128,5 +145,22 @@ def test_record_set_must_match_screening_pool_exactly() -> None:
             projects,
             records,
             selection_seed="round-001",
-            target_size=10,
+            target_size=12,
+        )
+
+
+def test_zero_component_count_cannot_claim_supported_domain() -> None:
+    with pytest.raises(StratificationError, match="ZERO component-count"):
+        StratificationRecord(
+            operation_code="OP-ZERO",
+            domains=("energy_efficiency",),
+            scope_length_band=ScopeLengthBand.SHORT,
+            component_count_band=ComponentCountBand.ZERO,
+            procurement_band=ProcurementBand.AMBIGUOUS_CANDIDATE,
+            expected_project_state=ProjectState.UNRESOLVED,
+            geography="Lombardia",
+            size_band="SMALL",
+            time_band="LATE",
+            description_precision_band=DescriptionPrecisionBand.LOW,
+            rationale="No defensible component",
         )
