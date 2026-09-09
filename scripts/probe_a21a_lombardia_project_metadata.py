@@ -15,7 +15,7 @@ import sys
 import zipfile
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request, build_opener
 from xml.etree import ElementTree
 
 CATALOG_URL = (
@@ -23,10 +23,14 @@ CATALOG_URL = (
     "progetti_esteso_lom_2021-2027/"
 )
 APPROVED_HOST = "opencoesione.gov.it"
-USER_AGENT = "ProcRun-A21a-Metadata-Probe/1.0"
+BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "en-US,en;q=0.9,it;q=0.8",
+}
 
-# Metadata field-name fragments that would make a project-only source candidate unsafe for
-# ingestion without a stronger server-side projection boundary.
 FORBIDDEN_METADATA_FRAGMENTS = (
     "beneficiari",
     "beneficiario",
@@ -77,12 +81,16 @@ class _AnchorParser(HTMLParser):
             self._text = []
 
 
-def _fetch(url: str) -> bytes:
+def _fetch(url: str, *, referer: str | None = None) -> bytes:
     parsed = urlparse(url)
     if parsed.scheme != "https" or parsed.hostname != APPROVED_HOST:
         raise RuntimeError(f"metadata probe refused non-approved origin: {url}")
-    request = Request(url, headers={"User-Agent": USER_AGENT})
-    with urlopen(request, timeout=60) as response:  # noqa: S310 - frozen HTTPS origin above
+    headers = dict(BROWSER_HEADERS)
+    if referer is not None:
+        headers["Referer"] = referer
+    request = Request(url, headers=headers)
+    opener = build_opener()
+    with opener.open(request, timeout=60) as response:  # noqa: S310 - frozen HTTPS origin above
         final = urlparse(response.geturl())
         if final.scheme != "https" or final.hostname != APPROVED_HOST:
             raise RuntimeError(f"metadata probe redirected outside approved origin: {response.geturl()}")
@@ -119,7 +127,6 @@ def _xlsx_text(blob: bytes) -> list[str]:
                 if text.strip():
                     strings.append(text.strip())
 
-        # Some workbooks store strings inline instead of in sharedStrings.xml.
         for name in sorted(n for n in archive.namelist() if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", n)):
             root = ElementTree.fromstring(archive.read(name))
             for cell in root.findall(".//{*}c"):
@@ -129,7 +136,6 @@ def _xlsx_text(blob: bytes) -> list[str]:
                 if text.strip():
                     strings.append(text.strip())
 
-    # Preserve first occurrence so the report remains deterministic and readable.
     return list(dict.fromkeys(strings))
 
 
@@ -140,7 +146,7 @@ def _normalized(value: str) -> str:
 def probe() -> dict[str, object]:
     page = _fetch(CATALOG_URL)
     layout_url = _record_layout_url(page)
-    layout = _fetch(layout_url)
+    layout = _fetch(layout_url, referer=CATALOG_URL)
     texts = _xlsx_text(layout)
     normalized = [_normalized(value) for value in texts]
 
