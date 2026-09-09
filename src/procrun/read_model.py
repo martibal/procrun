@@ -11,12 +11,13 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from procrun.component_engine import EvidenceSpan
 from procrun.domain import ComponentState, EvidenceField, ProjectState
 from procrun.ledger import content_sha256
 from procrun.matching import CandidateDisposition
 from procrun.runway import RunwayComponentResult, RunwayResult
 
-READ_MODEL_VERSION = "customer-runway-v2"
+READ_MODEL_VERSION = "customer-runway-v3"
 
 
 class ReadModelInvariantError(ValueError):
@@ -179,42 +180,52 @@ def _component(item: RunwayComponentResult) -> RunwayComponent:
 
 def unresolved_source_evidence(
     state: ProjectState,
-    components: tuple[RunwayComponent, ...],
+    project_scope_text: str,
+    unmatched_scope_spans: tuple[EvidenceSpan, ...],
 ) -> tuple[SourceSpan, ...]:
-    """Expose verbatim project wording only for components driving an UNRESOLVED project.
+    """Expose only source text that actually caused a scope-boundary UNRESOLVED condition.
 
-    The text is never generated or paraphrased. It is the exact project-source span already used by
-    the component layer. Duplicate spans are collapsed so one source sentence can explain multiple
-    unresolved components without repeating in the customer table.
+    An UNRESOLVED state can also be caused by procurement review-band evidence or incomplete source
+    coverage. Those causes do not justify pretending that project wording was the trigger, so this
+    field is empty unless the component extractor left exact source spans unmatched.
     """
 
-    if state is not ProjectState.UNRESOLVED:
+    if state is not ProjectState.UNRESOLVED or not unmatched_scope_spans:
         return ()
 
-    unresolved_components = tuple(
-        component for component in components if component.state is ComponentState.UNRESOLVED
-    )
-    if not unresolved_components:
-        raise ReadModelInvariantError(
-            "UNRESOLVED project must expose at least one unresolved component source span"
+    result: list[SourceSpan] = []
+    seen: set[tuple[int, int, str]] = set()
+    for span in unmatched_scope_spans:
+        if span.end <= span.start or span.end > len(project_scope_text):
+            raise ReadModelInvariantError("unresolved source span offsets are invalid")
+        if project_scope_text[span.start : span.end] != span.text:
+            raise ReadModelInvariantError(
+                "unresolved source evidence must match the exact project source span"
+            )
+        key = (span.start, span.end, span.text)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(
+            SourceSpan(
+                source_field="project_scope_text",
+                text=span.text,
+                start=span.start,
+                end=span.end,
+            )
         )
-
-    unique: list[SourceSpan] = []
-    seen: set[tuple[str, int, int, str]] = set()
-    for component in unresolved_components:
-        span = component.project_evidence
-        key = (span.source_field, span.start, span.end, span.text)
-        if key not in seen:
-            unique.append(span)
-            seen.add(key)
-    return tuple(unique)
+    return tuple(result)
 
 
 def build_runway_read_model(result: RunwayResult) -> RunwayProject:
     """Build the frozen browser/API contract and attach a deterministic content hash."""
 
     components = tuple(_component(item) for item in result.components)
-    unresolved_evidence = unresolved_source_evidence(result.assessment.state, components)
+    unresolved_evidence = unresolved_source_evidence(
+        result.assessment.state,
+        result.project.project_scope_text,
+        result.extraction.unmatched_scope_spans,
+    )
     hash_payload = {
         "operation_code": result.project.operation_code,
         "project_title": result.project.project_title,
