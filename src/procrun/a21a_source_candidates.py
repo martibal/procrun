@@ -76,14 +76,15 @@ CANDIDATES: dict[str, A21aSourceCandidate] = {
     ),
     "lombardia_pr_fesr_socrata": A21aSourceCandidate(
         source_id="lombardia_pr_fesr_socrata",
-        status=CandidateStatus.CONDITIONAL,
+        status=CandidateStatus.BLOCKED,
         route="https://www.dati.lombardia.it/resource/q78n-g3m9.json",
         reason=(
-            "Server-side field projection is proven and the dataset contains the required project "
-            "description field. However, the public contract does not guarantee that arbitrary "
-            "free-text values in descrizione_operazione are free of natural-person data. Under the "
-            "absolute zero-PII rule, structural projection alone is insufficient to attest a bulk "
-            "source package as ZERO_PII_CONFIRMED."
+            "Server-side projection is proven and can exclude beneficiary columns before receipt, "
+            "but Regione Lombardia's public Open Data governance explicitly allows datasets "
+            "containing personal data to be published after a legality/necessity assessment. No "
+            "dataset-specific public contract guarantees that descrizione_operazione is free of "
+            "natural-person data. Therefore this source cannot satisfy ProcRun's absolute zero-PII "
+            "pre-receipt requirement for A21a verbatim evidence text."
         ),
         row_ingest_allowed=False,
         metadata_probe_allowed=True,
