@@ -1,6 +1,7 @@
 from datetime import date
 
 import pytest
+from pydantic import ValidationError
 
 from procrun.classification_stratification import (
     ComponentCountBand,
@@ -150,7 +151,7 @@ def test_record_set_must_match_screening_pool_exactly() -> None:
 
 
 def test_zero_component_count_cannot_claim_supported_domain() -> None:
-    with pytest.raises(StratificationError, match="ZERO component-count"):
+    with pytest.raises(ValidationError, match="ZERO component-count"):
         StratificationRecord(
             operation_code="OP-ZERO",
             domains=("energy_efficiency",),
