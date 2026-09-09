@@ -16,7 +16,7 @@ from procrun.ledger import content_sha256
 from procrun.matching import CandidateDisposition
 from procrun.runway import RunwayComponentResult, RunwayResult
 
-READ_MODEL_VERSION = "customer-runway-v1"
+READ_MODEL_VERSION = "customer-runway-v2"
 
 
 class ReadModelInvariantError(ValueError):
@@ -72,6 +72,7 @@ class RunwayProject(PublicModel):
     state: ProjectState
     cutoff_date: date
     components: tuple[RunwayComponent, ...]
+    unresolved_source_evidence: tuple[SourceSpan, ...]
     orchestration_version: str
     component_rule_version: str
     match_rule_version: str
@@ -176,10 +177,44 @@ def _component(item: RunwayComponentResult) -> RunwayComponent:
     )
 
 
+def unresolved_source_evidence(
+    state: ProjectState,
+    components: tuple[RunwayComponent, ...],
+) -> tuple[SourceSpan, ...]:
+    """Expose verbatim project wording only for components driving an UNRESOLVED project.
+
+    The text is never generated or paraphrased. It is the exact project-source span already used by
+    the component layer. Duplicate spans are collapsed so one source sentence can explain multiple
+    unresolved components without repeating in the customer table.
+    """
+
+    if state is not ProjectState.UNRESOLVED:
+        return ()
+
+    unresolved_components = tuple(
+        component for component in components if component.state is ComponentState.UNRESOLVED
+    )
+    if not unresolved_components:
+        raise ReadModelInvariantError(
+            "UNRESOLVED project must expose at least one unresolved component source span"
+        )
+
+    unique: list[SourceSpan] = []
+    seen: set[tuple[str, int, int, str]] = set()
+    for component in unresolved_components:
+        span = component.project_evidence
+        key = (span.source_field, span.start, span.end, span.text)
+        if key not in seen:
+            unique.append(span)
+            seen.add(key)
+    return tuple(unique)
+
+
 def build_runway_read_model(result: RunwayResult) -> RunwayProject:
     """Build the frozen browser/API contract and attach a deterministic content hash."""
 
     components = tuple(_component(item) for item in result.components)
+    unresolved_evidence = unresolved_source_evidence(result.assessment.state, components)
     hash_payload = {
         "operation_code": result.project.operation_code,
         "project_title": result.project.project_title,
@@ -193,6 +228,7 @@ def build_runway_read_model(result: RunwayResult) -> RunwayProject:
         "state": result.assessment.state,
         "cutoff_date": result.cutoff_date,
         "components": components,
+        "unresolved_source_evidence": unresolved_evidence,
         "orchestration_version": result.orchestration_version,
         "component_rule_version": result.component_rule_version,
         "match_rule_version": result.match_rule_version,
@@ -213,6 +249,7 @@ def build_runway_read_model(result: RunwayResult) -> RunwayProject:
         state=result.assessment.state,
         cutoff_date=result.cutoff_date,
         components=components,
+        unresolved_source_evidence=unresolved_evidence,
         orchestration_version=result.orchestration_version,
         component_rule_version=result.component_rule_version,
         match_rule_version=result.match_rule_version,
