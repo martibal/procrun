@@ -19,6 +19,10 @@ def categories(result) -> set[str]:
     return {item.component.category for item in result.components}
 
 
+def test_component_rule_version_is_v2() -> None:
+    assert COMPONENT_RULE_VERSION == "component-taxonomy-v2"
+
+
 def test_water_rules_extract_exact_source_spans() -> None:
     scope = (
         "A operação inclui bombas e válvulas. "
@@ -135,3 +139,71 @@ def test_unmatched_sentence_requests_fallback_without_discarding_rule_matches() 
     assert [span.text for span in result.unmatched_scope_spans] == [
         "Inclui ainda uma intervenção técnica especial."
     ]
+
+
+def test_italian_energy_scope_extracts_photovoltaic_storage_and_lighting() -> None:
+    scope = (
+        "Installazione impianto fotovoltaico di potenza 22,2 kWp, "
+        "installazione sistema di accumulo capacità 27 kWh, relamping."
+    )
+    result = extract_components(project(scope), (ComponentDomain.ENERGY_EFFICIENCY,))
+
+    assert categories(result) == {
+        "energy_efficiency:photovoltaic",
+        "energy_efficiency:battery_storage",
+        "energy_efficiency:lighting",
+    }
+    assert result.model_fallback_required is False
+    assert result.unmatched_scope_spans == ()
+    for item in result.components:
+        for span in item.evidence_spans:
+            assert scope[span.start : span.end] == span.text
+
+
+def test_italian_water_scope_extracts_multiple_exact_components() -> None:
+    scope = "Impianti di trattamento con pompe, valvole e sistema di controllo."
+    result = extract_components(project(scope), (ComponentDomain.WATER_WASTEWATER,))
+
+    assert categories(result) == {
+        "water_wastewater:treatment_equipment",
+        "water_wastewater:pumps",
+        "water_wastewater:valves",
+        "water_wastewater:automation_control",
+    }
+    assert result.model_fallback_required is False
+
+
+def test_italian_rail_scope_extracts_track_signalling_and_crossing() -> None:
+    scope = "Rinnovo binario, segnalamento ferroviario e passaggio a livello."
+    result = extract_components(project(scope), (ComponentDomain.RAIL_TRANSPORT,))
+
+    assert categories(result) == {
+        "rail_transport:track",
+        "rail_transport:signalling",
+        "rail_transport:crossings",
+    }
+    assert result.model_fallback_required is False
+
+
+def test_italian_port_scope_extracts_marine_and_coastal_work() -> None:
+    scope = "Opere portuali con dragaggio e difesa costiera."
+    result = extract_components(project(scope), (ComponentDomain.PORTS_COASTAL,))
+
+    assert categories(result) == {
+        "ports_coastal:marine_works",
+        "ports_coastal:dredging",
+        "ports_coastal:coastal_protection",
+    }
+    assert result.model_fallback_required is False
+
+
+def test_italian_fire_scope_extracts_sensors_communications_and_vehicles() -> None:
+    scope = "Sensori e telecamere, rete radio e veicoli per la risposta antincendio."
+    result = extract_components(project(scope), (ComponentDomain.RESILIENCE_FIRE,))
+
+    assert categories(result) == {
+        "resilience_fire:sensors_cameras",
+        "resilience_fire:communications",
+        "resilience_fire:vehicles",
+    }
+    assert result.model_fallback_required is False

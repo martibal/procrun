@@ -38,7 +38,7 @@ class ComponentBenchmarkCase(StrictModel):
 
 class ComponentBenchmarkCorpus(StrictModel):
     schema_version: Literal["component-benchmark-v1"] = "component-benchmark-v1"
-    language: Literal["pt-PT"] = "pt-PT"
+    language: Literal["pt-PT", "it-IT"] = "pt-PT"
     cases: tuple[ComponentBenchmarkCase, ...]
 
 

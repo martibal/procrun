@@ -1,15 +1,15 @@
 # ProcRun component engine
 
-Status date: 2026-09-03
-Status: **CANONICAL FOR FUNDED-PROJECT RUNWAY**
+Status date: 2026-09-09
+Status: **A21 V2 REMEDIATION IN VALIDATION**
 
 ## Governing rule
 
 The component engine converts only approved funded-project scope text into evidence-backed purchasable component categories. It is not a generic LLM decomposition layer and it is not a TED-only demand extractor.
 
-Current deterministic rule version: `component-taxonomy-v1`.
+Current remediation rule version: `component-taxonomy-v2`.
 
-## Frozen initial domains
+## Frozen domains
 
 - `water_wastewater`
 - `rail_transport`
@@ -17,7 +17,9 @@ Current deterministic rule version: `component-taxonomy-v1`.
 - `energy_efficiency`
 - `resilience_fire`
 
-Each domain has explicit Portuguese/English phrase rules and optional CPV hints. Domain selection is explicit input; the engine does not silently guess a domain from arbitrary text.
+The v2 deterministic phrase layer retains the existing Portuguese/English rules and adds conservative Italian extraction vocabulary for the A21 Italian validation corpus. Domain selection remains explicit input; the engine does not silently guess a domain from arbitrary text.
+
+`energy_efficiency:battery_storage` is added as an explicit frozen category because the A21 blind source-text adjudication exposed source-evidenced battery-storage demand that v1 could not represent.
 
 ## Evidence contract
 
@@ -55,9 +57,11 @@ A production-approved model may only:
 
 It may not create source text, assign procurement evidence, set component state, set project state or override matching/coverage gates. Ambiguous output remains unresolved.
 
+The v2 model-category guidance must cover the exact v2 taxonomy, including `energy_efficiency:battery_storage`.
+
 ## CPV use
 
-CPV prefixes are category hints, never standalone evidence that a funded-project component has entered procurement. The current precise mappings include pumps, valves, water-treatment equipment, railway signalling/track/catenary, photovoltaic systems, HVAC, insulation, lighting, energy-efficiency consultancy, surveillance sensors and emergency-service vehicles.
+CPV prefixes are category hints, never standalone evidence that a funded-project component has entered procurement. Battery storage is intentionally added without inventing a new CPV mapping; a future CPV mapping requires separate qualification.
 
 ## Fail-closed invariants
 
@@ -68,3 +72,4 @@ CPV prefixes are category hints, never standalone evidence that a funded-project
 - CPV agreement never establishes CLOSED by itself.
 - Model output cannot bypass exact-span/category validation.
 - Taxonomy changes require explicit versioning and regression tests.
+- The separately frozen A21 holdout must not be used to author v2 rules.
