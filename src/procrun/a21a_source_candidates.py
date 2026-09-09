@@ -74,6 +74,25 @@ CANDIDATES: dict[str, A21aSourceCandidate] = {
         requires_server_side_projection=True,
         forbidden_full_dataset_fields=("Codice Fiscale Titolare", "Descrizione Titolare"),
     ),
+    "lombardia_pr_fesr_socrata": A21aSourceCandidate(
+        source_id="lombardia_pr_fesr_socrata",
+        status=CandidateStatus.CONDITIONAL,
+        route="https://www.dati.lombardia.it/resource/q78n-g3m9.json",
+        reason=(
+            "Server-side field projection is proven and the dataset contains the required project "
+            "description field. However, the public contract does not guarantee that arbitrary "
+            "free-text values in descrizione_operazione are free of natural-person data. Under the "
+            "absolute zero-PII rule, structural projection alone is insufficient to attest a bulk "
+            "source package as ZERO_PII_CONFIRMED."
+        ),
+        row_ingest_allowed=False,
+        metadata_probe_allowed=True,
+        requires_server_side_projection=True,
+        forbidden_full_dataset_fields=(
+            "nome_del_beneficiario",
+            "codice_del_beneficiario",
+        ),
+    ),
 }
 
 
