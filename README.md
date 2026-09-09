@@ -11,7 +11,7 @@ formelt og permanent lukket — ikke satt på vent.
 Ingen fremtidig oppgave i dette prosjektet skal noensinne innebære: e-post, skjema, kontaktside,
 telefon, intervju, betalt konsulent-/juristvurdering rettet mot en kildeeier, eller noen annen kanal der et
 menneske må svare før arbeidet kan fortsette. Hvis en fremtidig kildevurdering lander på at kontakt er
-eneste vei til godkjenning, er konklusjonen **avvis kilden**, ikke **send en henvendelse**.
+neste vei til godkjenning, er konklusjonen **avvis kilden**, ikke **send en henvendelse**.
 
 # ProcRun
 
@@ -19,18 +19,26 @@ ProcRun is an evidence-first infrastructure procurement product for suppliers.
 
 ## Canonical decision
 
-**Status: WEB PRODUCT BUILD: GO. CORE PRODUCT DELIVERY AND PRE-WEB RELEASE HOUSEKEEPING ARE GREEN.**
+**Status: WEB PRODUCT BUILD: GO. CLASSIFICATION ENGINE PRODUCT VALIDATION: NOT YET GREEN.**
 
 Canonical specification: `docs/PRODUCT_FOUNDATION_FINAL.md`.
-Authoritative build/release decision: `docs/BUILD_GATES.md`, gate A20.
+Authoritative build/release decisions: `docs/BUILD_GATES.md`, gates A20 and A21.
+Classification-engine release gate: `docs/CLASSIFICATION_ENGINE_VALIDATION_GATE.md`.
 Frozen pre-web baseline: `docs/PREWEB_RELEASE_BASELINE.md`.
 Sequencing rule: `docs/DELIVERY_READINESS_GATE.md`.
 
+A20 authorizes the web build and records operational source/delivery readiness. A21 separately governs
+whether the final classification engine has been empirically validated as the paid core product. Green
+unit tests or successful production ingestion do not substitute for A21.
+
 ## Permanent sequencing rule
 
-Web implementation is the final product-development phase. That phase is now authorized because the complete non-web intelligence delivery chain has passed production acceptance.
+Web implementation is authorized because the complete non-web delivery chain has passed production
+acceptance. This authorization does not itself close empirical classification validation.
 
-The existing fixture/shell under `web/` is non-authoritative and may be replaced. It does not constrain the visual implementation, but the frozen customer-safe data, source, coverage, privacy and evidence contracts do constrain it.
+The existing fixture/shell under `web/` is non-authoritative and may be replaced. It does not constrain
+the visual implementation, but the frozen customer-safe data, source, coverage, privacy and evidence
+contracts do constrain it.
 
 ## Approved sources
 
@@ -63,10 +71,20 @@ The dedicated production runtime has completed this path on live sources: 4,631 
 
 The customer application may consume only `src/procrun/read_model.py` (`customer-runway-v1`) or an explicitly versioned successor approved under the same customer-safe boundary.
 
+## Classification-engine product validation
+
+The implementation exists and is fail-closed, but the paid-core classification engine is not declared
+empirically product-validated until A21 passes the frozen real-project benchmark. A21 requires an
+independent gold standard, a general holdout, complete adjudication of the release-candidate OPEN
+population, zero observed false OPEN, strict CLOSED/matching/cutoff/coverage thresholds, adversarial
+testing and deterministic regression proof.
+
+Until then the only valid engine-level product-validation status is:
+
+**CLASSIFICATION ENGINE PRODUCT VALIDATION: NOT YET GREEN.**
+
 ## Current engineering instruction
 
-**CONTINUE WITH THE CUSTOMER-FACING WEB PRODUCT BUILD.**
-
-The web phase includes GUI/UX, authentication/account handling, customer control-plane separation, Stripe/subscription integration if used, VAT/invoicing implementation, Terms/Privacy and merchant identity presentation, domain/TLS, customer-facing source attribution/methodology, security/access controls and final launch testing.
-
-Those web/control-plane items are mandatory before public paid launch, but they are not pre-web blockers. No further OpenCoesione/TED production replay is required merely because documentation or web code changes.
+Classification-engine validation work must follow `docs/CLASSIFICATION_ENGINE_VALIDATION_GATE.md`.
+The benchmark/gold-standard package must be frozen before release-candidate scoring and must not be
+silently weakened under launch pressure.

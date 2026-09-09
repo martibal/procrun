@@ -1,9 +1,10 @@
 # ProcRun final build and release gates
 
-Status: **PRE-WEB RELEASE READINESS GREEN; WEB PRODUCT BUILD AUTHORIZED.**
+Status: **WEB PRODUCT BUILD AUTHORIZED; CLASSIFICATION ENGINE PRODUCT VALIDATION NOT YET GREEN.**
 Canonical product spec: `docs/PRODUCT_FOUNDATION_FINAL.md`
 Pre-web baseline: `docs/PREWEB_RELEASE_BASELINE.md`
 Sequencing rule: `docs/DELIVERY_READINESS_GATE.md`
+Classification product-validation gate: `docs/CLASSIFICATION_ENGINE_VALIDATION_GATE.md`
 
 These gates are authoritative. Historical product files cannot override them.
 
@@ -49,7 +50,7 @@ Component states are `OPEN`, `CLOSED`, `UNRESOLVED`. Project states are `OPEN`, 
 
 ## A6 — Permanent sequencing rule
 
-Web implementation is the final product-development phase. The complete non-web delivery chain is now production-ready, so the sequencing prerequisite is satisfied.
+Web implementation is authorized because the complete non-web delivery chain has passed production acceptance. This sequencing decision does **not** constitute empirical product validation of classification correctness under A21.
 
 The existing fixture/shell web code remains non-authoritative; authorization to begin web development does not retroactively validate it.
 
@@ -57,14 +58,14 @@ The existing fixture/shell web code remains non-authoritative; authorization to 
 
 Do not claim complete Portuguese procurement coverage, complete Italian public-investment coverage, complete bill of materials, every future purchase, guaranteed lead time, win probability, buyer-person intelligence or source/EU endorsement. TED-scoped absence must never be shortened into national absence. OpenCoesione coverage remains limited to the approved 2021-2027 EU-cohesion operation-list universe.
 
-## A8 — Pre-web release controls
+## A8 — Pre-web delivery controls
 
-**PASS.** All controls that genuinely belong to the non-web intelligence product are closed:
+**PASS.** All controls that genuinely belong to the non-web delivery chain are closed:
 
 - approved source contracts and permanent no-contact rule;
 - zero-PII intelligence boundary;
 - live source transfer and complete TED retrieval;
-- deterministic component/runway classification and safe abstention;
+- deterministic component/runway implementation and safe abstention behaviour;
 - frozen customer-safe read model and source attribution text;
 - append-only PostgreSQL persistence and run manifest;
 - dedicated production runtime and secrets outside Git;
@@ -74,23 +75,25 @@ Do not claim complete Portuguese procurement coverage, complete Italian public-i
 - fail-closed operational semantics;
 - compliance/no-contact/static/type/test/TED-contract CI.
 
+A8 proves delivery readiness and implementation integrity. It does **not** replace the A21 empirical classification-engine product-validation gate.
+
 Customer application concerns — auth, Stripe, subscriptions, VAT/invoicing implementation, merchant identity presentation, Terms/Privacy pages, customer-control-plane processors, domain/TLS, cookies/logging and final rendered attribution — are part of the authorized web product phase. They remain mandatory before public paid launch, but are not prerequisites for starting that phase.
 
 No external legal review or human response is an allowed gate-closing mechanism.
 
-## A19 — Launch readiness excluding customer web application
+## A19 — Launch readiness excluding customer web application and empirical classification validation
 
 **A19 PRE-WEB RELEASE READINESS: PASS.**
 
-The non-web intelligence product is production-ready. The remaining work is the customer-facing application and the controls inherently attached to that application.
+The non-web intelligence delivery path is operationally production-ready. Empirical classification-engine product validation is separately governed by A21 and remains open until its frozen real-project benchmark passes.
 
-The production delivery evidence was established on runtime release `51c0071fe20011bb407d50c1df63a9d35ef68e76`. Subsequent pre-web housekeeping changes are documentation/regression-gate changes and do not alter production-delivery semantics; they require green repository CI but not a repeat of the 176,540-notice production ingest.
+The production delivery evidence was established on runtime release `51c0071fe20011bb407d50c1df63a9d35ef68e76`. Subsequent housekeeping or validation-harness changes require green repository CI but not a repeat of the 176,540-notice production ingest unless classification/source semantics themselves require it.
 
-## A20 — Authoritative readiness
+## A20 — Web-build authorization and delivery readiness
 
-A20 is the only authoritative readiness source.
+A20 remains authoritative for web-build authorization, source/delivery readiness and the operational production path. It does not override A21 on empirical classification correctness.
 
-**A20 WEB BUILD: GO — CORE PRODUCT DELIVERY IS PRODUCTION-READY. CUSTOMER APPLICATION IS THE SOLE REMAINING PRODUCT-DEVELOPMENT PHASE.**
+**A20 WEB BUILD: GO — CUSTOMER APPLICATION DEVELOPMENT IS AUTHORIZED.**
 
 **A20 LIVE PORTUGAL OPEN CLASSIFICATION: APPROVED (TED-SCOPED).**
 
@@ -108,8 +111,34 @@ Exact definition: **No relevant procurement found in TED as of DATE.** This does
 
 **A20 PRE-WEB RELEASE HOUSEKEEPING: PASS.**
 
-**A20 PRODUCT LAUNCH READINESS: NOT YET COMPLETE — AUTHORIZED WEB PRODUCT PHASE REMAINS.**
+Web development may proceed. A20 may not be cited as evidence that the classification engine has passed the independent real-project gold-standard benchmark.
 
-Web development may now proceed. Public/paid launch remains blocked until the web-phase launch controls — including authentication/authorization, billing/Stripe if used, customer legal/privacy presentation, control-plane privacy, TLS/domain, source attribution, security and final end-to-end checkout/access tests — are green.
+## A21 — Classification-engine empirical product validation
 
-No other README/spec/history file may claim broader source coverage or launch readiness than this A20 decision.
+**A21 CLASSIFICATION ENGINE PRODUCT VALIDATION: NOT YET GREEN.**
+
+Authoritative specification: `docs/CLASSIFICATION_ENGINE_VALIDATION_GATE.md`.
+
+A21 is the sole hard pass/fail gate for claims that ProcRun's final classification engine is empirically validated as the core paid product. Implementation completeness, unit tests, live production ingestion and green A20 delivery controls do not close A21.
+
+A21 requires, among other frozen conditions:
+
+- at least 200 real funded projects, or the complete qualifying universe if smaller;
+- a disjoint >=25% general holdout;
+- independent pre-frozen gold-standard components, evidence and states;
+- complete adjudication of the dedicated release-candidate OPEN population;
+- zero observed false OPEN;
+- <=1% false CLOSED on holdout;
+- >=95% exact ProjectState and ComponentState accuracy;
+- >=95% component recall and >=98% component precision;
+- 100% accepted CLOSED-match precision on holdout;
+- 100% cutoff and coverage fail-closed integrity;
+- a frozen adversarial suite with no Critical failure;
+- three identical deterministic runs; and
+- permanent regression gating after first GO.
+
+If the same causal mechanism produces false OPEN in two separately frozen evaluation rounds, that mechanism is retired from OPEN-producing use and must fail closed to `UNRESOLVED` unless a new explicitly versioned mechanism later passes fresh independent validation.
+
+The older local-model/component benchmark remains a continuous quality/diagnostic surface. It is not a competing final-classification release gate.
+
+No file may claim **PRODUCT VALIDATED — CLASSIFICATION ENGINE: GO** until A21 itself is green.
