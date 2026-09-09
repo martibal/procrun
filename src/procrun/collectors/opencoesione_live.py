@@ -1,10 +1,9 @@
 """Production transport for the approved OpenCoesione 2021-2027 operation-list route.
 
-The OpenCoesione site may require a normal same-site session before serving the
-public ZIP to automated infrastructure. This module performs only two GETs on
-the already-approved public origin: the publication landing page, followed by
-the frozen Lombardia ZIP route. It does not broaden the source contract or
-admit any additional fields.
+The public OpenCoesione landing page may reject cloud-runner traffic even when the
+frozen ZIP itself remains public. The collector therefore treats the landing page
+as optional transport setup and may fetch the already-frozen ZIP route directly.
+It does not broaden the source contract or admit any additional fields.
 """
 
 from __future__ import annotations
@@ -61,10 +60,36 @@ def _validate_zip_final_url(url: str) -> None:
         )
 
 
+def _fetch_frozen_zip(active_client: httpx.Client) -> httpx.Response:
+    """Fetch only frozen approved ZIP routes, tolerating landing-page bot blocking."""
+    referer: str | None = None
+    landing = active_client.get(
+        OPENCOESIONE_PUBLICATION_PAGE,
+        headers={"Accept": "text/html,application/xhtml+xml"},
+    )
+    if landing.is_success:
+        if not _same_origin(str(landing.url)):
+            raise OpenCoesioneSchemaError(
+                f"publication page redirected outside approved origin: {landing.url}"
+            )
+        referer = OPENCOESIONE_PUBLICATION_PAGE
+
+    headers = {
+        "Accept": "application/zip,application/octet-stream;q=0.9,*/*;q=0.1",
+    }
+    if referer is not None:
+        headers["Referer"] = referer
+
+    response = active_client.get(OPENCOESIONE_PROGRAM_URL, headers=headers)
+    if response.status_code == 403:
+        response = active_client.get(OPENCOESIONE_CANONICAL_ZIP_URL, headers=headers)
+    return response
+
+
 def collect_open_coesione_live(
     *, client: httpx.Client | None = None, timeout_seconds: float = 60.0
 ) -> OpenCoesioneBatch:
-    """Fetch through a same-site session and fail closed before row admission."""
+    """Fetch the frozen source route and fail closed before row admission."""
     contract = require_live_source(OPENCOESIONE_SOURCE_ID)
     if OPENCOESIONE_PROGRAM_URL not in contract.retrieval_route:
         raise OpenCoesioneSchemaError("runtime source contract does not pin the pilot route")
@@ -76,23 +101,7 @@ def collect_open_coesione_live(
         headers=_BROWSER_HEADERS,
     )
     try:
-        landing = active_client.get(
-            OPENCOESIONE_PUBLICATION_PAGE,
-            headers={"Accept": "text/html,application/xhtml+xml"},
-        )
-        landing.raise_for_status()
-        if not _same_origin(str(landing.url)):
-            raise OpenCoesioneSchemaError(
-                f"publication page redirected outside approved origin: {landing.url}"
-            )
-
-        response = active_client.get(
-            OPENCOESIONE_PROGRAM_URL,
-            headers={
-                "Accept": "application/zip,application/octet-stream;q=0.9,*/*;q=0.1",
-                "Referer": OPENCOESIONE_PUBLICATION_PAGE,
-            },
-        )
+        response = _fetch_frozen_zip(active_client)
         response.raise_for_status()
         _validate_zip_final_url(str(response.url))
         content_type = response.headers.get("content-type", "").lower()
