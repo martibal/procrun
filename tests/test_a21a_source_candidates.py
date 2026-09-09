@@ -36,20 +36,20 @@ def test_openbdap_is_closed_after_metadata_utility_gate() -> None:
     assert "Codice Fiscale Titolare" in candidate.forbidden_full_dataset_fields
 
 
-def test_lombardia_socrata_projection_pass_does_not_approve_bulk_text_ingest() -> None:
+def test_lombardia_socrata_is_closed_after_content_safety_review() -> None:
     candidate = require_metadata_probe("lombardia_pr_fesr_socrata")
-    assert candidate.status is CandidateStatus.CONDITIONAL
+    assert candidate.status is CandidateStatus.BLOCKED
     assert candidate.row_ingest_allowed is False
     assert candidate.requires_server_side_projection is True
-    assert "free-text" in candidate.reason
-    assert "ZERO_PII_CONFIRMED" in candidate.reason
+    assert "public Open Data governance" in candidate.reason
+    assert "absolute zero-PII" in candidate.reason
     assert candidate.forbidden_full_dataset_fields == (
         "nome_del_beneficiario",
         "codice_del_beneficiario",
     )
 
 
-def test_no_candidate_can_ingest_rows_yet() -> None:
+def test_no_candidate_can_ingest_rows() -> None:
     for source_id in CANDIDATES:
         with pytest.raises(RuntimeError, match="row ingest not approved"):
             require_row_ingest(source_id)
