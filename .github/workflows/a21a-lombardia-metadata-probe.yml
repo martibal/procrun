@@ -1,0 +1,23 @@
+name: a21a-lombardia-metadata-probe
+
+on:
+  pull_request:
+    paths:
+      - "scripts/probe_a21a_lombardia_project_metadata.py"
+      - ".github/workflows/a21a-lombardia-metadata-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metadata-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Probe published record-layout metadata only
+        run: python scripts/probe_a21a_lombardia_project_metadata.py
