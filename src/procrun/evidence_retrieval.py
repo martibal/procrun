@@ -55,7 +55,7 @@ class SourceEvidenceExcerpt(StrictModel):
     english_translation: str | None = None
 
     @model_validator(mode="after")
-    def validate_span(self) -> "SourceEvidenceExcerpt":
+    def validate_span(self) -> SourceEvidenceExcerpt:
         if self.end_offset <= self.start_offset:
             raise ValueError("evidence end_offset must be greater than start_offset")
         return self
