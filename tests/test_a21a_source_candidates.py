@@ -27,11 +27,12 @@ def test_opencoesione_search_csv_is_blocked() -> None:
     )
 
 
-def test_openbdap_is_metadata_only_candidate() -> None:
+def test_openbdap_is_closed_after_metadata_utility_gate() -> None:
     candidate = require_metadata_probe("openbdap_mop_lombardia_odata")
-    assert candidate.status is CandidateStatus.CONDITIONAL
+    assert candidate.status is CandidateStatus.BLOCKED
     assert candidate.requires_server_side_projection is True
     assert candidate.row_ingest_allowed is False
+    assert "project-title or project-description" in candidate.reason
     assert "Codice Fiscale Titolare" in candidate.forbidden_full_dataset_fields
 
 
