@@ -47,11 +47,21 @@ def _records() -> tuple[StratificationRecord, ...]:
         ComponentCountBand.MULTI,
         ComponentCountBand.AMBIGUOUS,
     )
+    nonzero_procurement = (
+        ProcurementBand.KNOWN_PROCUREMENT,
+        ProcurementBand.NO_RELEVANT_TED_FOUND,
+        ProcurementBand.AMBIGUOUS_CANDIDATE,
+    )
     rows = []
     for i in range(16):
         component_count = component_counts[i % len(component_counts)]
         record_domains = () if component_count is ComponentCountBand.ZERO else (
             domains[i % len(domains)],
+        )
+        procurement_band = (
+            ProcurementBand.NOT_APPLICABLE
+            if component_count is ComponentCountBand.ZERO
+            else nonzero_procurement[i % len(nonzero_procurement)]
         )
         rows.append(
             StratificationRecord(
@@ -61,11 +71,7 @@ def _records() -> tuple[StratificationRecord, ...]:
                     ScopeLengthBand.SHORT if i % 2 == 0 else ScopeLengthBand.LONG
                 ),
                 component_count_band=component_count,
-                procurement_band=(
-                    ProcurementBand.KNOWN_PROCUREMENT,
-                    ProcurementBand.NO_RELEVANT_TED_FOUND,
-                    ProcurementBand.AMBIGUOUS_CANDIDATE,
-                )[i % 3],
+                procurement_band=procurement_band,
                 expected_project_state=(
                     ProjectState.UNRESOLVED
                     if component_count in {ComponentCountBand.ZERO, ComponentCountBand.AMBIGUOUS}
@@ -113,6 +119,13 @@ def test_stratified_selection_is_deterministic_and_covers_required_strata() -> N
         ComponentCountBand.MULTI,
         ComponentCountBand.AMBIGUOUS,
     }
+    zero = next(
+        record
+        for record in first.records
+        if record.component_count_band is ComponentCountBand.ZERO
+    )
+    assert zero.procurement_band is ProcurementBand.NOT_APPLICABLE
+    assert zero.expected_project_state is ProjectState.UNRESOLVED
 
 
 def test_missing_domain_fails_closed() -> None:
@@ -157,6 +170,23 @@ def test_zero_component_count_cannot_claim_supported_domain() -> None:
             domains=("energy_efficiency",),
             scope_length_band=ScopeLengthBand.SHORT,
             component_count_band=ComponentCountBand.ZERO,
+            procurement_band=ProcurementBand.NOT_APPLICABLE,
+            expected_project_state=ProjectState.UNRESOLVED,
+            geography="Lombardia",
+            size_band="SMALL",
+            time_band="LATE",
+            description_precision_band=DescriptionPrecisionBand.LOW,
+            rationale="No defensible component",
+        )
+
+
+def test_zero_component_count_requires_procurement_not_applicable() -> None:
+    with pytest.raises(ValidationError, match="procurement NOT_APPLICABLE"):
+        StratificationRecord(
+            operation_code="OP-ZERO",
+            domains=(),
+            scope_length_band=ScopeLengthBand.SHORT,
+            component_count_band=ComponentCountBand.ZERO,
             procurement_band=ProcurementBand.AMBIGUOUS_CANDIDATE,
             expected_project_state=ProjectState.UNRESOLVED,
             geography="Lombardia",
@@ -164,4 +194,38 @@ def test_zero_component_count_cannot_claim_supported_domain() -> None:
             time_band="LATE",
             description_precision_band=DescriptionPrecisionBand.LOW,
             rationale="No defensible component",
+        )
+
+
+def test_zero_component_count_requires_unresolved_state() -> None:
+    with pytest.raises(ValidationError, match="expected project state UNRESOLVED"):
+        StratificationRecord(
+            operation_code="OP-ZERO",
+            domains=(),
+            scope_length_band=ScopeLengthBand.SHORT,
+            component_count_band=ComponentCountBand.ZERO,
+            procurement_band=ProcurementBand.NOT_APPLICABLE,
+            expected_project_state=ProjectState.OPEN,
+            geography="Lombardia",
+            size_band="SMALL",
+            time_band="LATE",
+            description_precision_band=DescriptionPrecisionBand.LOW,
+            rationale="No defensible component",
+        )
+
+
+def test_procurement_not_applicable_is_forbidden_for_nonzero_components() -> None:
+    with pytest.raises(ValidationError, match="permitted only for ZERO"):
+        StratificationRecord(
+            operation_code="OP-ONE",
+            domains=("energy_efficiency",),
+            scope_length_band=ScopeLengthBand.SHORT,
+            component_count_band=ComponentCountBand.ONE,
+            procurement_band=ProcurementBand.NOT_APPLICABLE,
+            expected_project_state=ProjectState.UNRESOLVED,
+            geography="Lombardia",
+            size_band="SMALL",
+            time_band="LATE",
+            description_precision_band=DescriptionPrecisionBand.LOW,
+            rationale="One component but no procurement judgement",
         )
