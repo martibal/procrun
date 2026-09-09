@@ -129,7 +129,11 @@ class ClassificationValidationMetrics:
         for correct, total, label in (
             (self.project_state_correct, self.project_state_total, "project state"),
             (self.component_state_correct, self.component_state_total, "component state"),
-            (self.accepted_closed_match_correct, self.accepted_closed_match_total, "accepted CLOSED match"),
+            (
+                self.accepted_closed_match_correct,
+                self.accepted_closed_match_total,
+                "accepted CLOSED match",
+            ),
             (self.cutoff_integrity_correct, self.cutoff_integrity_total, "cutoff integrity"),
             (self.coverage_fail_closed_correct, self.coverage_fail_closed_total, "coverage fail-closed"),
         ):
@@ -290,7 +294,8 @@ def evaluate_classification_release_gate(metrics: ClassificationValidationMetric
 
     if metrics.dedicated_open_population_count == 0:
         warnings.append(
-            "release candidate produced no OPEN cases; positive OPEN behaviour was not empirically validated"
+            "release candidate produced no OPEN cases; positive OPEN behaviour was not "
+            "empirically validated"
         )
     if metrics.retired_open_mechanisms:
         warnings.append(
@@ -299,7 +304,11 @@ def evaluate_classification_release_gate(metrics: ClassificationValidationMetric
         )
 
     if failures:
-        decision = GateDecision.NO_GO if critical_errors or metrics.dedicated_open_false_open_count else GateDecision.CONDITIONAL
+        decision = (
+            GateDecision.NO_GO
+            if critical_errors or metrics.dedicated_open_false_open_count
+            else GateDecision.CONDITIONAL
+        )
     else:
         decision = GateDecision.GO
 
