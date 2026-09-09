@@ -40,6 +40,7 @@ class ComponentCountBand(StrEnum):
 
 
 class ProcurementBand(StrEnum):
+    NOT_APPLICABLE = "NOT_APPLICABLE"
     KNOWN_PROCUREMENT = "KNOWN_PROCUREMENT"
     NO_RELEVANT_TED_FOUND = "NO_RELEVANT_TED_FOUND"
     AMBIGUOUS_CANDIDATE = "AMBIGUOUS_CANDIDATE"
@@ -74,8 +75,22 @@ class StratificationRecord(FrozenModel):
         unknown = set(self.domains) - set(SUPPORTED_COMPONENT_DOMAINS)
         if unknown:
             raise StratificationError(f"unknown component domains: {sorted(unknown)}")
-        if self.component_count_band is ComponentCountBand.ZERO and self.domains:
-            raise StratificationError("ZERO component-count cases cannot claim supported domains")
+
+        if self.component_count_band is ComponentCountBand.ZERO:
+            if self.domains:
+                raise StratificationError("ZERO component-count cases cannot claim supported domains")
+            if self.procurement_band is not ProcurementBand.NOT_APPLICABLE:
+                raise StratificationError(
+                    "ZERO component-count cases require procurement NOT_APPLICABLE"
+                )
+            if self.expected_project_state is not ProjectState.UNRESOLVED:
+                raise StratificationError(
+                    "ZERO component-count cases require expected project state UNRESOLVED"
+                )
+        elif self.procurement_band is ProcurementBand.NOT_APPLICABLE:
+            raise StratificationError(
+                "procurement NOT_APPLICABLE is permitted only for ZERO component-count cases"
+            )
         return self
 
 
