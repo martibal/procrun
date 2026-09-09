@@ -1,6 +1,7 @@
 from datetime import date
 
 import pytest
+from pydantic import ValidationError
 
 from procrun.classification_gold import (
     BenchmarkManifest,
@@ -114,7 +115,7 @@ def test_freeze_requires_verbatim_scope_and_pre_cutoff_closed_evidence() -> None
 
 
 def test_gold_project_state_must_match_component_aggregate() -> None:
-    with pytest.raises(GoldStandardError, match="conflicts"):
+    with pytest.raises(ValidationError, match="conflicts"):
         GoldCase(
             operation_code="P001",
             cutoff_date=date(2026, 9, 9),
