@@ -149,6 +149,31 @@ def _title_or_location_matches(project: FundingProject, evidence: ProcurementEvi
     return any(needle in value.casefold() for value in haystacks)
 
 
+def _can_affect_component_state(
+    project: FundingProject,
+    component: PurchaseComponent,
+    evidence: ProcurementEvidence,
+    *,
+    project_reference_codes: Sequence[str],
+) -> bool:
+    """Return whether this evidence can possibly change the frozen component state.
+
+    The production candidate hierarchy can only avoid REJECTED when an exact project identifier is
+    present, or when CPV/category relevance is corroborated by geography/title/location. Filtering
+    the provably-REJECTED remainder before expensive exact-span binding preserves CLOSED/OPEN/
+    UNRESOLVED semantics while preventing broad CPV families from exploding per-project work.
+    """
+
+    if _reference_matches(project, evidence, project_reference_codes):
+        return True
+    rule = _rule_for_component(component)
+    if not rule.cpv_prefixes or not any(
+        cpv_matches_prefixes(code, rule.cpv_prefixes) for code in evidence.cpv_codes
+    ):
+        return False
+    return _geography_matches(project, evidence) or _title_or_location_matches(project, evidence)
+
+
 def build_match_candidate(
     project: FundingProject,
     component: PurchaseComponent,
@@ -196,7 +221,7 @@ def build_match_candidates(
     *,
     project_reference_codes: Sequence[str] = (),
 ) -> tuple[MatchCandidate, ...]:
-    """Build candidates deterministically, preserving input order for reproducibility."""
+    """Build only state-relevant candidates, preserving input order for reproducibility."""
 
     return tuple(
         build_match_candidate(
@@ -206,4 +231,10 @@ def build_match_candidates(
             project_reference_codes=project_reference_codes,
         )
         for item in evidence
+        if _can_affect_component_state(
+            project,
+            component,
+            item,
+            project_reference_codes=project_reference_codes,
+        )
     )
