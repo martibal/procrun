@@ -374,7 +374,9 @@ def _candidate_audit(result_component: RunwayComponentResult) -> list[dict[str, 
                     "high_scope_overlap": candidate.features.high_scope_overlap,
                     "cpv_or_category_match": candidate.features.cpv_or_category_match,
                     "compatible_date_window": candidate.features.compatible_date_window,
-                    "project_title_or_location_match": candidate.features.project_title_or_location_match,
+                    "project_title_or_location_match": (
+                        candidate.features.project_title_or_location_match
+                    ),
                 },
             }
         )
