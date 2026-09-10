@@ -6,9 +6,6 @@ A21a sanitized-source ingress contract, which forbids download-then-filter and
 requires source-only material to be bounded before ProcRun receives it.
 """
 
-from __future__ import annotations
-
-
 BLOCK_REASON = (
     "A21a live SINTESI development sampling is disabled: the legacy path receives "
     "the full OpenCoesione ZIP before projection. Supply an approved remote "
