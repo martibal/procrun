@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 FINAL_POPULATION_MANIFEST_VERSION = "a21a-final-population-v1"
 
