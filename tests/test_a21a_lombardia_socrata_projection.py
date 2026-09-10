@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import pytest
+
 from scripts.probe_a21a_lombardia_socrata_projection import (
-    FORBIDDEN_FIELDS,
-    SAFE_FIELDS,
+    FORBIDDEN_ROW_FIELDS,
+    SAFE_METADATA_FIELDS,
     projected_row_url,
     validate_metadata,
     validate_projected_rows,
@@ -11,7 +13,7 @@ from scripts.probe_a21a_lombardia_socrata_projection import (
 
 def _metadata() -> dict[str, object]:
     columns: list[dict[str, str]] = []
-    for field in SAFE_FIELDS:
+    for field in SAFE_METADATA_FIELDS:
         description = "Descrizione del progetto" if field == "descrizione_operazione" else field
         columns.append({"fieldName": field, "description": description})
     columns.extend(
@@ -26,14 +28,15 @@ def _metadata() -> dict[str, object]:
     return {"columns": columns}
 
 
-def test_metadata_gate_requires_description_and_identity_boundary() -> None:
+def test_metadata_confirms_transport_candidate_but_keeps_row_ingest_blocked() -> None:
     report = validate_metadata(_metadata())
-    assert report["metadata_gate_pass"] is True
-    assert report["description_contract_ok"] is True
-    assert report["beneficiary_identity_confirmed"] is True
+    assert report["metadata_complete"] is True
+    assert report["description_field_confirmed"] is True
+    assert report["natural_person_identity_risk_confirmed"] is True
+    assert report["row_ingest_allowed"] is False
 
 
-def test_metadata_gate_fails_if_safe_field_disappears() -> None:
+def test_metadata_is_incomplete_if_project_description_field_disappears() -> None:
     metadata = _metadata()
     metadata["columns"] = [
         column
@@ -41,25 +44,23 @@ def test_metadata_gate_fails_if_safe_field_disappears() -> None:
         if column["fieldName"] != "descrizione_operazione"
     ]
     report = validate_metadata(metadata)
-    assert report["metadata_gate_pass"] is False
-    assert "descrizione_operazione" in report["missing_safe_fields"]
+    assert report["metadata_complete"] is False
+    assert "descrizione_operazione" in report["missing_project_fields"]
+    assert report["row_ingest_allowed"] is False
 
 
-def test_projection_url_requests_only_safe_fields() -> None:
-    url = projected_row_url()
-    assert "%24select=" in url
-    for field in SAFE_FIELDS:
-        assert field in url
-    for field in FORBIDDEN_FIELDS:
-        assert field not in url
+def test_projected_row_url_is_permanently_fail_closed() -> None:
+    with pytest.raises(RuntimeError, match="row ingest is blocked"):
+        projected_row_url()
 
 
-def test_projected_row_rejects_any_unexpected_field() -> None:
-    row = {field: "x" for field in SAFE_FIELDS}
-    row["descrizione_operazione"] = "Intervento di riqualificazione energetica."
-    assert validate_projected_rows([row])["projection_gate_pass"] is True
-
-    row["nome_del_beneficiario"] = "must never be received"
-    report = validate_projected_rows([row])
+def test_any_row_payload_is_rejected_without_inspection() -> None:
+    report = validate_projected_rows([{"descrizione_operazione": "must not be inspected"}])
     assert report["projection_gate_pass"] is False
-    assert report["forbidden_fields_returned"] == ["nome_del_beneficiario"]
+    assert report["row_ingest_allowed"] is False
+    assert report["candidate_status"] == "BLOCKED_FREE_TEXT_ZERO_PII_CONTRACT"
+
+
+def test_identity_fields_remain_explicitly_classified_as_forbidden() -> None:
+    assert "nome_del_beneficiario" in FORBIDDEN_ROW_FIELDS
+    assert "codice_del_beneficiario" in FORBIDDEN_ROW_FIELDS
