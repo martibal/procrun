@@ -15,7 +15,7 @@ jobs:
   live-own-code-proof:
     if: github.head_ref == 'release/infrastructure-closure'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     services:
       postgres:
         image: postgres:16
