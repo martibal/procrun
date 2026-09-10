@@ -12,8 +12,8 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from scripts.build_a21a_live_sintesi_development_sample import build_source_pool
-from scripts.prepare_a21a_evidence_development_set import build
+from build_a21a_live_sintesi_development_sample import build_source_pool
+from prepare_a21a_evidence_development_set import build
 
 ALLOWED_LABELS = {"CLEAR", "PARTIAL", "NOT_USEFUL"}
 
