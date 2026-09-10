@@ -10,6 +10,8 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
   const conclusion = item.state === "OPEN"
     ? item.openWording
     : item.procurementEvidence ?? "Evidence is insufficient for a safe OPEN/CLOSED conclusion.";
+  const evidenceDuplicatesTitle =
+    item.projectEvidenceType === "Project title" && item.projectEvidence === item.projectTitle;
 
   return <>
     <div className="eyebrow">Opportunity evidence</div>
@@ -26,11 +28,17 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
     <section className="section">
       <div className="section-label">Evidence chain</div>
       <div className="evidence-chain">
-        <div className="chain-node"><div className="eyebrow">1 · Project scope</div><p className="evidence">{item.projectEvidence}</p><div className="micro">Source-safe fixture span</div></div>
+        <div className="chain-node">
+          <div className="eyebrow">1 · Source wording</div>
+          <div className="micro">{item.projectEvidenceType}</div>
+          {!evidenceDuplicatesTitle && <p className="evidence">{item.projectEvidence}</p>}
+          {evidenceDuplicatesTitle && <p className="evidence">{item.projectTitle}</p>}
+          <div className="micro">Exact approved-source wording; source type is explicit.</div>
+        </div>
         <div className="chain-arrow">→</div>
         <div className="chain-node"><div className="eyebrow">2 · Procurement evidence</div><p>{item.procurementEvidence ?? "No accepted relevant TED procurement evidence at the cutoff."}</p><div className="micro">Matching cannot be inferred from similarity alone.</div></div>
         <div className="chain-arrow">→</div>
-        <div className="chain-node"><div className="eyebrow">3 · ProcRun conclusion</div><p><strong>{conclusion}</strong></p><div className="micro">State: {item.state} · coverage: {item.coverage}</div></div>
+        <div className="chain-node"><div className="eyebrow">3 · ProcRun interpretation</div><p><strong>{conclusion}</strong></p><div className="micro">Helper interpretation · state: {item.state} · coverage: {item.coverage}</div></div>
       </div>
     </section>
 
