@@ -1,6 +1,6 @@
 # A21a — Evidence Retrieval Validation Gate
 
-**Status:** AUTHORITATIVE HARD PRODUCT-QUALITY GATE — THRESHOLDS NOT YET FROZEN
+**Status:** AUTHORITATIVE HARD PRODUCT-QUALITY GATE — NUMERICAL THRESHOLDS FROZEN
 
 ## Scope
 
@@ -48,18 +48,23 @@ The authoritative evidence string must always equal the source substring at the 
 - Incorrect source-type labeling: **0**.
 - Sealed A21b holdout must not be opened, reused or contaminated by A21a development.
 
-## Quality dimensions requiring preregistered numerical thresholds
+## Frozen numerical thresholds
 
-Before the final A21a evaluation, numerical thresholds must be frozen for at least:
+The A21a product-GO thresholds are preregistered in `A21A_NUMERICAL_THRESHOLD_PREREGISTRATION.md` as `a21a-thresholds-v1` and are enforced in `procrun.a21a_thresholds`.
 
-1. exact source-span validity;
-2. source-document and source-type correctness;
-3. relevant-evidence recall;
-4. irrelevant-evidence rate / precision;
-5. case-level success rate for returning useful source wording;
-6. deterministic reproducibility across repeated runs.
+A final A21a evaluation must satisfy all of the following simultaneously:
 
-Thresholds must be preregistered before final benchmark scoring. They may not be chosen after viewing final results.
+1. evidence precision >= **0.95**;
+2. gold excerpt recall >= **0.90**;
+3. gold-positive case recall >= **0.95**;
+4. negative-case false-positive rate <= **0.05**;
+5. exact source-span integrity failures = **0**;
+6. provenance/source-type failures = **0**;
+7. translation violations = **0**;
+8. determinism failures = **0**;
+9. aggregate hard-integrity gate = **PASS**.
+
+The gate is conjunctive. One failed condition means A21a is not green. The thresholds may not be changed after final-holdout results are viewed without invalidating that holdout as a clean evaluation for the changed candidate.
 
 There is deliberately **no minimum character count or sentence count** for an otherwise valid evidence result. Utility is judged by whether the wording correctly explains project relevance, not by its length.
 
@@ -82,6 +87,6 @@ A21a is necessary but not sufficient for launch: all other applicable safety, so
 
 ## Current decision label
 
-Until thresholds are preregistered, benchmark material is frozen, and the final benchmark passes:
+Threshold preregistration is complete. Until the release candidate is frozen, final benchmark material is frozen/disjoint, and the sealed final benchmark passes every preregistered threshold:
 
 **A21a — EVIDENCE RETRIEVAL: NOT YET GREEN**
