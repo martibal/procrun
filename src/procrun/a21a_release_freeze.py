@@ -43,7 +43,11 @@ def require_final_holdout_ready(
         raise RuntimeError("A21a release-candidate identity no longer matches the frozen contract")
     if not population.frozen:
         raise RuntimeError("A21a final population is not frozen")
-    if not population.source_pool_sha256 or not population.population_sha256 or not population.case_ids_sha256:
+    if (
+        not population.source_pool_sha256
+        or not population.population_sha256
+        or not population.case_ids_sha256
+    ):
         raise RuntimeError("A21a final population freeze lacks required hash anchors")
     if population.case_count is None or population.case_count < 1:
         raise RuntimeError("A21a final population freeze lacks a positive case count")
