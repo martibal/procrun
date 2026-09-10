@@ -13,9 +13,10 @@ import argparse
 import json
 import signal
 import time
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any
 
 import procrun.production_delivery as production_delivery
 from procrun.a21_identity import a21_projects_by_local_operation_id
@@ -61,7 +62,6 @@ PHASE_BUDGET_SECONDS = {
     "write_jsonl": 30,
 }
 
-T = TypeVar("T")
 _CURRENT_PHASE = "startup"
 _CURRENT_BUDGET = 0
 
@@ -160,7 +160,7 @@ def _write_diagnostics(path: Path, diagnostics: dict[str, Any]) -> None:
     path.write_text(json.dumps(diagnostics, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
 
-def _run_phase(
+def _run_phase[T](
     name: str,
     diagnostics: dict[str, Any],
     diagnostics_path: Path,
