@@ -15,7 +15,6 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.run_a21a_title_utility_development_review import reproduce_sample  # noqa: E402
 from procrun.a21_identity import a21_projects_by_local_operation_id  # noqa: E402
 from procrun.a21a_fallback_context import (  # noqa: E402
     FallbackContextCase,
@@ -23,6 +22,7 @@ from procrun.a21a_fallback_context import (  # noqa: E402
 )
 from procrun.collectors.opencoesione import to_funding_projects  # noqa: E402
 from procrun.collectors.opencoesione_live import collect_open_coesione_live  # noqa: E402
+from scripts.run_a21a_title_utility_development_review import reproduce_sample  # noqa: E402
 
 
 def main() -> int:
@@ -42,10 +42,7 @@ def main() -> int:
     if sample["canonical_sha256"] != review["sample_canonical_sha256"]:
         raise ValueError("development sample changed; diagnostic cannot reuse frozen review")
 
-    labels = {
-        str(row["case_id"]): str(row["label"])
-        for row in review["cases"]
-    }
+    labels = {str(row["case_id"]): str(row["label"]) for row in review["cases"]}
     batch = collect_open_coesione_live()
     mapped = to_funding_projects(batch)
     projects = a21_projects_by_local_operation_id(batch.operations, mapped)
