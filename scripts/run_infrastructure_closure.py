@@ -11,16 +11,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import signal
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import procrun.production_delivery as production_delivery
 from procrun.a21_identity import a21_projects_by_local_operation_id
 from procrun.collectors.opencoesione import to_funding_projects
 from procrun.collectors.opencoesione_live import collect_open_coesione_live
+from procrun.component_engine import extract_components
 from procrun.domain import ComponentState, ProjectState
 from procrun.ledger import content_sha256
 from procrun.matching import CandidateDisposition
 from procrun.production_delivery import (
+    ALL_COMPONENT_DOMAINS,
     PRODUCTION_DELIVERY_VERSION,
     build_live_runway_results,
     collect_complete_ted_italy,
@@ -43,6 +48,7 @@ FORBIDDEN_PUBLIC_KEYS = frozenset(
         "model_prompt",
     }
 )
+BUILD_PASS_BUDGET_SECONDS = 180
 
 
 def _walk_public(value: object) -> None:
@@ -127,6 +133,52 @@ def _validate_run(results, models) -> dict[str, int]:
     return counts
 
 
+def _timeout_handler(signum, frame) -> None:
+    del signum, frame
+    raise TimeoutError(
+        f"runway build exceeded {BUILD_PASS_BUDGET_SECONDS}s preflight budget; optimize before retry"
+    )
+
+
+def _build_with_budget(batch, ted, *, cutoff):
+    previous_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+    signal.alarm(BUILD_PASS_BUDGET_SECONDS)
+    started = time.monotonic()
+    try:
+        result = build_live_runway_results(batch, ted, cutoff_date=cutoff)
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous_handler)
+    return result, time.monotonic() - started
+
+
+def _install_candidate_index_cache(batch, logical_projects, ted):
+    operations = {operation.operation_id: operation for operation in batch.operations}
+    categories: set[str] = set()
+    for project in logical_projects:
+        if project.operation_code not in operations:
+            raise RuntimeError("logical project operation missing from source batch")
+        extraction = extract_components(project, ALL_COMPONENT_DOMAINS)
+        categories.update(item.component.category for item in extraction.components)
+
+    category_set = frozenset(categories)
+    started = time.monotonic()
+    candidate_index = production_delivery._build_candidate_index(ted.records, category_set)
+    index_seconds = time.monotonic() - started
+    original_builder = production_delivery._build_candidate_index
+    cache_hits = {"count": 0}
+
+    def cached_builder(ted_records, requested_categories):
+        if ted_records is ted.records and requested_categories == category_set:
+            cache_hits["count"] += 1
+            return candidate_index
+        return original_builder(ted_records, requested_categories)
+
+    production_delivery._build_candidate_index = cached_builder
+    candidate_count = sum(len(records) for records in candidate_index.values())
+    return index_seconds, candidate_count, cache_hits
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--database-url", required=True)
@@ -142,12 +194,18 @@ def main() -> int:
     )
     ted = collect_complete_ted_italy(cutoff)
 
+    index_seconds, indexed_candidate_count, cache_hits = _install_candidate_index_cache(
+        batch, logical_projects, ted
+    )
+
     serialized_runs: list[str] = []
+    build_seconds: list[float] = []
     first_results = None
     first_models = None
     first_counts = None
     for _ in range(3):
-        results = build_live_runway_results(batch, ted, cutoff_date=cutoff)
+        results, elapsed = _build_with_budget(batch, ted, cutoff=cutoff)
+        build_seconds.append(elapsed)
         if len(results) != len(logical_projects):
             raise RuntimeError("one or more logical funded projects were omitted")
         models = tuple(build_runway_read_model(result) for result in results)
@@ -160,6 +218,8 @@ def main() -> int:
             first_models = models
             first_counts = counts
 
+    if cache_hits["count"] != 3:
+        raise RuntimeError(f"TED candidate index was not reused for all builds: {cache_hits['count']}")
     if len(set(serialized_runs)) != 1:
         raise RuntimeError(f"three-run determinism failure: {serialized_runs}")
     assert first_results is not None
@@ -194,6 +254,11 @@ def main() -> int:
         "ted_page_count": ted.pages_fetched,
         "ted_complete": ted.complete,
         "three_run_determinism": True,
+        "candidate_index_reused": True,
+        "candidate_index_build_seconds": round(index_seconds, 3),
+        "indexed_candidate_count": indexed_candidate_count,
+        "runway_build_seconds": [round(value, 3) for value in build_seconds],
+        "build_pass_budget_seconds": BUILD_PASS_BUDGET_SECONDS,
         "customer_output_sha256": serialized_runs[0],
         "sealed_holdout_required": False,
         "sealed_holdout_touched": False,
