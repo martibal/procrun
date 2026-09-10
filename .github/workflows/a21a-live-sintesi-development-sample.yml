@@ -1,0 +1,37 @@
+name: a21a-live-sintesi-development-sample
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/build_a21a_live_sintesi_development_sample.py"
+      - ".github/workflows/a21a-live-sintesi-development-sample.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-blind-sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install Python
+        run: python -m pip install -c requirements-runtime.lock -e ".[dev]"
+      - name: Build source-only blind development sample
+        run: |
+          python scripts/build_a21a_live_sintesi_development_sample.py \
+            --sample-size 60 \
+            --output artifacts/a21a_live_sintesi_development_sample.json
+      - name: Upload blind development sample
+        uses: actions/upload-artifact@v4
+        with:
+          name: a21a-live-sintesi-development-sample
+          path: artifacts/a21a_live_sintesi_development_sample.json
+          if-no-files-found: error
+          retention-days: 7
