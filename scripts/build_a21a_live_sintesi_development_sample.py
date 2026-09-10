@@ -61,6 +61,30 @@ def build_source_pool() -> dict[str, object]:
     }
 
 
+def _utility_counts(cases: list[dict[str, object]]) -> dict[str, int]:
+    scope_equals_title = 0
+    scope_distinct_from_title = 0
+    scope_length_ge_100 = 0
+    scope_length_ge_200 = 0
+    for case in cases:
+        title = str(case["project_title"]).strip()
+        scope = str(case["project_scope_text"]).strip()
+        if scope == title:
+            scope_equals_title += 1
+        else:
+            scope_distinct_from_title += 1
+        if len(scope) >= 100:
+            scope_length_ge_100 += 1
+        if len(scope) >= 200:
+            scope_length_ge_200 += 1
+    return {
+        "scope_equals_title": scope_equals_title,
+        "scope_distinct_from_title": scope_distinct_from_title,
+        "scope_length_ge_100": scope_length_ge_100,
+        "scope_length_ge_200": scope_length_ge_200,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
@@ -68,7 +92,16 @@ def main() -> int:
     args = parser.parse_args()
 
     source_pool = build_source_pool()
+    source_cases = source_pool["cases"]
+    assert isinstance(source_cases, list)
+    source_utility = _utility_counts(source_cases)
+
     development_set = build(source_pool, sample_size=args.sample_size)
+    sample_cases = development_set["cases"]
+    assert isinstance(sample_cases, list)
+    sample_source_cases = [case["source"] for case in sample_cases]
+    sample_utility = _utility_counts(sample_source_cases)
+
     development_set["live_source_id"] = source_pool["source_id"]
     development_set["live_source_sha256"] = source_pool["source_sha256"]
     development_set["live_list_updated_on"] = source_pool["list_updated_on"]
@@ -86,6 +119,20 @@ def main() -> int:
     # Deliberately log only counts/hashes, never project title or SINTESI_PROG text.
     print(f"A21A_LIVE_SOURCE_CASES={source_pool['case_count']}")
     print(f"A21A_BLIND_SAMPLE_CASES={development_set['case_count']}")
+    print(f"A21A_LIVE_SCOPE_EQUALS_TITLE={source_utility['scope_equals_title']}")
+    print(
+        "A21A_LIVE_SCOPE_DISTINCT_FROM_TITLE="
+        f"{source_utility['scope_distinct_from_title']}"
+    )
+    print(f"A21A_LIVE_SCOPE_LENGTH_GE_100={source_utility['scope_length_ge_100']}")
+    print(f"A21A_LIVE_SCOPE_LENGTH_GE_200={source_utility['scope_length_ge_200']}")
+    print(f"A21A_SAMPLE_SCOPE_EQUALS_TITLE={sample_utility['scope_equals_title']}")
+    print(
+        "A21A_SAMPLE_SCOPE_DISTINCT_FROM_TITLE="
+        f"{sample_utility['scope_distinct_from_title']}"
+    )
+    print(f"A21A_SAMPLE_SCOPE_LENGTH_GE_100={sample_utility['scope_length_ge_100']}")
+    print(f"A21A_SAMPLE_SCOPE_LENGTH_GE_200={sample_utility['scope_length_ge_200']}")
     print(f"A21A_LIVE_SOURCE_SHA256={source_pool['source_sha256']}")
     print(f"A21A_LIVE_LIST_UPDATED_ON={source_pool['list_updated_on']}")
     print(f"A21A_SAMPLE_CANONICAL_SHA256={development_set['canonical_sha256']}")
