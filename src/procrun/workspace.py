@@ -73,7 +73,9 @@ class SupplierProfile(BaseModel):
     @field_validator("nuts_prefixes")
     @classmethod
     def validate_nuts(cls, values: tuple[str, ...]) -> tuple[str, ...]:
-        normalized = tuple(dict.fromkeys(value.strip().upper() for value in values if value.strip()))
+        normalized = tuple(
+            dict.fromkeys(value.strip().upper() for value in values if value.strip())
+        )
         if any(not re.fullmatch(r"[A-Z0-9]{2,5}", value) for value in normalized):
             raise ValueError("NUTS prefixes must contain 2-5 uppercase letters/digits")
         return normalized
@@ -155,7 +157,9 @@ def put_supplier_profile(
     )
 
 
-def get_supplier_profile(conn: Connection[object], tenant_key: str) -> SupplierProfile | None:
+def get_supplier_profile(
+    conn: Connection[object], tenant_key: str
+) -> SupplierProfile | None:
     tenant = require_tenant_key(tenant_key)
     row = conn.execute(
         """
@@ -174,7 +178,9 @@ def get_supplier_profile(conn: Connection[object], tenant_key: str) -> SupplierP
     )
 
 
-def save_opportunity(conn: Connection[object], tenant_key: str, opportunity_key: str) -> None:
+def save_opportunity(
+    conn: Connection[object], tenant_key: str, opportunity_key: str
+) -> None:
     tenant = require_tenant_key(tenant_key)
     key = opportunity_key.strip()
     if not key or len(key) > 512:
@@ -188,15 +194,22 @@ def save_opportunity(conn: Connection[object], tenant_key: str, opportunity_key:
     )
 
 
-def unsave_opportunity(conn: Connection[object], tenant_key: str, opportunity_key: str) -> None:
+def unsave_opportunity(
+    conn: Connection[object], tenant_key: str, opportunity_key: str
+) -> None:
     tenant = require_tenant_key(tenant_key)
     conn.execute(
-        "DELETE FROM procrun_workspace.saved_opportunities WHERE tenant_key = %s AND opportunity_key = %s",
+        """
+        DELETE FROM procrun_workspace.saved_opportunities
+        WHERE tenant_key = %s AND opportunity_key = %s
+        """,
         (tenant, opportunity_key),
     )
 
 
-def saved_opportunities(conn: Connection[object], tenant_key: str) -> tuple[str, ...]:
+def saved_opportunities(
+    conn: Connection[object], tenant_key: str
+) -> tuple[str, ...]:
     tenant = require_tenant_key(tenant_key)
     rows = conn.execute(
         """
@@ -214,10 +227,15 @@ def delete_workspace(conn: Connection[object], tenant_key: str) -> None:
     tenant = require_tenant_key(tenant_key)
     with conn.transaction():
         conn.execute(
-            "DELETE FROM procrun_workspace.saved_opportunities WHERE tenant_key = %s", (tenant,)
+            """
+            DELETE FROM procrun_workspace.saved_opportunities
+            WHERE tenant_key = %s
+            """,
+            (tenant,),
         )
         conn.execute(
-            "DELETE FROM procrun_workspace.supplier_profiles WHERE tenant_key = %s", (tenant,)
+            "DELETE FROM procrun_workspace.supplier_profiles WHERE tenant_key = %s",
+            (tenant,),
         )
 
 
@@ -225,18 +243,28 @@ def rank_project(project: RunwayProject, profile: SupplierProfile | None) -> Ran
     """Compute deterministic fit without changing evidence or classification state."""
 
     if profile is None:
-        return RankedProject(project=project, relevance=Relevance.LOW, reasons=("profile_not_set",))
+        return RankedProject(
+            project=project,
+            relevance=Relevance.LOW,
+            reasons=("profile_not_set",),
+        )
 
     domains = {component.category.split(":", 1)[0] for component in project.components}
     domain_match = not profile.domains or bool(domains.intersection(profile.domains))
     geography_match = not profile.nuts_prefixes or bool(
         project.nuts_code
-        and any(project.nuts_code.upper().startswith(prefix) for prefix in profile.nuts_prefixes)
+        and any(
+            project.nuts_code.upper().startswith(prefix)
+            for prefix in profile.nuts_prefixes
+        )
     )
-    value_match = (
-        project.approved_funding_eur is not None
-        and project.approved_funding_eur >= profile.min_project_value_eur
-    ) if profile.min_project_value_eur else True
+    if profile.min_project_value_eur:
+        value_match = (
+            project.approved_funding_eur is not None
+            and project.approved_funding_eur >= profile.min_project_value_eur
+        )
+    else:
+        value_match = True
     cpv_match = not profile.cpv_prefixes or any(
         any(
             code.replace("-", "").startswith(prefix)
