@@ -12,7 +12,7 @@ import argparse
 import json
 from pathlib import Path
 
-from procrun.collectors.opencoesione import OPENCOESIONE_SOURCE_ID
+from procrun.collectors.opencoesione import OPENCOESIONE_SOURCE_ID, OpenCoesioneOperation
 from procrun.collectors.opencoesione_live import (
     OPENCOESIONE_PUBLICATION_PAGE,
     collect_open_coesione_live,
@@ -22,10 +22,30 @@ SCHEMA_VERSION = "a21a-sanitized-source-pool-v1"
 PUBLISHER_ZERO_PII_CONTRACT = "opencoesione-art49-minimum-rgs-v1"
 
 
+def _logical_operations(
+    operations: tuple[OpenCoesioneOperation, ...],
+) -> tuple[OpenCoesioneOperation, ...]:
+    """Collapse exact repeated rows; fail closed on conflicting duplicate source ids."""
+    by_id: dict[str, OpenCoesioneOperation] = {}
+    for operation in operations:
+        existing = by_id.get(operation.operation_id)
+        if existing is not None:
+            if existing != operation:
+                raise RuntimeError(
+                    "conflicting OpenCoesione rows share OperationLocalIdentifier: "
+                    f"{operation.operation_id}"
+                )
+            continue
+        by_id[operation.operation_id] = operation
+    if not by_id:
+        raise RuntimeError("approved OpenCoesione route produced zero logical operations")
+    return tuple(by_id[key] for key in sorted(by_id))
+
+
 def build_source_pool() -> dict[str, object]:
     batch = collect_open_coesione_live()
     cases: list[dict[str, object]] = []
-    for operation in batch.operations:
+    for operation in _logical_operations(batch.operations):
         cases.append(
             {
                 "operation_code": operation.operation_id,
