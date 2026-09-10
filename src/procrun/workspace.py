@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Final
+from typing import Any, Final
 
 from psycopg import Connection
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -119,7 +119,7 @@ REVOKE ALL ON SCHEMA procrun FROM PUBLIC;
 """
 
 
-def apply_workspace_migrations(conn: Connection[object]) -> None:
+def apply_workspace_migrations(conn: Connection[Any]) -> None:
     with conn.transaction():
         conn.execute(_WORKSPACE_MIGRATION)
         conn.execute(
@@ -132,7 +132,7 @@ def apply_workspace_migrations(conn: Connection[object]) -> None:
 
 
 def put_supplier_profile(
-    conn: Connection[object], tenant_key: str, profile: SupplierProfile
+    conn: Connection[Any], tenant_key: str, profile: SupplierProfile
 ) -> None:
     tenant = require_tenant_key(tenant_key)
     conn.execute(
@@ -158,7 +158,7 @@ def put_supplier_profile(
 
 
 def get_supplier_profile(
-    conn: Connection[object], tenant_key: str
+    conn: Connection[Any], tenant_key: str
 ) -> SupplierProfile | None:
     tenant = require_tenant_key(tenant_key)
     row = conn.execute(
@@ -179,7 +179,7 @@ def get_supplier_profile(
 
 
 def save_opportunity(
-    conn: Connection[object], tenant_key: str, opportunity_key: str
+    conn: Connection[Any], tenant_key: str, opportunity_key: str
 ) -> None:
     tenant = require_tenant_key(tenant_key)
     key = opportunity_key.strip()
@@ -195,7 +195,7 @@ def save_opportunity(
 
 
 def unsave_opportunity(
-    conn: Connection[object], tenant_key: str, opportunity_key: str
+    conn: Connection[Any], tenant_key: str, opportunity_key: str
 ) -> None:
     tenant = require_tenant_key(tenant_key)
     conn.execute(
@@ -208,7 +208,7 @@ def unsave_opportunity(
 
 
 def saved_opportunities(
-    conn: Connection[object], tenant_key: str
+    conn: Connection[Any], tenant_key: str
 ) -> tuple[str, ...]:
     tenant = require_tenant_key(tenant_key)
     rows = conn.execute(
@@ -221,7 +221,7 @@ def saved_opportunities(
     return tuple(str(row[0]) for row in rows)
 
 
-def delete_workspace(conn: Connection[object], tenant_key: str) -> None:
+def delete_workspace(conn: Connection[Any], tenant_key: str) -> None:
     """Delete the non-intelligence workspace without touching the append-only evidence ledger."""
 
     tenant = require_tenant_key(tenant_key)

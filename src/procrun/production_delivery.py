@@ -29,7 +29,7 @@ from procrun.component_engine import (
     cpv_matches_prefixes,
     extract_components,
 )
-from procrun.domain import ProcurementEvidence, ProjectState, PurchaseComponent
+from procrun.domain import FundingProject, ProcurementEvidence, ProjectState, PurchaseComponent
 from procrun.ingest.ted import normalize_ted_record
 from procrun.ledger import (
     append_assessment_version,
@@ -183,7 +183,7 @@ def _component_evidence(
     return tuple(evidence)
 
 
-def _logical_projects(batch: OpenCoesioneBatch):
+def _logical_projects(batch: OpenCoesioneBatch) -> tuple[FundingProject, ...]:
     return a21_projects_by_local_operation_id(batch.operations, to_funding_projects(batch))
 
 
