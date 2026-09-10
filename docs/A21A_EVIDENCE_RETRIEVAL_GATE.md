@@ -1,6 +1,6 @@
 # A21a — Evidence Retrieval Validation Gate
 
-**Status:** AUTHORITATIVE HARD PRODUCT-QUALITY GATE — NUMERICAL THRESHOLDS FROZEN
+**Status:** AUTHORITATIVE HARD PRODUCT-QUALITY GATE — CLEAN DEVELOPMENT REPREREGISTRATION REQUIRED
 
 ## Scope
 
@@ -48,23 +48,20 @@ The authoritative evidence string must always equal the source substring at the 
 - Incorrect source-type labeling: **0**.
 - Sealed A21b holdout must not be opened, reused or contaminated by A21a development.
 
-## Frozen numerical thresholds
+## Numerical-threshold state after the 2026-09-10 incident
 
-The A21a product-GO thresholds are preregistered in `A21A_NUMERICAL_THRESHOLD_PREREGISTRATION.md` as `a21a-thresholds-v1` and are enforced in `procrun.a21a_thresholds`.
+The earlier `a21a-thresholds-v1` values are **invalidated as a clean preregistration**. They were frozen after development results had been viewed from a lineage later proven to use a prohibited download-then-filter source path. See `A21A_REPRODUCIBILITY_INCIDENT_2026-09-10.md` and `A21A_NUMERICAL_THRESHOLD_PREREGISTRATION.md`.
 
-A final A21a evaluation must satisfy all of the following simultaneously:
+The historical v1 values remain visible for auditability, but `procrun.a21a_thresholds` now fails closed on a mandatory `clean_preregistration_lineage` check. A21a therefore cannot pass even if a report satisfies every historical numerical value.
 
-1. evidence precision >= **0.95**;
-2. gold excerpt recall >= **0.90**;
-3. gold-positive case recall >= **0.95**;
-4. negative-case false-positive rate <= **0.05**;
-5. exact source-span integrity failures = **0**;
-6. provenance/source-type failures = **0**;
-7. translation violations = **0**;
-8. determinism failures = **0**;
-9. aggregate hard-integrity gate = **PASS**.
+A new active threshold version may be frozen only after:
 
-The gate is conjunctive. One failed condition means A21a is not green. The thresholds may not be changed after final-holdout results are viewed without invalidating that holdout as a clean evaluation for the changed candidate.
+1. the pinned clean-v2 development baseline is used;
+2. a fresh independent review is completed without reusing invalidated v1 labels;
+3. the clean development analyses are reproduced; and
+4. the new thresholds are frozen before any sealed final-holdout result is viewed.
+
+No historical v1 value may be silently relabeled as the clean replacement preregistration.
 
 There is deliberately **no minimum character count or sentence count** for an otherwise valid evidence result. Utility is judged by whether the wording correctly explains project relevance, not by its length.
 
@@ -87,6 +84,6 @@ A21a is necessary but not sufficient for launch: all other applicable safety, so
 
 ## Current decision label
 
-Threshold preregistration is complete. Until the release candidate is frozen, final benchmark material is frozen/disjoint, and the sealed final benchmark passes every preregistered threshold:
+Until the clean development lineage is independently reviewed, a new threshold preregistration is frozen, the final benchmark population is disjoint, and the sealed final benchmark passes the new active gate:
 
 **A21a — EVIDENCE RETRIEVAL: NOT YET GREEN**
