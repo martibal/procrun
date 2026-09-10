@@ -213,7 +213,7 @@ def _pace_live_request() -> None:
     global _NEXT_LIVE_REQUEST_AT
     with _LIVE_PACE_LOCK:
         now = time.monotonic()
-        if _NEXT_LIVE_REQUEST_AT > now:
+        if now < _NEXT_LIVE_REQUEST_AT:
             time.sleep(_NEXT_LIVE_REQUEST_AT - now)
             now = time.monotonic()
         _NEXT_LIVE_REQUEST_AT = max(now, _NEXT_LIVE_REQUEST_AT) + TED_MIN_LIVE_REQUEST_INTERVAL_SECONDS
