@@ -32,6 +32,8 @@ The ingress gate rejects:
 
 This is intentionally stricter than the runtime OpenCoesione collector. A21a validation must operate only on already-sanitized source-only material.
 
+The legacy `build_a21a_live_sintesi_development_sample.py` route is permanently disabled under this contract because it received the complete OpenCoesione ZIP before local projection. It must not be used to create or attest an `a21a-sanitized-source-pool-v1` package.
+
 ## Remote-only operating requirement
 
 The sanctioned package must be made available through a remote resource ProcRun can consume directly (for example, an approved GitHub artifact or server-side sanitized package). Creating the package must not require the user to run commands, upload raw data, or keep a local PC/SSH session alive.
