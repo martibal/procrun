@@ -114,10 +114,12 @@ def collect_complete_ted_italy(
     return result
 
 
+def _rule_key(rule: ComponentRule) -> str:
+    return f"{rule.domain.value}:{rule.category}"
+
+
 def _rule_for_component(component: PurchaseComponent) -> ComponentRule:
-    matches = tuple(
-        rule for rule in RULES if f"{rule.domain.value}:{rule.category}" == component.category
-    )
+    matches = tuple(rule for rule in RULES if _rule_key(rule) == component.category)
     if len(matches) != 1:
         raise ProductionDeliveryError(
             f"component category is not uniquely frozen: {component.category}"
@@ -138,23 +140,65 @@ def _record_cpv_codes(record: dict[str, Any]) -> tuple[str, ...]:
     return ()
 
 
-def _candidate_record(record: dict[str, Any], component: PurchaseComponent) -> bool:
-    """Keep a broad deterministic candidate set so plausible CPV matches can block OPEN."""
+def _candidate_record_for_rule(
+    record: dict[str, Any],
+    rule: ComponentRule,
+    *,
+    text: str | None = None,
+    cpv_codes: tuple[str, ...] | None = None,
+) -> bool:
+    """Apply the frozen broad candidate rule without project-specific state."""
 
-    rule = _rule_for_component(component)
-    text = "\n".join(
-        value
-        for value in (
-            str(record.get("title") or ""),
-            str(record.get("scope_description") or ""),
+    candidate_text = text
+    if candidate_text is None:
+        candidate_text = "\n".join(
+            value
+            for value in (
+                str(record.get("title") or ""),
+                str(record.get("scope_description") or ""),
+            )
+            if value
         )
-        if value
-    )
-    phrase_match = any(_contains_phrase(text, phrase) for phrase in rule.phrases)
+    candidate_cpv_codes = cpv_codes if cpv_codes is not None else _record_cpv_codes(record)
+    phrase_match = any(_contains_phrase(candidate_text, phrase) for phrase in rule.phrases)
     cpv_match = bool(rule.cpv_prefixes) and any(
-        cpv_matches_prefixes(code, rule.cpv_prefixes) for code in _record_cpv_codes(record)
+        cpv_matches_prefixes(code, rule.cpv_prefixes) for code in candidate_cpv_codes
     )
     return phrase_match or cpv_match
+
+
+def _candidate_record(record: dict[str, Any], component: PurchaseComponent) -> bool:
+    """Compatibility helper preserving the exact historical candidate predicate."""
+
+    return _candidate_record_for_rule(record, _rule_for_component(component))
+
+
+def _build_candidate_index(
+    ted_records: tuple[dict[str, Any], ...],
+    categories: frozenset[str],
+) -> dict[str, tuple[dict[str, Any], ...]]:
+    """Index TED candidates once per frozen rule while preserving record order and semantics."""
+
+    rules_by_category = {_rule_key(rule): rule for rule in RULES if _rule_key(rule) in categories}
+    if set(rules_by_category) != set(categories):
+        missing = sorted(set(categories) - set(rules_by_category))
+        raise ProductionDeliveryError(f"component categories are not uniquely frozen: {missing}")
+
+    mutable: dict[str, list[dict[str, Any]]] = {category: [] for category in categories}
+    for record in ted_records:
+        text = "\n".join(
+            value
+            for value in (
+                str(record.get("title") or ""),
+                str(record.get("scope_description") or ""),
+            )
+            if value
+        )
+        cpv_codes = _record_cpv_codes(record)
+        for category, rule in rules_by_category.items():
+            if _candidate_record_for_rule(record, rule, text=text, cpv_codes=cpv_codes):
+                mutable[category].append(record)
+    return {category: tuple(records) for category, records in mutable.items()}
 
 
 def _evidence_id(component_id: str, notice_id: str) -> str:
@@ -166,13 +210,11 @@ def _evidence_id(component_id: str, notice_id: str) -> str:
 
 def _component_evidence(
     component: PurchaseComponent,
-    ted_records: tuple[dict[str, Any], ...],
+    candidate_records: tuple[dict[str, Any], ...],
     cutoff_date: date,
 ) -> tuple[ProcurementEvidence, ...]:
     evidence: list[ProcurementEvidence] = []
-    for record in ted_records:
-        if not _candidate_record(record, component):
-            continue
+    for record in candidate_records:
         normalized = normalize_ted_record(
             record,
             evidence_id=_evidence_id(component.component_id, str(record["notice_id"])),
@@ -197,16 +239,23 @@ def build_live_runway_results(
         raise ProductionDeliveryError("incomplete TED coverage cannot enter runway assessment")
 
     operations = {operation.operation_id: operation for operation in batch.operations}
-    results: list[RunwayResult] = []
+    prepared: list[tuple[FundingProject, Any, Any]] = []
+    categories: set[str] = set()
     for project in _logical_projects(batch):
         operation = operations[project.operation_code]
         extraction = extract_components(project, ALL_COMPONENT_DOMAINS)
+        prepared.append((project, operation, extraction))
+        categories.update(item.component.category for item in extraction.components)
+
+    candidate_index = _build_candidate_index(ted.records, frozenset(categories))
+    results: list[RunwayResult] = []
+    for project, operation, extraction in prepared:
         evidence_by_component: dict[str, tuple[ProcurementEvidence, ...]] = {}
         coverage_by_component: dict[str, ComponentCoverage] = {}
         for extracted in extraction.components:
             component = extracted.component
             evidence_by_component[component.component_id] = _component_evidence(
-                component, ted.records, cutoff_date
+                component, candidate_index[component.category], cutoff_date
             )
             coverage_by_component[component.component_id] = ComponentCoverage(
                 required_source_ids=frozenset({TED_SOURCE_ID}),
