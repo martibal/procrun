@@ -6,6 +6,7 @@ import json
 import os
 import re
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -64,6 +65,7 @@ TED_ITALY_QUERY_TEMPLATE: Final = (
     "buyer-country = ITA AND publication-date >= {start} AND publication-date <= {cutoff}"
 )
 TED_BOOTSTRAP_START: Final = date(2021, 1, 1)
+TED_COLLECTION_MAX_WORKERS: Final = 4
 ALL_COMPONENT_DOMAINS: Final = tuple(ComponentDomain)
 
 
@@ -96,15 +98,15 @@ def ted_italy_query(cutoff_date: date, *, start_date: date = TED_BOOTSTRAP_START
 
 def _ted_year_ranges(cutoff_date: date) -> tuple[tuple[date, date], ...]:
     """Return non-overlapping chronological year segments covering the complete TED window."""
+
     if cutoff_date < TED_BOOTSTRAP_START:
         raise ValueError("TED cutoff cannot predate bootstrap start")
-    return tuple(
-        (
-            max(TED_BOOTSTRAP_START, date(year, 1, 1)),
-            min(cutoff_date, date(year, 12, 31)),
-        )
-        for year in range(TED_BOOTSTRAP_START.year, cutoff_date.year + 1)
-    )
+    ranges: list[tuple[date, date]] = []
+    for year in range(TED_BOOTSTRAP_START.year, cutoff_date.year + 1):
+        start = max(TED_BOOTSTRAP_START, date(year, 1, 1))
+        end = min(cutoff_date, date(year, 12, 31))
+        ranges.append((start, end))
+    return tuple(ranges)
 
 
 def _collect_complete_ted_segment(
@@ -135,21 +137,31 @@ def _collect_complete_ted_segment(
 def collect_complete_ted_italy(
     cutoff_date: date, *, page_size: int = 250, max_pages: int = 5000
 ) -> TedCollectionResult:
-    """Collect the complete TED universe using deterministic sequential year segments.
+    """Collect the same complete TED universe through independent bounded year segments.
 
-    Year segmentation preserves the exact publication-date universe while avoiding concurrent
-    request bursts that trigger TED throttling. Each segment is independently count-checked and the
-    merged result is deterministically ordered before classification.
+    Iteration tokens make a single six-year pagination stream inherently sequential. Calendar-year
+    segmentation is semantically neutral because the publication-date ranges are exhaustive and
+    non-overlapping, while allowing bounded parallel transport. Results are merged in chronological
+    segment order and then deterministically sorted before any classification logic sees them.
     """
+
     ranges = _ted_year_ranges(cutoff_date)
     results_by_start: dict[date, TedCollectionResult] = {}
-    for start, end in ranges:
-        results_by_start[start] = _collect_complete_ted_segment(
-            start,
-            end,
-            page_size=page_size,
-            max_pages=max_pages,
-        )
+    workers = min(TED_COLLECTION_MAX_WORKERS, len(ranges))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="ted-year") as executor:
+        future_to_range = {
+            executor.submit(
+                _collect_complete_ted_segment,
+                start,
+                end,
+                page_size=page_size,
+                max_pages=max_pages,
+            ): (start, end)
+            for start, end in ranges
+        }
+        for future in as_completed(future_to_range):
+            start, _ = future_to_range[future]
+            results_by_start[start] = future.result()
 
     records: list[dict[str, Any]] = []
     pages_fetched = 0
@@ -229,6 +241,8 @@ def _candidate_record_for_rule(
     text: str | None = None,
     cpv_codes: tuple[str, ...] | None = None,
 ) -> bool:
+    """Apply the frozen broad candidate rule without project-specific state."""
+
     candidate_text = text
     if candidate_text is None:
         candidate_text = "\n".join(
@@ -248,6 +262,8 @@ def _candidate_record_for_rule(
 
 
 def _candidate_record(record: dict[str, Any], component: PurchaseComponent) -> bool:
+    """Compatibility helper preserving the exact historical candidate predicate."""
+
     return _candidate_record_for_rule(record, _rule_for_component(component))
 
 
@@ -255,10 +271,13 @@ def _build_candidate_index(
     ted_records: tuple[dict[str, Any], ...],
     categories: frozenset[str],
 ) -> dict[str, tuple[dict[str, Any], ...]]:
+    """Index TED candidates once per frozen rule while preserving record order and semantics."""
+
     rules_by_category = {_rule_key(rule): rule for rule in RULES if _rule_key(rule) in categories}
     if set(rules_by_category) != set(categories):
         missing = sorted(set(categories) - set(rules_by_category))
         raise ProductionDeliveryError(f"component categories are not uniquely frozen: {missing}")
+
     mutable: dict[str, list[dict[str, Any]]] = {category: [] for category in categories}
     for record in ted_records:
         text = "\n".join(
@@ -312,6 +331,7 @@ def build_live_runway_results(
 ) -> tuple[RunwayResult, ...]:
     if not ted.complete:
         raise ProductionDeliveryError("incomplete TED coverage cannot enter runway assessment")
+
     operations = {operation.operation_id: operation for operation in batch.operations}
     prepared: list[tuple[FundingProject, Any, Any]] = []
     categories: set[str] = set()
@@ -320,6 +340,7 @@ def build_live_runway_results(
         extraction = extract_components(project, ALL_COMPONENT_DOMAINS)
         prepared.append((project, operation, extraction))
         categories.update(item.component.category for item in extraction.components)
+
     candidate_index = _build_candidate_index(ted.records, frozenset(categories))
     results: list[RunwayResult] = []
     for project, operation, extraction in prepared:
@@ -454,7 +475,9 @@ def persist_live_results(
                         if evidence_id in evidence_versions
                     )
                     rejected = [
-                        row for row in audit if row["disposition"] == CandidateDisposition.REJECTED.value
+                        row
+                        for row in audit
+                        if row["disposition"] == CandidateDisposition.REJECTED.value
                     ]
                     assessment_write = append_assessment_version(
                         conn,
