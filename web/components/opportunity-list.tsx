@@ -10,28 +10,35 @@ function stateClass(state: Opportunity["state"]): string {
 export function OpportunityList({ items }: { items: readonly Opportunity[] }) {
   return (
     <div className="list">
-      {items.map((item) => (
-        <article className="row" key={item.id}>
-          <div>
-            <div className="small">{item.projectTitle} · {item.geography}</div>
-            <div className="row-title">{item.component}</div>
-            <div className="evidence">{item.projectEvidence}</div>
-          </div>
-          <div>
-            <span className={`pill ${stateClass(item.state)}`}>{item.state}</span>
-            <p className="small">
-              {item.state === "OPEN"
-                ? item.openWording
-                : item.procurementEvidence ?? "Evidence remains insufficient for a safe OPEN/CLOSED conclusion."}
-            </p>
-            <p className="micro">Coverage: {item.coverage} · as of {item.cutoffDate}</p>
-            <p className="micro">Version: {item.sourceVersion}</p>
-          </div>
-          <div>
-            <Link className="button" href={`/app/opportunities/${item.id}`}>Inspect evidence</Link>
-          </div>
-        </article>
-      ))}
+      {items.map((item) => {
+        const evidenceDuplicatesTitle =
+          item.projectEvidenceType === "Project title" && item.projectEvidence === item.projectTitle;
+
+        return (
+          <article className="row" key={item.id}>
+            <div>
+              <div className="small">{item.projectTitle} · {item.geography}</div>
+              <div className="row-title">{item.component}</div>
+              <div className="micro">Source wording · {item.projectEvidenceType}</div>
+              {!evidenceDuplicatesTitle && <div className="evidence">{item.projectEvidence}</div>}
+              {evidenceDuplicatesTitle && <div className="micro">Exact source wording shown in the project title above.</div>}
+            </div>
+            <div>
+              <span className={`pill ${stateClass(item.state)}`}>{item.state}</span>
+              <p className="small">
+                {item.state === "OPEN"
+                  ? item.openWording
+                  : item.procurementEvidence ?? "Evidence remains insufficient for a safe OPEN/CLOSED conclusion."}
+              </p>
+              <p className="micro">Coverage: {item.coverage} · as of {item.cutoffDate}</p>
+              <p className="micro">Version: {item.sourceVersion}</p>
+            </div>
+            <div>
+              <Link className="button" href={`/app/opportunities/${item.id}`}>Inspect evidence</Link>
+            </div>
+          </article>
+        );
+      })}
     </div>
   );
 }
