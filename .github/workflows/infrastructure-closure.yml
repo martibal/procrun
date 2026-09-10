@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: infrastructure-closure-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   live-own-code-proof:
     if: github.head_ref == 'release/infrastructure-closure'

@@ -11,17 +11,22 @@ from procrun.coverage import (
 from procrun.domain import ComponentState
 
 
-def test_open_wording_is_exactly_ted_scoped() -> None:
+def test_open_wording_is_exactly_rule_bounded_to_ted() -> None:
     cutoff = date(2026, 9, 4)
-    assert ted_open_wording(cutoff) == "No relevant procurement found in TED as of 2026-09-04."
+    wording = (
+        "No procurement match satisfying ProcRun's frozen exact-evidence rules "
+        "was found in TED as of 2026-09-04."
+    )
+    assert ted_open_wording(cutoff) == wording
     assessment = make_open_assessment(
         component_id="component-1",
         cutoff_date=cutoff,
         coverage_scope=CoverageScope.TED,
     )
     assert assessment.state is ComponentState.OPEN
-    assert assessment.rationale == "No relevant procurement found in TED as of 2026-09-04."
-    assert "does not establish absence outside TED" in assessment.coverage_note
+    assert assessment.rationale == wording
+    assert "rule-bounded observation" in assessment.coverage_note
+    assert "does not establish absence" in assessment.coverage_note
 
 
 def test_no_broader_coverage_scope_exists_in_mvp() -> None:
