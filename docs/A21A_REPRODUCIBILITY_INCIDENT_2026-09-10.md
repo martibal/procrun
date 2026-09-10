@@ -49,4 +49,4 @@ This incident invalidates the A21a development/preregistration lineage only. The
 4. Freeze a new threshold preregistration only after those clean development results exist.
 5. Freeze the final disjoint population and only then run the sealed final A21a evaluation.
 
-No step in this remediation requires or permits outbound human contact with a source owner, authority or other external party.
+This remediation is completed exclusively from approved published artifacts and deterministic local processing under the permanent no-outreach build rule.

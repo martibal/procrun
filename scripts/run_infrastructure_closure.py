@@ -53,7 +53,7 @@ FORBIDDEN_PUBLIC_KEYS = frozenset(
 
 PHASE_BUDGET_SECONDS = {
     "open_coesione_collect": 120,
-    "ted_collect": 300,
+    "ted_collect": 480,
     "candidate_index": 120,
     "runway_build_1": 180,
     "runway_build_2": 180,
