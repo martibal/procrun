@@ -25,4 +25,6 @@ The relevant 1-3 source excerpts must later be marked directly against the sourc
 
 The repository does not currently contain the sanctioned sanitized A21 project source pool. Therefore this change deliberately adds the preparation contract and tooling but does not fabricate a benchmark dataset from test fixtures or raw public archives.
 
-The next data step is to make an already-sanitized, zero-PII source-only package available to an automated GitHub/server workflow, then freeze the resulting development set before any evidence-retrieval scoring.
+The A21a release candidate itself is now frozen separately as `a21a-evidence-rc1`; see `A21A_RELEASE_CANDIDATE_AND_FINAL_POPULATION_FREEZE.md`. The exact final population remains fail-closed until the sanctioned source pool exists and can be hash-anchored with zero development overlap.
+
+The next data step is to make an already-sanitized, zero-PII source-only package available to an automated GitHub/server workflow, validate it, and deterministically freeze the disjoint final population before any sealed final-holdout scoring.
