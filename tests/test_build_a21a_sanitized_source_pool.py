@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 
+import pytest
+
+from procrun.collectors.opencoesione import OpenCoesioneBatch, OpenCoesioneOperation
 from scripts import build_a21a_sanitized_source_pool as builder
 from scripts.validate_a21a_sanitized_source_pool import validate
-from procrun.collectors.opencoesione import OpenCoesioneBatch, OpenCoesioneOperation
 
 
-def _batch() -> OpenCoesioneBatch:
-    operation = OpenCoesioneOperation(
+def _operation() -> OpenCoesioneOperation:
+    return OpenCoesioneOperation(
         operation_id="ITC4-001",
         cup="A11B22000010001",
         operation_name="Riqualificazione energetica edificio pubblico",
@@ -26,10 +29,14 @@ def _batch() -> OpenCoesioneBatch:
         list_updated_on=date(2026, 8, 31),
         source_url="https://opencoesione.gov.it/it/opendata/beneficiari/2021-2027/beneficiari_PR_FESR_LOMBARDIA.zip",
     )
+
+
+def _batch(*operations: OpenCoesioneOperation) -> OpenCoesioneBatch:
+    rows = operations or (_operation(),)
     return OpenCoesioneBatch(
-        operations=(operation,),
+        operations=tuple(rows),
         observed_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
-        source_url=operation.source_url,
+        source_url=rows[0].source_url,
         source_sha256="a" * 64,
         list_updated_on=date(2026, 8, 31),
     )
@@ -61,3 +68,19 @@ def test_builder_emits_valid_prebuilt_sanitized_resource(monkeypatch) -> None:
         }
     ]
     assert validate(document)["ingress_pass"] is True
+
+
+def test_exact_duplicate_source_rows_are_collapsed(monkeypatch) -> None:
+    operation = _operation()
+    monkeypatch.setattr(builder, "collect_open_coesione_live", lambda: _batch(operation, operation))
+    document = builder.build_source_pool()
+    assert len(document["cases"]) == 1
+    assert validate(document)["ingress_pass"] is True
+
+
+def test_conflicting_duplicate_source_rows_fail_closed(monkeypatch) -> None:
+    operation = _operation()
+    conflict = replace(operation, operation_summary="Conflicting source wording")
+    monkeypatch.setattr(builder, "collect_open_coesione_live", lambda: _batch(operation, conflict))
+    with pytest.raises(RuntimeError, match="conflicting OpenCoesione rows"):
+        builder.build_source_pool()
