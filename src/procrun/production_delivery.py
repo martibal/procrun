@@ -6,6 +6,7 @@ import json
 import os
 import re
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -64,6 +65,7 @@ TED_ITALY_QUERY_TEMPLATE: Final = (
     "buyer-country = ITA AND publication-date >= {start} AND publication-date <= {cutoff}"
 )
 TED_BOOTSTRAP_START: Final = date(2021, 1, 1)
+TED_COLLECTION_MAX_WORKERS: Final = 4
 ALL_COMPONENT_DOMAINS: Final = tuple(ComponentDomain)
 
 
@@ -94,24 +96,116 @@ def ted_italy_query(cutoff_date: date, *, start_date: date = TED_BOOTSTRAP_START
     )
 
 
-def collect_complete_ted_italy(
-    cutoff_date: date, *, page_size: int = 250, max_pages: int = 5000
+def _ted_year_ranges(cutoff_date: date) -> tuple[tuple[date, date], ...]:
+    """Return non-overlapping chronological year segments covering the complete TED window."""
+
+    if cutoff_date < TED_BOOTSTRAP_START:
+        raise ValueError("TED cutoff cannot predate bootstrap start")
+    ranges: list[tuple[date, date]] = []
+    for year in range(TED_BOOTSTRAP_START.year, cutoff_date.year + 1):
+        start = max(TED_BOOTSTRAP_START, date(year, 1, 1))
+        end = min(cutoff_date, date(year, 12, 31))
+        ranges.append((start, end))
+    return tuple(ranges)
+
+
+def _collect_complete_ted_segment(
+    start_date: date,
+    end_date: date,
+    *,
+    page_size: int,
+    max_pages: int,
 ) -> TedCollectionResult:
     result = collect_ted_notices(
-        ted_italy_query(cutoff_date),
+        ted_italy_query(end_date, start_date=start_date),
         page_size=page_size,
         max_pages=max_pages,
         scope="ALL",
     )
+    segment = f"{start_date.isoformat()}..{end_date.isoformat()}"
     if not result.complete:
         raise ProductionDeliveryError(
-            "TED Italy coverage is incomplete; publication is prohibited: "
-            f"stop_reason={result.stop_reason}, pages={result.pages_fetched}, "
+            "TED Italy segment coverage is incomplete; publication is prohibited: "
+            f"segment={segment}, stop_reason={result.stop_reason}, pages={result.pages_fetched}, "
             f"records={len(result.records)}, expected={result.total_notice_count}"
         )
     if result.total_notice_count is not None and len(result.records) != result.total_notice_count:
-        raise ProductionDeliveryError("TED complete flag/count invariant failed")
+        raise ProductionDeliveryError(f"TED segment complete flag/count invariant failed: {segment}")
     return result
+
+
+def collect_complete_ted_italy(
+    cutoff_date: date, *, page_size: int = 250, max_pages: int = 5000
+) -> TedCollectionResult:
+    """Collect the same complete TED universe through independent bounded year segments.
+
+    Iteration tokens make a single six-year pagination stream inherently sequential. Calendar-year
+    segmentation is semantically neutral because the publication-date ranges are exhaustive and
+    non-overlapping, while allowing bounded parallel transport. Results are merged in chronological
+    segment order and then deterministically sorted before any classification logic sees them.
+    """
+
+    ranges = _ted_year_ranges(cutoff_date)
+    results_by_start: dict[date, TedCollectionResult] = {}
+    workers = min(TED_COLLECTION_MAX_WORKERS, len(ranges))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="ted-year") as executor:
+        future_to_range = {
+            executor.submit(
+                _collect_complete_ted_segment,
+                start,
+                end,
+                page_size=page_size,
+                max_pages=max_pages,
+            ): (start, end)
+            for start, end in ranges
+        }
+        for future in as_completed(future_to_range):
+            start, _ = future_to_range[future]
+            results_by_start[start] = future.result()
+
+    records: list[dict[str, Any]] = []
+    pages_fetched = 0
+    expected_total = 0
+    total_known = True
+    seen_records: set[tuple[str, str]] = set()
+    for start, _ in ranges:
+        result = results_by_start[start]
+        pages_fetched += result.pages_fetched
+        if result.total_notice_count is None:
+            total_known = False
+        else:
+            expected_total += result.total_notice_count
+        for record in result.records:
+            identity = (
+                str(record.get("notice_id") or ""),
+                str(record.get("publication_date") or ""),
+            )
+            if not all(identity):
+                raise ProductionDeliveryError("TED segmented merge encountered missing record identity")
+            if identity in seen_records:
+                raise ProductionDeliveryError(
+                    "TED segmented merge encountered duplicate/overlapping record identity: "
+                    f"{identity[0]}@{identity[1]}"
+                )
+            seen_records.add(identity)
+            records.append(record)
+
+    records.sort(
+        key=lambda record: (
+            str(record.get("publication_date") or ""),
+            str(record.get("notice_id") or ""),
+        )
+    )
+    total_notice_count = expected_total if total_known else None
+    if total_notice_count is not None and len(records) != total_notice_count:
+        raise ProductionDeliveryError("TED segmented complete-count invariant failed")
+    return TedCollectionResult(
+        records=tuple(records),
+        total_notice_count=total_notice_count,
+        pages_fetched=pages_fetched,
+        complete=True,
+        stop_reason="complete_segmented",
+    )
 
 
 def _rule_key(rule: ComponentRule) -> str:
