@@ -13,6 +13,7 @@ from typing import Any, Final
 
 import psycopg
 
+from procrun.a21_identity import a21_projects_by_local_operation_id
 from procrun.collectors.opencoesione import (
     OPENCOESIONE_SOURCE_ID,
     OpenCoesioneBatch,
@@ -25,6 +26,7 @@ from procrun.component_engine import (
     RULES,
     ComponentDomain,
     ComponentRule,
+    cpv_matches_prefixes,
     extract_components,
 )
 from procrun.domain import ProcurementEvidence, ProjectState, PurchaseComponent
@@ -50,13 +52,13 @@ from procrun.runway import (
     assess_project_runway,
 )
 
-PRODUCTION_DELIVERY_VERSION: Final = "production-delivery-v1"
+PRODUCTION_DELIVERY_VERSION: Final = "production-delivery-v2-evidence-bounded"
 OPENCOESIONE_SCHEMA_VERSION: Final = "opencoesione-2021-2027-lombardia-v1"
 TED_SCHEMA_VERSION: Final = "ted-projected-v1"
 TED_COVERAGE_NOTE: Final = (
-    "Coverage: TED. No relevant procurement means no matching procurement was found in the "
-    "complete TED query universe through the stated cutoff. This does not establish absence "
-    "outside TED, including national or below-threshold procedures."
+    "Coverage: complete TED Italy query universe through the stated cutoff. OPEN means only that "
+    "no procurement match satisfying ProcRun's frozen exact-evidence rules was found in that "
+    "universe. It does not establish absence outside TED or under different wording/classification."
 )
 TED_ITALY_QUERY_TEMPLATE: Final = (
     "buyer-country = ITA AND publication-date >= {start} AND publication-date <= {cutoff}"
@@ -127,7 +129,18 @@ def _contains_phrase(text: str, phrase: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", text, flags=re.IGNORECASE) is not None
 
 
+def _record_cpv_codes(record: dict[str, Any]) -> tuple[str, ...]:
+    raw = record.get("cpv_codes") or ()
+    if isinstance(raw, str):
+        return (raw,)
+    if isinstance(raw, list | tuple):
+        return tuple(str(value) for value in raw)
+    return ()
+
+
 def _candidate_record(record: dict[str, Any], component: PurchaseComponent) -> bool:
+    """Keep a broad deterministic candidate set so plausible CPV matches can block OPEN."""
+
     rule = _rule_for_component(component)
     text = "\n".join(
         value
@@ -137,7 +150,11 @@ def _candidate_record(record: dict[str, Any], component: PurchaseComponent) -> b
         )
         if value
     )
-    return any(_contains_phrase(text, phrase) for phrase in rule.phrases)
+    phrase_match = any(_contains_phrase(text, phrase) for phrase in rule.phrases)
+    cpv_match = bool(rule.cpv_prefixes) and any(
+        cpv_matches_prefixes(code, rule.cpv_prefixes) for code in _record_cpv_codes(record)
+    )
+    return phrase_match or cpv_match
 
 
 def _evidence_id(component_id: str, notice_id: str) -> str:
@@ -166,6 +183,10 @@ def _component_evidence(
     return tuple(evidence)
 
 
+def _logical_projects(batch: OpenCoesioneBatch):
+    return a21_projects_by_local_operation_id(batch.operations, to_funding_projects(batch))
+
+
 def build_live_runway_results(
     batch: OpenCoesioneBatch,
     ted: TedCollectionResult,
@@ -174,11 +195,12 @@ def build_live_runway_results(
 ) -> tuple[RunwayResult, ...]:
     if not ted.complete:
         raise ProductionDeliveryError("incomplete TED coverage cannot enter runway assessment")
+
+    operations = {operation.operation_id: operation for operation in batch.operations}
     results: list[RunwayResult] = []
-    for project in to_funding_projects(batch):
+    for project in _logical_projects(batch):
+        operation = operations[project.operation_code]
         extraction = extract_components(project, ALL_COMPONENT_DOMAINS)
-        if not extraction.components:
-            continue
         evidence_by_component: dict[str, tuple[ProcurementEvidence, ...]] = {}
         coverage_by_component: dict[str, ComponentCoverage] = {}
         for extracted in extraction.components:
@@ -192,6 +214,13 @@ def build_live_runway_results(
                 boundary_resolved=True,
                 note=TED_COVERAGE_NOTE,
             )
+        references = tuple(
+            dict.fromkeys(
+                value
+                for value in (operation.operation_id, operation.cup)
+                if value is not None and value.strip()
+            )
+        )
         results.append(
             assess_project_runway(
                 project,
@@ -199,15 +228,14 @@ def build_live_runway_results(
                 cutoff_date=cutoff_date,
                 evidence_by_component=evidence_by_component,
                 coverage_by_component=coverage_by_component,
+                project_reference_codes=references,
             )
         )
     return tuple(results)
 
 
 def _candidate_audit(result_component: RunwayComponentResult) -> list[dict[str, Any]]:
-    by_id = {
-        candidate.evidence.evidence_id: candidate for candidate in result_component.candidates
-    }
+    by_id = {candidate.evidence.evidence_id: candidate for candidate in result_component.candidates}
     rows: list[dict[str, Any]] = []
     for evaluation in result_component.match.evaluations:
         candidate = by_id[evaluation.evidence_id]
@@ -244,8 +272,8 @@ def persist_live_results(
     completed_at: datetime,
     ted_count: int,
 ) -> None:
-    projects = {project.operation_code: project for project in to_funding_projects(batch)}
-    operations = {(item.cup or item.operation_id): item for item in batch.operations}
+    projects = {project.operation_code: project for project in _logical_projects(batch)}
+    operations = {item.operation_id: item for item in batch.operations}
     with psycopg.connect(database_url) as conn:
         apply_migrations(conn)
         with conn.transaction():
@@ -331,9 +359,7 @@ def persist_live_results(
                     as_of=completed_at,
                     classifier_version=PROJECT_CLASSIFIER_VERSION,
                 )
-            output_hash = content_sha256(
-                [model.model_dump(mode="json") for model in read_models]
-            )
+            output_hash = content_sha256([model.model_dump(mode="json") for model in read_models])
             append_run_manifest(
                 conn,
                 run_key=run_key,
@@ -341,10 +367,12 @@ def persist_live_results(
                 completed_at=completed_at,
                 classifier_version=PRODUCTION_DELIVERY_VERSION,
                 counts={
-                    "open_coesione_projects": len(batch.operations),
+                    "open_coesione_raw_rows": len(batch.operations),
+                    "open_coesione_logical_projects": len(projects),
                     "ted_records": ted_count,
                     "runway_projects": len(results),
                     "published_projects": len(read_models),
+                    "projects_with_components": sum(bool(item.components) for item in results),
                 },
                 input_sha256=batch.source_sha256,
                 output_sha256=output_hash,
@@ -376,16 +404,18 @@ def run_live_delivery(
     cutoff = cutoff_date or started_at.date()
     run_key = f"live-{cutoff.isoformat()}"
     batch = collect_open_coesione_live()
-    projects = to_funding_projects(batch)
+    projects = _logical_projects(batch)
     if not projects:
         raise ProductionDeliveryError("OpenCoesione produced zero canonical funded projects")
     ted = collect_complete_ted_italy(cutoff)
     results = build_live_runway_results(batch, ted, cutoff_date=cutoff)
+    if len(results) != len(projects):
+        raise ProductionDeliveryError("production runway omitted one or more funded projects")
     read_models = tuple(build_runway_read_model(result) for result in results)
     useful = tuple(model for model in read_models if model.state is not ProjectState.UNRESOLVED)
     if not useful:
         raise ProductionDeliveryError(
-            "live sources produced zero resolved customer runway projects; web build remains blocked"
+            "live sources produced zero resolved customer runway projects; publication is prohibited"
         )
     completed_at = datetime.now(timezone.utc)
     persist_live_results(
@@ -405,7 +435,7 @@ def run_live_delivery(
         funded_projects=len(projects),
         ted_records=len(ted.records),
         ted_pages=ted.pages_fetched,
-        projects_with_components=len(results),
+        projects_with_components=sum(bool(result.components) for result in results),
         published_projects=len(read_models),
         useful_projects=len(useful),
         unresolved_projects=sum(model.state is ProjectState.UNRESOLVED for model in read_models),

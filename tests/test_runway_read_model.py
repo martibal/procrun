@@ -129,7 +129,7 @@ def test_end_to_end_runway_produces_exact_evidence_and_stable_safe_read_model() 
     walk(serialized)
 
 
-def test_ted_only_coverage_can_never_create_open() -> None:
+def test_incomplete_required_coverage_can_never_create_open() -> None:
     components = _components()
     ids = tuple(component.component_id for component in components.values())
     result = assess_project_runway(
@@ -145,7 +145,7 @@ def test_ted_only_coverage_can_never_create_open() -> None:
     assert result.assessment.state is ProjectState.UNRESOLVED
 
 
-def test_unmatched_scope_requires_fallback_and_can_never_create_open() -> None:
+def test_unmatched_scope_requires_unresolved_and_can_never_create_open() -> None:
     project = PROJECT.model_copy(
         update={
             "project_scope_text": (
@@ -171,6 +171,21 @@ def test_unmatched_scope_requires_fallback_and_can_never_create_open() -> None:
     )
 
 
+def test_no_component_is_a_valid_unresolved_result_not_an_exception() -> None:
+    project = PROJECT.model_copy(update={"project_scope_text": "Intervento generale non classificato"})
+    result = assess_project_runway(
+        project,
+        domains=(ComponentDomain.WATER_WASTEWATER,),
+        cutoff_date=CUTOFF,
+        evidence_by_component={},
+        coverage_by_component={},
+    )
+    public = build_runway_read_model(result)
+    assert result.components == ()
+    assert result.assessment.state is ProjectState.UNRESOLVED
+    assert public.unresolved_source_evidence[0].text == project.project_scope_text
+
+
 def test_missing_explicit_coverage_fails_before_a_state_is_built() -> None:
     with pytest.raises(RunwayInvariantError, match="explicit procurement coverage"):
         assess_project_runway(
@@ -182,7 +197,7 @@ def test_missing_explicit_coverage_fails_before_a_state_is_built() -> None:
         )
 
 
-def test_exact_project_reference_without_component_text_cannot_close_component() -> None:
+def test_exact_project_reference_without_component_text_blocks_open() -> None:
     components = _components()
     pump = components["water_wastewater:pumps"]
     evidence = _pump_evidence(pump.component_id).model_copy(
@@ -201,4 +216,4 @@ def test_exact_project_reference_without_component_text_cannot_close_component()
         for item in result.components
         if item.extracted.component.component_id == pump.component_id
     )
-    assert pump_result.match.assessment.state is ComponentState.OPEN
+    assert pump_result.match.assessment.state is ComponentState.UNRESOLVED

@@ -8,6 +8,7 @@ evidence.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 
@@ -102,12 +103,17 @@ def bind_exact_component_evidence(
     return None
 
 
-def _reference_matches(project: FundingProject, evidence: ProcurementEvidence) -> bool:
+def _reference_matches(
+    project: FundingProject,
+    evidence: ProcurementEvidence,
+    project_reference_codes: Sequence[str],
+) -> bool:
     if not evidence.project_reference:
         return False
     reference = evidence.project_reference.strip().casefold()
-    operation_code = project.operation_code.strip().casefold()
-    return reference == operation_code
+    codes = {project.operation_code.strip().casefold()}
+    codes.update(code.strip().casefold() for code in project_reference_codes if code.strip())
+    return reference in codes
 
 
 def _date_compatible(project: FundingProject, publication_date: date) -> bool:
@@ -147,6 +153,8 @@ def build_match_candidate(
     project: FundingProject,
     component: PurchaseComponent,
     evidence: ProcurementEvidence,
+    *,
+    project_reference_codes: Sequence[str] = (),
 ) -> MatchCandidate:
     """Build conservative matching facts from explicit project and procurement evidence."""
 
@@ -166,7 +174,9 @@ def build_match_candidate(
     return MatchCandidate(
         evidence=bound_evidence,
         features=CandidateFeatures(
-            exact_project_identifier=_reference_matches(project, evidence),
+            exact_project_identifier=_reference_matches(
+                project, evidence, project_reference_codes
+            ),
             contracting_authority_match=False,
             geography_match=_geography_matches(project, evidence),
             high_scope_overlap=high_scope_overlap,
@@ -183,7 +193,17 @@ def build_match_candidates(
     project: FundingProject,
     component: PurchaseComponent,
     evidence: tuple[ProcurementEvidence, ...],
+    *,
+    project_reference_codes: Sequence[str] = (),
 ) -> tuple[MatchCandidate, ...]:
     """Build candidates deterministically, preserving input order for reproducibility."""
 
-    return tuple(build_match_candidate(project, component, item) for item in evidence)
+    return tuple(
+        build_match_candidate(
+            project,
+            component,
+            item,
+            project_reference_codes=project_reference_codes,
+        )
+        for item in evidence
+    )

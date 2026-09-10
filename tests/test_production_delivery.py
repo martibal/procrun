@@ -17,12 +17,12 @@ from procrun.production_delivery import (
 from procrun.read_model import build_runway_read_model
 
 
-def _batch() -> OpenCoesioneBatch:
+def _batch(*, summary: str = "New pumps.") -> OpenCoesioneBatch:
     operation = OpenCoesioneOperation(
         operation_id="OP-1",
         cup="CUP1",
         operation_name="Water upgrade",
-        operation_summary="New pumps.",
+        operation_summary=summary,
         start_date=date(2026, 1, 1),
         end_date=date(2027, 12, 31),
         total_cost_eur=Decimal("1000000"),
@@ -77,21 +77,22 @@ def test_incomplete_ted_universe_is_never_admitted(monkeypatch: pytest.MonkeyPat
         collect_complete_ted_italy(date(2026, 9, 4))
 
 
-def test_complete_empty_ted_yields_exact_ted_scoped_open() -> None:
+def test_complete_empty_ted_yields_exact_rule_bounded_open() -> None:
     result = build_live_runway_results(
         _batch(), _ted(records=()), cutoff_date=date(2026, 9, 4)
     )[0]
     model = build_runway_read_model(result)
-    assert model.operation_code == "CUP1"
+    assert model.operation_code == "OP-1"
     assert model.state is ProjectState.OPEN
     assert model.components[0].state is ComponentState.OPEN
     assert model.components[0].state_explanation == (
-        "No relevant procurement found in TED as of 2026-09-04."
+        "No procurement match satisfying ProcRun's frozen exact-evidence rules was found in TED "
+        "as of 2026-09-04."
     )
-    assert "does not establish absence outside TED" in model.components[0].coverage_note
+    assert "does not establish absence" in model.components[0].coverage_note
 
 
-def test_exact_cup_plus_component_source_span_closes_component() -> None:
+def test_exact_cup_alias_plus_component_source_span_closes_component() -> None:
     record: dict[str, object] = {
         "notice_id": "12345-2026",
         "publication_date": "2026-02-01",
@@ -116,6 +117,7 @@ def test_exact_cup_plus_component_source_span_closes_component() -> None:
         _batch(), _ted(records=(record,)), cutoff_date=date(2026, 9, 4)
     )[0]
     model = build_runway_read_model(result)
+    assert model.operation_code == "OP-1"
     assert model.state is ProjectState.CLOSED
     component = model.components[0]
     assert component.state is ComponentState.CLOSED
@@ -125,6 +127,44 @@ def test_exact_cup_plus_component_source_span_closes_component() -> None:
         "Supply of pumps",
         "Pumps for CUP1 water upgrade",
     }
+
+
+def test_component_free_project_is_published_unresolved_with_exact_source_wording() -> None:
+    result = build_live_runway_results(
+        _batch(summary="Intervento generale sul patrimonio pubblico"),
+        _ted(records=()),
+        cutoff_date=date(2026, 9, 4),
+    )[0]
+    model = build_runway_read_model(result)
+    assert model.operation_code == "OP-1"
+    assert model.state is ProjectState.UNRESOLVED
+    assert model.components == ()
+    assert len(model.unresolved_source_evidence) == 1
+    span = model.unresolved_source_evidence[0]
+    assert span.text == "Intervento generale sul patrimonio pubblico"
+    assert span.start == 0
+    assert span.end == len(span.text)
+
+
+def test_duplicate_cup_does_not_collapse_distinct_local_operations() -> None:
+    first = _batch().operations[0]
+    second = OpenCoesioneOperation(
+        **{
+            **first.__dict__,
+            "operation_id": "OP-2",
+            "operation_name": "Second water upgrade",
+            "operation_summary": "New pumps.",
+        }
+    )
+    batch = OpenCoesioneBatch(
+        operations=(first, second),
+        observed_at=_batch().observed_at,
+        source_url=first.source_url,
+        source_sha256="b" * 64,
+        list_updated_on=first.list_updated_on,
+    )
+    results = build_live_runway_results(batch, _ted(records=()), cutoff_date=date(2026, 9, 4))
+    assert {result.project.operation_code for result in results} == {"OP-1", "OP-2"}
 
 
 def test_customer_safe_jsonl_is_valid_json(tmp_path) -> None:
@@ -139,5 +179,5 @@ def test_customer_safe_jsonl_is_valid_json(tmp_path) -> None:
     lines = output.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 1
     parsed = json.loads(lines[0])
-    assert parsed["operation_code"] == "CUP1"
+    assert parsed["operation_code"] == "OP-1"
     assert parsed["state"] == "OPEN"
