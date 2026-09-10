@@ -1,16 +1,14 @@
 # A21a — Numerical Threshold Preregistration
 
-**Status:** FROZEN BEFORE SEALED FINAL HOLDOUT
+**Status:** `a21a-thresholds-v1` INVALIDATED — CLEAN REPREREGISTRATION REQUIRED
 
-Version: `a21a-thresholds-v1`
+The v1 numerical thresholds were frozen before the sealed final holdout was opened, but **after development results had been viewed from a source lineage later proven to violate the permanent download-then-filter prohibition**. That timing invalidates v1 as a clean preregistration.
 
-This document preregisters the ProcRun A21a evidence-retrieval pass/fail thresholds before any sealed final A21a holdout is opened, inspected, scored or used for tuning. The thresholds apply to the release-candidate evidence retriever and are intentionally stricter than a simple majority-quality test because the customer-facing layer presents source wording as auditable evidence.
+The values are retained below strictly as historical provenance. They are not an active product-quality gate and cannot produce A21a PASS in code.
 
-## Frozen numerical gate
+## Historical v1 values — inactive
 
-A final A21a run passes only if every condition below is satisfied simultaneously:
-
-| Dimension | Frozen threshold |
+| Dimension | Historical v1 threshold |
 | --- | ---: |
 | Evidence precision | >= 0.95 |
 | Gold excerpt recall | >= 0.90 |
@@ -22,26 +20,19 @@ A final A21a run passes only if every condition below is satisfied simultaneousl
 | Determinism failures | 0 |
 | Aggregate hard-integrity gate | PASS |
 
-The gate is conjunctive. There is no averaging, compensating strength or discretionary override: failure on one row means A21a is not green.
+These values must not simply be relabeled as v2. A new threshold version may be frozen only after a fresh independent development review has been completed on the clean sanitized-source lineage pinned in `A21A_REPRODUCIBILITY_INCIDENT_2026-09-10.md`.
 
-## Interpretation
+## Required clean sequence
 
-`evidence_precision >= 0.95` limits irrelevant surfaced evidence because a customer must not routinely inspect text that does not support the project relevance question.
+1. Use the clean-v2 development sample derived from the approved publisher-sanitized source pool.
+2. Do not reuse the invalidated v1 title-utility or objective-fallback labels as adjudication.
+3. Complete the independent development review while the sealed final holdout remains untouched.
+4. Inspect and document the clean development results.
+5. Freeze a new numerical threshold preregistration after those development results and before any final-holdout result is viewed.
+6. Only then may a final A21a evaluator be enabled against the new preregistration version.
 
-`gold_excerpt_recall >= 0.90` requires the retriever to cover the large majority of independently adjudicated relevant source spans while allowing limited span-level disagreement where several defensible excerpts exist.
-
-`gold-positive case recall >= 0.95` is the customer-level utility requirement: when useful approved source wording exists, ProcRun must surface relevant wording in at least 95% of such cases.
-
-`negative-case false-positive rate <= 0.05` forces abstention on cases where no defensible evidence exists. ProcRun must prefer no evidence over invented or weakly related evidence.
-
-All integrity, provenance, translation and determinism failures remain zero-tolerance. These requirements are not statistical quality targets; they are hard contract violations.
+The active evaluator therefore includes a `clean_preregistration_lineage` hard check and remains fail-closed until this sequence is complete.
 
 ## Holdout discipline
 
-The sealed final A21a holdout remains untouched by this preregistration. The final population must be disjoint from development material and must be adjudicated independently from extractor output. No threshold may be changed after final-holdout results are viewed. If the release-candidate extractor or these thresholds are changed after opening the holdout, that holdout can no longer be treated as a clean final evaluation for the changed candidate.
-
-The final evaluator must consume the frozen metrics without silently substituting alternative definitions. A21a evaluates evidence retrieval only; A21b remains the separate interpretation/classification gate.
-
-## Product decision
-
-Threshold preregistration removes the current threshold-definition blocker, but it does not make A21a green. A21a becomes green only after the release candidate is frozen, a disjoint final benchmark is frozen and the sealed final evaluation satisfies every threshold above.
+The sealed A21/A21b holdout remains untouched by this incident and must remain unopened during remediation. The invalidation concerns development/preregistration provenance, not contamination of the sealed holdout itself.
