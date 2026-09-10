@@ -27,6 +27,7 @@ class A21aSourceCandidate:
     metadata_probe_allowed: bool
     requires_server_side_projection: bool
     forbidden_full_dataset_fields: tuple[str, ...] = ()
+    richer_project_text_proven: bool = False
 
 
 CANDIDATES: dict[str, A21aSourceCandidate] = {
@@ -44,11 +45,14 @@ CANDIDATES: dict[str, A21aSourceCandidate] = {
             "including name, tax code, telephone number or email address. This corrects the prior "
             "A21a review, which incorrectly treated the title rule as established while missing the "
             "same explicit rule for SINTESI_PROG. The summary provides up to 1,300 characters of "
-            "project-specific scope and is therefore eligible as the primary A21a source-evidence text."
+            "project-specific scope and is therefore eligible as A21a source-evidence text. The live "
+            "Lombardia universe currently has SINTESI_PROG identical to TITOLO_PROGETTO, so richer "
+            "project text is not presently proven from this route."
         ),
         row_ingest_allowed=True,
         metadata_probe_allowed=True,
         requires_server_side_projection=False,
+        richer_project_text_proven=False,
     ),
     "opencoesione_general_api": A21aSourceCandidate(
         source_id="opencoesione_general_api",
@@ -100,12 +104,12 @@ CANDIDATES: dict[str, A21aSourceCandidate] = {
         status=CandidateStatus.BLOCKED,
         route="https://www.dati.lombardia.it/resource/q78n-g3m9.json",
         reason=(
-            "Server-side projection is proven and can exclude beneficiary columns before receipt, "
-            "but Regione Lombardia's public Open Data governance explicitly allows datasets "
-            "containing personal data to be published after a legality/necessity assessment. No "
-            "dataset-specific public contract guarantees that descrizione_operazione is free of "
-            "natural-person data. Therefore this source cannot satisfy ProcRun's absolute zero-PII "
-            "pre-receipt requirement for A21a verbatim evidence text."
+            "The official dataset exposes DESCRIZIONE_OPERAZIONE as a project-description field and "
+            "server-side projection is proven, so it is potentially richer than the title. However, "
+            "the same dataset explicitly contains beneficiary names including natural persons, and no "
+            "dataset-specific public rule guarantees that DESCRIZIONE_OPERAZIONE itself is free of "
+            "natural-person data. ProcRun cannot receive free text first and inspect/filter it later. "
+            "Therefore the source remains blocked by the absolute zero-PII pre-receipt boundary."
         ),
         row_ingest_allowed=False,
         metadata_probe_allowed=True,
@@ -114,6 +118,47 @@ CANDIDATES: dict[str, A21aSourceCandidate] = {
             "nome_del_beneficiario",
             "codice_del_beneficiario",
         ),
+        richer_project_text_proven=False,
+    ),
+    "kohesio_eu_knowledge_graph": A21aSourceCandidate(
+        source_id="kohesio_eu_knowledge_graph",
+        status=CandidateStatus.BLOCKED,
+        route="https://query.linkedopendata.eu/sparql",
+        reason=(
+            "Kohesio is an EC project-level aggregation and its public schema requires an operation "
+            "summary; its validator also requires an individual person's beneficiary name to be "
+            "anonymised. The SPARQL endpoint can technically project only project fields. However, "
+            "the published anonymisation rule is attached to Beneficiary_Name, not to free-text "
+            "Operation_Summary_Programme_Language. No public field-level contract was found that "
+            "guarantees the operation summary cannot contain natural-person data. Under ProcRun's "
+            "zero-PII pre-receipt rule, a projected free-text row still cannot be ingested merely so "
+            "that ProcRun can inspect or filter it afterward."
+        ),
+        row_ingest_allowed=False,
+        metadata_probe_allowed=True,
+        requires_server_side_projection=True,
+        forbidden_full_dataset_fields=(
+            "Beneficiary_Name",
+            "Beneficiary_Unique_Identifier",
+            "Social_Media_Links",
+        ),
+        richer_project_text_proven=False,
+    ),
+    "beneficiary_article50_project_pages": A21aSourceCandidate(
+        source_id="beneficiary_article50_project_pages",
+        status=CandidateStatus.BLOCKED,
+        route="Beneficiary public websites required/encouraged under Regulation (EU) 2021/1060",
+        reason=(
+            "Article 50 can make a short project description publicly available on beneficiary "
+            "websites, but arbitrary beneficiary pages are unstructured documents that can contain "
+            "names, contact details and other natural-person data. There is no server-side projection "
+            "or source-wide content contract that would remove those fields before receipt. Public "
+            "availability is therefore not sufficient for ProcRun's stricter zero-PII ingest rule."
+        ),
+        row_ingest_allowed=False,
+        metadata_probe_allowed=True,
+        requires_server_side_projection=True,
+        richer_project_text_proven=False,
     ),
 }
 
@@ -130,3 +175,15 @@ def require_row_ingest(source_id: str) -> A21aSourceCandidate:
     if not candidate.row_ingest_allowed:
         raise RuntimeError(f"row ingest not approved for A21a source candidate {source_id}")
     return candidate
+
+
+def approved_richer_project_text_sources() -> tuple[A21aSourceCandidate, ...]:
+    """Return sources safe for row ingest that are proven to add text beyond the project title."""
+
+    return tuple(
+        candidate
+        for candidate in CANDIDATES.values()
+        if candidate.status is CandidateStatus.APPROVED
+        and candidate.row_ingest_allowed
+        and candidate.richer_project_text_proven
+    )
