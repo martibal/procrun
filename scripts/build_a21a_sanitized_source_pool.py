@@ -3,7 +3,7 @@
 The per-program PR FESR Lombardia publication is already approved as a zero-PII
 publisher resource before ProcRun receives it. This script therefore does not use
 "download then filter" as a privacy mechanism: it receives an already-qualified
-minimum publication and projects the A21a case shape only for product schema purposes.
+minimum publication and maps only source fields into the A21a package.
 """
 
 from __future__ import annotations
@@ -12,8 +12,7 @@ import argparse
 import json
 from pathlib import Path
 
-from procrun.a21_identity import a21_projects_by_local_operation_id
-from procrun.collectors.opencoesione import OPENCOESIONE_SOURCE_ID, to_funding_projects
+from procrun.collectors.opencoesione import OPENCOESIONE_SOURCE_ID
 from procrun.collectors.opencoesione_live import (
     OPENCOESIONE_PUBLICATION_PAGE,
     collect_open_coesione_live,
@@ -25,20 +24,17 @@ PUBLISHER_ZERO_PII_CONTRACT = "opencoesione-art49-minimum-rgs-v1"
 
 def build_source_pool() -> dict[str, object]:
     batch = collect_open_coesione_live()
-    mapped_projects = to_funding_projects(batch)
-    projects = a21_projects_by_local_operation_id(batch.operations, mapped_projects)
-
     cases: list[dict[str, object]] = []
-    for project in projects:
+    for operation in batch.operations:
         cases.append(
             {
-                "operation_code": project.operation_code,
-                "project_title": project.project_title,
-                "project_scope_text": project.project_scope_text,
-                "region": project.region,
-                "municipality": project.municipality,
-                "nuts_code": project.nuts_code,
-                "source_url": project.source_url,
+                "operation_code": operation.operation_id,
+                "project_title": operation.operation_name,
+                "project_scope_text": operation.operation_summary,
+                "region": "Lombardia",
+                "municipality": None,
+                "nuts_code": "ITC4",
+                "source_url": operation.source_url,
                 "language": "it",
             }
         )
