@@ -1,4 +1,5 @@
 export type OpportunityState = "OPEN" | "CLOSED" | "UNRESOLVED";
+export type ProjectEvidenceType = "Project title" | "Project description";
 
 export type Opportunity = {
   id: string;
@@ -9,6 +10,7 @@ export type Opportunity = {
   cutoffDate: string;
   coverage: "TED";
   openWording?: string;
+  projectEvidenceType: ProjectEvidenceType;
   projectEvidence: string;
   procurementEvidence?: string;
   valueEur?: number;
@@ -27,6 +29,7 @@ export const opportunities: readonly Opportunity[] = [
     cutoffDate: "2026-09-04",
     coverage: "TED",
     openWording: "No relevant procurement found in TED as of 2026-09-04.",
+    projectEvidenceType: "Project description",
     projectEvidence: "Upgrade pumping stations, electrical controls and remote monitoring across the network.",
     valueEur: 8200000,
     geography: "Fixture region · Italy",
@@ -41,6 +44,7 @@ export const opportunities: readonly Opportunity[] = [
     state: "CLOSED",
     cutoffDate: "2026-09-04",
     coverage: "TED",
+    projectEvidenceType: "Project description",
     projectEvidence: "Modernisation includes signalling, communications and station systems.",
     procurementEvidence: "TED notice matched signalling-system procurement under the frozen matching rules.",
     valueEur: 14500000,
@@ -56,7 +60,8 @@ export const opportunities: readonly Opportunity[] = [
     state: "UNRESOLVED",
     cutoffDate: "2026-09-04",
     coverage: "TED",
-    projectEvidence: "Electrical infrastructure for vessel shore connection and terminal distribution.",
+    projectEvidenceType: "Project title",
+    projectEvidence: "Port electrification programme",
     geography: "Fixture port · Portugal",
     sourceVersion: "fixture:read-model:v1",
     isFixture: true,
@@ -68,7 +73,7 @@ export function getOpportunity(id: string): Opportunity | undefined {
 }
 
 export function toCsv(items: readonly Opportunity[]): string {
-  const header = ["id","project_title","component","state","cutoff_date","coverage","coverage_wording","geography","source_version"];
+  const header = ["id","project_title","component","state","cutoff_date","coverage","coverage_wording","project_evidence_type","project_evidence","geography","source_version"];
   const quote = (value: string | number | undefined) => `"${String(value ?? "").replaceAll('"', '""')}"`;
   return [header.join(","), ...items.map((item) => [
     item.id,
@@ -78,6 +83,8 @@ export function toCsv(items: readonly Opportunity[]): string {
     item.cutoffDate,
     item.coverage,
     item.openWording ?? "",
+    item.projectEvidenceType,
+    item.projectEvidence,
     item.geography,
     item.sourceVersion,
   ].map(quote).join(","))].join("\n");

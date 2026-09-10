@@ -8,20 +8,26 @@ candidate text.
 from __future__ import annotations
 
 from datetime import date
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from procrun.component_engine import EvidenceSpan
-from procrun.domain import ComponentState, EvidenceField, ProjectState
+from procrun.domain import ComponentState, EvidenceField, FundingProject, ProjectState
 from procrun.ledger import content_sha256
 from procrun.matching import CandidateDisposition
 from procrun.runway import RunwayComponentResult, RunwayResult
 
-READ_MODEL_VERSION = "customer-runway-v3"
+READ_MODEL_VERSION = "customer-runway-v4"
 
 
 class ReadModelInvariantError(ValueError):
     """Raised when an internal result cannot be safely represented for a customer."""
+
+
+class SourceEvidenceType(StrEnum):
+    PROJECT_TITLE = "Project title"
+    PROJECT_DESCRIPTION = "Project description"
 
 
 class PublicModel(BaseModel):
@@ -33,6 +39,15 @@ class SourceSpan(PublicModel):
     text: str
     start: int = Field(ge=0)
     end: int = Field(gt=0)
+
+
+class ProjectSourceEvidence(PublicModel):
+    source_type: SourceEvidenceType
+    source_field: str
+    text: str
+    start: int = Field(ge=0)
+    end: int = Field(gt=0)
+    source_url: str
 
 
 class ProcurementMatch(PublicModel):
@@ -70,6 +85,7 @@ class RunwayProject(PublicModel):
     region: str | None
     nuts_code: str | None
     source_url: str
+    source_evidence: ProjectSourceEvidence
     state: ProjectState
     cutoff_date: date
     components: tuple[RunwayComponent, ...]
@@ -80,6 +96,39 @@ class RunwayProject(PublicModel):
     project_classifier_version: str
     read_model_version: str = READ_MODEL_VERSION
     content_hash: str
+
+
+def _project_source_evidence(project: FundingProject) -> ProjectSourceEvidence:
+    """Expose the best approved project wording with a truthful source type.
+
+    The source field remains ``project_scope_text`` because that is the admitted text surface in the
+    domain contract. When that surface is textually identical to the supplied project title, the
+    customer-facing type is ``Project title`` rather than pretending a second description exists.
+    """
+
+    raw = project.project_scope_text
+    text = raw.strip()
+    if not text:
+        raise ReadModelInvariantError("project source wording is empty")
+    start = len(raw) - len(raw.lstrip())
+    end = start + len(text)
+    if raw[start:end] != text:
+        raise ReadModelInvariantError("project source wording failed verbatim validation")
+
+    title = project.project_title.strip() if project.project_title else None
+    source_type = (
+        SourceEvidenceType.PROJECT_TITLE
+        if title and title == text
+        else SourceEvidenceType.PROJECT_DESCRIPTION
+    )
+    return ProjectSourceEvidence(
+        source_type=source_type,
+        source_field="project_scope_text",
+        text=text,
+        start=start,
+        end=end,
+        source_url=project.source_url,
+    )
 
 
 def _project_span(item: RunwayComponentResult) -> SourceSpan:
@@ -221,6 +270,7 @@ def build_runway_read_model(result: RunwayResult) -> RunwayProject:
     """Build the frozen browser/API contract and attach a deterministic content hash."""
 
     components = tuple(_component(item) for item in result.components)
+    source_evidence = _project_source_evidence(result.project)
     unresolved_evidence = unresolved_source_evidence(
         result.assessment.state,
         result.project.project_scope_text,
@@ -236,6 +286,7 @@ def build_runway_read_model(result: RunwayResult) -> RunwayProject:
         "region": result.project.region,
         "nuts_code": result.project.nuts_code,
         "source_url": result.project.source_url,
+        "source_evidence": source_evidence,
         "state": result.assessment.state,
         "cutoff_date": result.cutoff_date,
         "components": components,
@@ -257,6 +308,7 @@ def build_runway_read_model(result: RunwayResult) -> RunwayProject:
         region=result.project.region,
         nuts_code=result.project.nuts_code,
         source_url=result.project.source_url,
+        source_evidence=source_evidence,
         state=result.assessment.state,
         cutoff_date=result.cutoff_date,
         components=components,
