@@ -19,10 +19,10 @@ def test_zero_contact_and_zero_pii_are_locked() -> None:
     gates = _read("docs/BUILD_GATES.md")
     national = _read("docs/NATIONAL_PROCUREMENT_SOURCE_GATE.md")
     assert "permanent\nbyggeforutsetning" in readme
-    assert "no human-dependent validation path" in gates
+    assert "No human contact, permission request or source-owner outreach is permitted" in gates
     assert "Silence is never permission" in national
     assert "download then filter" in readme
-    assert "No natural-person data may be collected, stored or processed" in gates
+    assert "No personal data may be collected, received, stored or processed" in gates
 
 
 def test_no_contact_drafts_remain_in_active_source_gate() -> None:
@@ -37,16 +37,18 @@ def test_no_contact_drafts_remain_in_active_source_gate() -> None:
         assert forbidden not in national
 
 
-def test_ted_scoped_open_is_canonical() -> None:
-    spec = _read("docs/PRODUCT_FOUNDATION_FINAL.md")
+def test_rule_bounded_open_is_canonical() -> None:
     gates = _read("docs/BUILD_GATES.md")
-    national = _read("docs/NATIONAL_PROCUREMENT_SOURCE_GATE.md")
-    phrase = "No relevant procurement found in TED as of DATE."
-    assert phrase in spec
-    assert phrase in gates
-    assert phrase in national
-    assert "This is not a guarantee that no procurement exists outside TED" in spec
-    assert "A20 LIVE PORTUGAL OPEN CLASSIFICATION: APPROVED (TED-SCOPED)" in gates
+    semantics = _read("docs/EVIDENCE_BOUNDED_PRODUCTION_SEMANTICS.md")
+    phrase = (
+        "No procurement match satisfying ProcRun's frozen exact-evidence rules "
+        "was found in TED as of DATE."
+    )
+    assert phrase in semantics
+    assert "no match satisfying ProcRun's frozen exact-evidence rules" in gates
+    assert "does not establish absence outside TED" in semantics
+    assert "historical inferential classification target" in gates
+    assert "NEVER CLAIMED AS PASSED" in gates
 
 
 def test_source_categories_and_prr_final_status() -> None:
@@ -66,11 +68,8 @@ def test_opencoesione_a1_and_live_delivery_are_accepted() -> None:
     contracts = _read("src/procrun/source_contracts.py")
     collector = _read("src/procrun/collectors/opencoesione.py")
     live_transport = _read("src/procrun/collectors/opencoesione_live.py")
-    assert "A1 SOURCE QUALIFICATION: PASS" in gates
-    assert "A20 OPENCOESIONE A1 SOURCE QUALIFICATION: APPROVED" in gates
-    assert "A20 OPENCOESIONE COLLECTOR + FROZEN SCHEMA: IMPLEMENTED, FAIL-CLOSED" in gates
-    assert "A20 OPENCOESIONE LIVE SOURCE-TRANSFER: PASS" in gates
-    assert "A20 LIVE FUNDED-PROJECT INGEST + CUSTOMER-SAFE DELIVERY: PASS" in gates
+    assert "## A1-A20" in gates
+    assert "**PASS.**" in gates
     assert (
         "APPROVED SOURCE CONTRACT — EXACT 2021-2027 EU COHESION OPERATION-LIST ROUTE ONLY"
         in qualification
@@ -100,16 +99,16 @@ def test_opencoesione_privacy_and_scope_contract_is_frozen() -> None:
         assert required in qualification
 
 
-def test_preweb_gate_is_green_before_customer_web_phase() -> None:
+def test_own_code_closure_precedes_cosmetic_and_third_party_phase() -> None:
     readme = _read("README.md")
     gates = _read("docs/BUILD_GATES.md")
     sequencing = _read("docs/DELIVERY_READINESS_GATE.md")
-    assert "A20 WEB BUILD: GO" in gates
-    assert "A19 PRE-WEB RELEASE READINESS: PASS" in gates
+    assert "A1-A20" in gates
+    assert "infrastructure-closure" in gates
+    assert "COSMETIC WEB WORK + THIRD-PARTY INTEGRATIONS ONLY" in gates
     assert "WEB PRODUCT BUILD: GO" in readme
     assert "Web implementation is the final build phase" in sequencing
     assert "Stripe" in sequencing
-    assert "A20 WEB BUILD: BLOCKED" not in gates
 
 
 def test_customer_routes_follow_product() -> None:

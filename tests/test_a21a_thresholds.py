@@ -19,9 +19,9 @@ def _passing_report() -> dict[str, object]:
     }
 
 
-def test_a21a_thresholds_are_frozen_at_preregistered_values() -> None:
+def test_historical_a21a_threshold_values_are_preserved_but_invalidated() -> None:
     thresholds = FROZEN_A21A_THRESHOLDS
-    assert PREREGISTRATION_VERSION == "a21a-thresholds-v1"
+    assert PREREGISTRATION_VERSION == "a21a-thresholds-v1-invalidated"
     assert thresholds.evidence_precision_min == 0.95
     assert thresholds.gold_excerpt_recall_min == 0.90
     assert thresholds.gold_positive_case_recall_min == 0.95
@@ -32,13 +32,13 @@ def test_a21a_thresholds_are_frozen_at_preregistered_values() -> None:
     assert thresholds.determinism_failures_max == 0
 
 
-def test_a21a_gate_passes_exactly_at_boundaries() -> None:
+def test_a21a_gate_cannot_pass_on_invalidated_preregistration_lineage() -> None:
     result = evaluate_a21a_report(_passing_report())
-    assert result["pass"] is True
-    assert all(result["checks"].values())
+    assert result["checks"]["clean_preregistration_lineage"] is False
+    assert result["pass"] is False
 
 
-def test_a21a_gate_is_conjunctive_and_fail_closed() -> None:
+def test_a21a_gate_remains_conjunctive_and_fail_closed() -> None:
     fields_and_bad_values = {
         "evidence_precision": 0.949999,
         "gold_excerpt_recall": 0.899999,

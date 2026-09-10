@@ -97,6 +97,22 @@ jobs:
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: procrun_web_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d procrun_web_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      PROCRUN_WORKSPACE_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/procrun_web_test
     defaults:
       run:
         working-directory: web
@@ -108,6 +124,8 @@ jobs:
           npm --version
       - name: Install web dependencies
         run: npm install --no-audit --no-fund
+      - name: Web unit and database-isolation tests
+        run: npm test
       - name: Typecheck
         run: npm run typecheck
       - name: Production build

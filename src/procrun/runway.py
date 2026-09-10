@@ -1,7 +1,8 @@
 """Canonical pure orchestration for one funded-project runway assessment.
 
 The web layer must never recreate this logic. It consumes only the customer-safe read model built
-from this result.
+from this result. Production semantics are deliberately evidence-bounded: source text that cannot be
+fully resolved by deterministic rules yields UNRESOLVED, never an inferred OPEN/CLOSED claim.
 """
 
 from __future__ import annotations
@@ -28,8 +29,8 @@ from procrun.matching import (
 )
 from procrun.scope_boundary import component_scope_boundary_resolved
 
-RUNWAY_ORCHESTRATION_VERSION = "runway-v1"
-PROJECT_CLASSIFIER_VERSION = "project-state-v1"
+RUNWAY_ORCHESTRATION_VERSION = "runway-v2-evidence-bounded"
+PROJECT_CLASSIFIER_VERSION = "project-state-v2-evidence-bounded"
 
 
 class RunwayInvariantError(ValueError):
@@ -38,7 +39,7 @@ class RunwayInvariantError(ValueError):
 
 @dataclass(frozen=True)
 class ComponentCoverage:
-    """Named source coverage used to prove absence without a bare boolean escape hatch."""
+    """Named source coverage used to prove a rule-bounded negative observation."""
 
     required_source_ids: frozenset[str]
     complete_source_ids: frozenset[str]
@@ -102,22 +103,22 @@ def assess_project_runway(
     cutoff_date: date,
     evidence_by_component: Mapping[str, Sequence[ProcurementEvidence]],
     coverage_by_component: Mapping[str, ComponentCoverage],
+    project_reference_codes: Sequence[str] = (),
 ) -> RunwayResult:
-    """Run extraction, candidate construction, matching and aggregation fail-closed."""
+    """Run extraction, candidate construction, matching and aggregation fail-closed.
+
+    A project with no deterministic component is a valid customer result: it is UNRESOLVED and its
+    exact source wording remains available through the read model. No model fallback is allowed to
+    manufacture a production component.
+    """
 
     raw_extraction = extract_components(project, domains)
     extraction = replace(
         raw_extraction,
-        components=tuple(
-            _with_primary_component_span(item) for item in raw_extraction.components
-        ),
+        components=tuple(_with_primary_component_span(item) for item in raw_extraction.components),
     )
     if extraction.operation_code != project.operation_code:
         raise RunwayInvariantError("extraction/project operation code mismatch")
-    if not extraction.components:
-        raise RunwayInvariantError(
-            "no deterministic components were extracted; fallback must resolve scope before runway"
-        )
 
     known_component_ids = {item.component.component_id for item in extraction.components}
     unknown_evidence_keys = set(evidence_by_component) - known_component_ids
@@ -128,6 +129,18 @@ def assess_project_runway(
     if unknown_coverage_keys:
         unknown = ", ".join(sorted(unknown_coverage_keys))
         raise RunwayInvariantError(f"coverage supplied for unknown components: {unknown}")
+
+    if not extraction.components:
+        if evidence_by_component or coverage_by_component:
+            raise RunwayInvariantError("component-free project cannot receive component evidence")
+        assessment = aggregate_project_state(project.operation_code, cutoff_date, ())
+        return RunwayResult(
+            project=project,
+            cutoff_date=cutoff_date,
+            extraction=extraction,
+            components=(),
+            assessment=assessment,
+        )
 
     deterministic_scope_complete = not extraction.model_fallback_required
     results: list[RunwayComponentResult] = []
@@ -141,7 +154,12 @@ def assess_project_runway(
             ) from exc
 
         raw_evidence = tuple(evidence_by_component.get(component.component_id, ()))
-        candidates = build_match_candidates(project, component, raw_evidence)
+        candidates = build_match_candidates(
+            project,
+            component,
+            raw_evidence,
+            project_reference_codes=project_reference_codes,
+        )
         boundary_resolved = (
             coverage.boundary_resolved
             and deterministic_scope_complete
@@ -156,11 +174,7 @@ def assess_project_runway(
             coverage_note=coverage.note,
         )
         results.append(
-            RunwayComponentResult(
-                extracted=extracted,
-                candidates=candidates,
-                match=match,
-            )
+            RunwayComponentResult(extracted=extracted, candidates=candidates, match=match)
         )
 
     assessment = aggregate_project_state(

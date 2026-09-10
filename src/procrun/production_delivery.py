@@ -6,6 +6,7 @@ import json
 import os
 import re
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -13,6 +14,7 @@ from typing import Any, Final
 
 import psycopg
 
+from procrun.a21_identity import a21_projects_by_local_operation_id
 from procrun.collectors.opencoesione import (
     OPENCOESIONE_SOURCE_ID,
     OpenCoesioneBatch,
@@ -25,9 +27,10 @@ from procrun.component_engine import (
     RULES,
     ComponentDomain,
     ComponentRule,
+    cpv_matches_prefixes,
     extract_components,
 )
-from procrun.domain import ProcurementEvidence, ProjectState, PurchaseComponent
+from procrun.domain import FundingProject, ProcurementEvidence, ProjectState, PurchaseComponent
 from procrun.ingest.ted import normalize_ted_record
 from procrun.ledger import (
     append_assessment_version,
@@ -50,18 +53,19 @@ from procrun.runway import (
     assess_project_runway,
 )
 
-PRODUCTION_DELIVERY_VERSION: Final = "production-delivery-v1"
+PRODUCTION_DELIVERY_VERSION: Final = "production-delivery-v2-evidence-bounded"
 OPENCOESIONE_SCHEMA_VERSION: Final = "opencoesione-2021-2027-lombardia-v1"
 TED_SCHEMA_VERSION: Final = "ted-projected-v1"
 TED_COVERAGE_NOTE: Final = (
-    "Coverage: TED. No relevant procurement means no matching procurement was found in the "
-    "complete TED query universe through the stated cutoff. This does not establish absence "
-    "outside TED, including national or below-threshold procedures."
+    "Coverage: complete TED Italy query universe through the stated cutoff. OPEN means only that "
+    "no procurement match satisfying ProcRun's frozen exact-evidence rules was found in that "
+    "universe. It does not establish absence outside TED or under different wording/classification."
 )
 TED_ITALY_QUERY_TEMPLATE: Final = (
     "buyer-country = ITA AND publication-date >= {start} AND publication-date <= {cutoff}"
 )
 TED_BOOTSTRAP_START: Final = date(2021, 1, 1)
+TED_COLLECTION_MAX_WORKERS: Final = 4
 ALL_COMPONENT_DOMAINS: Final = tuple(ComponentDomain)
 
 
@@ -92,30 +96,124 @@ def ted_italy_query(cutoff_date: date, *, start_date: date = TED_BOOTSTRAP_START
     )
 
 
-def collect_complete_ted_italy(
-    cutoff_date: date, *, page_size: int = 250, max_pages: int = 5000
+def _ted_year_ranges(cutoff_date: date) -> tuple[tuple[date, date], ...]:
+    """Return non-overlapping chronological year segments covering the complete TED window."""
+
+    if cutoff_date < TED_BOOTSTRAP_START:
+        raise ValueError("TED cutoff cannot predate bootstrap start")
+    ranges: list[tuple[date, date]] = []
+    for year in range(TED_BOOTSTRAP_START.year, cutoff_date.year + 1):
+        start = max(TED_BOOTSTRAP_START, date(year, 1, 1))
+        end = min(cutoff_date, date(year, 12, 31))
+        ranges.append((start, end))
+    return tuple(ranges)
+
+
+def _collect_complete_ted_segment(
+    start_date: date,
+    end_date: date,
+    *,
+    page_size: int,
+    max_pages: int,
 ) -> TedCollectionResult:
     result = collect_ted_notices(
-        ted_italy_query(cutoff_date),
+        ted_italy_query(end_date, start_date=start_date),
         page_size=page_size,
         max_pages=max_pages,
         scope="ALL",
     )
+    segment = f"{start_date.isoformat()}..{end_date.isoformat()}"
     if not result.complete:
         raise ProductionDeliveryError(
-            "TED Italy coverage is incomplete; publication is prohibited: "
-            f"stop_reason={result.stop_reason}, pages={result.pages_fetched}, "
+            "TED Italy segment coverage is incomplete; publication is prohibited: "
+            f"segment={segment}, stop_reason={result.stop_reason}, pages={result.pages_fetched}, "
             f"records={len(result.records)}, expected={result.total_notice_count}"
         )
     if result.total_notice_count is not None and len(result.records) != result.total_notice_count:
-        raise ProductionDeliveryError("TED complete flag/count invariant failed")
+        raise ProductionDeliveryError(f"TED segment complete flag/count invariant failed: {segment}")
     return result
 
 
-def _rule_for_component(component: PurchaseComponent) -> ComponentRule:
-    matches = tuple(
-        rule for rule in RULES if f"{rule.domain.value}:{rule.category}" == component.category
+def collect_complete_ted_italy(
+    cutoff_date: date, *, page_size: int = 250, max_pages: int = 5000
+) -> TedCollectionResult:
+    """Collect the same complete TED universe through independent bounded year segments.
+
+    Iteration tokens make a single six-year pagination stream inherently sequential. Calendar-year
+    segmentation is semantically neutral because the publication-date ranges are exhaustive and
+    non-overlapping, while allowing bounded parallel transport. Results are merged in chronological
+    segment order and then deterministically sorted before any classification logic sees them.
+    """
+
+    ranges = _ted_year_ranges(cutoff_date)
+    results_by_start: dict[date, TedCollectionResult] = {}
+    workers = min(TED_COLLECTION_MAX_WORKERS, len(ranges))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="ted-year") as executor:
+        future_to_range = {
+            executor.submit(
+                _collect_complete_ted_segment,
+                start,
+                end,
+                page_size=page_size,
+                max_pages=max_pages,
+            ): (start, end)
+            for start, end in ranges
+        }
+        for future in as_completed(future_to_range):
+            start, _ = future_to_range[future]
+            results_by_start[start] = future.result()
+
+    records: list[dict[str, Any]] = []
+    pages_fetched = 0
+    expected_total = 0
+    total_known = True
+    seen_records: set[tuple[str, str]] = set()
+    for start, _ in ranges:
+        result = results_by_start[start]
+        pages_fetched += result.pages_fetched
+        if result.total_notice_count is None:
+            total_known = False
+        else:
+            expected_total += result.total_notice_count
+        for record in result.records:
+            identity = (
+                str(record.get("notice_id") or ""),
+                str(record.get("publication_date") or ""),
+            )
+            if not all(identity):
+                raise ProductionDeliveryError("TED segmented merge encountered missing record identity")
+            if identity in seen_records:
+                raise ProductionDeliveryError(
+                    "TED segmented merge encountered duplicate/overlapping record identity: "
+                    f"{identity[0]}@{identity[1]}"
+                )
+            seen_records.add(identity)
+            records.append(record)
+
+    records.sort(
+        key=lambda record: (
+            str(record.get("publication_date") or ""),
+            str(record.get("notice_id") or ""),
+        )
     )
+    total_notice_count = expected_total if total_known else None
+    if total_notice_count is not None and len(records) != total_notice_count:
+        raise ProductionDeliveryError("TED segmented complete-count invariant failed")
+    return TedCollectionResult(
+        records=tuple(records),
+        total_notice_count=total_notice_count,
+        pages_fetched=pages_fetched,
+        complete=True,
+        stop_reason="complete_segmented",
+    )
+
+
+def _rule_key(rule: ComponentRule) -> str:
+    return f"{rule.domain.value}:{rule.category}"
+
+
+def _rule_for_component(component: PurchaseComponent) -> ComponentRule:
+    matches = tuple(rule for rule in RULES if _rule_key(rule) == component.category)
     if len(matches) != 1:
         raise ProductionDeliveryError(
             f"component category is not uniquely frozen: {component.category}"
@@ -127,17 +225,74 @@ def _contains_phrase(text: str, phrase: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", text, flags=re.IGNORECASE) is not None
 
 
-def _candidate_record(record: dict[str, Any], component: PurchaseComponent) -> bool:
-    rule = _rule_for_component(component)
-    text = "\n".join(
-        value
-        for value in (
-            str(record.get("title") or ""),
-            str(record.get("scope_description") or ""),
+def _record_cpv_codes(record: dict[str, Any]) -> tuple[str, ...]:
+    raw = record.get("cpv_codes") or ()
+    if isinstance(raw, str):
+        return (raw,)
+    if isinstance(raw, list | tuple):
+        return tuple(str(value) for value in raw)
+    return ()
+
+
+def _candidate_record_for_rule(
+    record: dict[str, Any],
+    rule: ComponentRule,
+    *,
+    text: str | None = None,
+    cpv_codes: tuple[str, ...] | None = None,
+) -> bool:
+    """Apply the frozen broad candidate rule without project-specific state."""
+
+    candidate_text = text
+    if candidate_text is None:
+        candidate_text = "\n".join(
+            value
+            for value in (
+                str(record.get("title") or ""),
+                str(record.get("scope_description") or ""),
+            )
+            if value
         )
-        if value
+    candidate_cpv_codes = cpv_codes if cpv_codes is not None else _record_cpv_codes(record)
+    phrase_match = any(_contains_phrase(candidate_text, phrase) for phrase in rule.phrases)
+    cpv_match = bool(rule.cpv_prefixes) and any(
+        cpv_matches_prefixes(code, rule.cpv_prefixes) for code in candidate_cpv_codes
     )
-    return any(_contains_phrase(text, phrase) for phrase in rule.phrases)
+    return phrase_match or cpv_match
+
+
+def _candidate_record(record: dict[str, Any], component: PurchaseComponent) -> bool:
+    """Compatibility helper preserving the exact historical candidate predicate."""
+
+    return _candidate_record_for_rule(record, _rule_for_component(component))
+
+
+def _build_candidate_index(
+    ted_records: tuple[dict[str, Any], ...],
+    categories: frozenset[str],
+) -> dict[str, tuple[dict[str, Any], ...]]:
+    """Index TED candidates once per frozen rule while preserving record order and semantics."""
+
+    rules_by_category = {_rule_key(rule): rule for rule in RULES if _rule_key(rule) in categories}
+    if set(rules_by_category) != set(categories):
+        missing = sorted(set(categories) - set(rules_by_category))
+        raise ProductionDeliveryError(f"component categories are not uniquely frozen: {missing}")
+
+    mutable: dict[str, list[dict[str, Any]]] = {category: [] for category in categories}
+    for record in ted_records:
+        text = "\n".join(
+            value
+            for value in (
+                str(record.get("title") or ""),
+                str(record.get("scope_description") or ""),
+            )
+            if value
+        )
+        cpv_codes = _record_cpv_codes(record)
+        for category, rule in rules_by_category.items():
+            if _candidate_record_for_rule(record, rule, text=text, cpv_codes=cpv_codes):
+                mutable[category].append(record)
+    return {category: tuple(records) for category, records in mutable.items()}
 
 
 def _evidence_id(component_id: str, notice_id: str) -> str:
@@ -149,13 +304,11 @@ def _evidence_id(component_id: str, notice_id: str) -> str:
 
 def _component_evidence(
     component: PurchaseComponent,
-    ted_records: tuple[dict[str, Any], ...],
+    candidate_records: tuple[dict[str, Any], ...],
     cutoff_date: date,
 ) -> tuple[ProcurementEvidence, ...]:
     evidence: list[ProcurementEvidence] = []
-    for record in ted_records:
-        if not _candidate_record(record, component):
-            continue
+    for record in candidate_records:
         normalized = normalize_ted_record(
             record,
             evidence_id=_evidence_id(component.component_id, str(record["notice_id"])),
@@ -166,6 +319,10 @@ def _component_evidence(
     return tuple(evidence)
 
 
+def _logical_projects(batch: OpenCoesioneBatch) -> tuple[FundingProject, ...]:
+    return a21_projects_by_local_operation_id(batch.operations, to_funding_projects(batch))
+
+
 def build_live_runway_results(
     batch: OpenCoesioneBatch,
     ted: TedCollectionResult,
@@ -174,17 +331,25 @@ def build_live_runway_results(
 ) -> tuple[RunwayResult, ...]:
     if not ted.complete:
         raise ProductionDeliveryError("incomplete TED coverage cannot enter runway assessment")
-    results: list[RunwayResult] = []
-    for project in to_funding_projects(batch):
+
+    operations = {operation.operation_id: operation for operation in batch.operations}
+    prepared: list[tuple[FundingProject, Any, Any]] = []
+    categories: set[str] = set()
+    for project in _logical_projects(batch):
+        operation = operations[project.operation_code]
         extraction = extract_components(project, ALL_COMPONENT_DOMAINS)
-        if not extraction.components:
-            continue
+        prepared.append((project, operation, extraction))
+        categories.update(item.component.category for item in extraction.components)
+
+    candidate_index = _build_candidate_index(ted.records, frozenset(categories))
+    results: list[RunwayResult] = []
+    for project, operation, extraction in prepared:
         evidence_by_component: dict[str, tuple[ProcurementEvidence, ...]] = {}
         coverage_by_component: dict[str, ComponentCoverage] = {}
         for extracted in extraction.components:
             component = extracted.component
             evidence_by_component[component.component_id] = _component_evidence(
-                component, ted.records, cutoff_date
+                component, candidate_index[component.category], cutoff_date
             )
             coverage_by_component[component.component_id] = ComponentCoverage(
                 required_source_ids=frozenset({TED_SOURCE_ID}),
@@ -192,6 +357,13 @@ def build_live_runway_results(
                 boundary_resolved=True,
                 note=TED_COVERAGE_NOTE,
             )
+        references = tuple(
+            dict.fromkeys(
+                value
+                for value in (operation.operation_id, operation.cup)
+                if value is not None and value.strip()
+            )
+        )
         results.append(
             assess_project_runway(
                 project,
@@ -199,15 +371,14 @@ def build_live_runway_results(
                 cutoff_date=cutoff_date,
                 evidence_by_component=evidence_by_component,
                 coverage_by_component=coverage_by_component,
+                project_reference_codes=references,
             )
         )
     return tuple(results)
 
 
 def _candidate_audit(result_component: RunwayComponentResult) -> list[dict[str, Any]]:
-    by_id = {
-        candidate.evidence.evidence_id: candidate for candidate in result_component.candidates
-    }
+    by_id = {candidate.evidence.evidence_id: candidate for candidate in result_component.candidates}
     rows: list[dict[str, Any]] = []
     for evaluation in result_component.match.evaluations:
         candidate = by_id[evaluation.evidence_id]
@@ -244,8 +415,8 @@ def persist_live_results(
     completed_at: datetime,
     ted_count: int,
 ) -> None:
-    projects = {project.operation_code: project for project in to_funding_projects(batch)}
-    operations = {(item.cup or item.operation_id): item for item in batch.operations}
+    projects = {project.operation_code: project for project in _logical_projects(batch)}
+    operations = {item.operation_id: item for item in batch.operations}
     with psycopg.connect(database_url) as conn:
         apply_migrations(conn)
         with conn.transaction():
@@ -331,9 +502,7 @@ def persist_live_results(
                     as_of=completed_at,
                     classifier_version=PROJECT_CLASSIFIER_VERSION,
                 )
-            output_hash = content_sha256(
-                [model.model_dump(mode="json") for model in read_models]
-            )
+            output_hash = content_sha256([model.model_dump(mode="json") for model in read_models])
             append_run_manifest(
                 conn,
                 run_key=run_key,
@@ -341,10 +510,12 @@ def persist_live_results(
                 completed_at=completed_at,
                 classifier_version=PRODUCTION_DELIVERY_VERSION,
                 counts={
-                    "open_coesione_projects": len(batch.operations),
+                    "open_coesione_raw_rows": len(batch.operations),
+                    "open_coesione_logical_projects": len(projects),
                     "ted_records": ted_count,
                     "runway_projects": len(results),
                     "published_projects": len(read_models),
+                    "projects_with_components": sum(bool(item.components) for item in results),
                 },
                 input_sha256=batch.source_sha256,
                 output_sha256=output_hash,
@@ -376,16 +547,18 @@ def run_live_delivery(
     cutoff = cutoff_date or started_at.date()
     run_key = f"live-{cutoff.isoformat()}"
     batch = collect_open_coesione_live()
-    projects = to_funding_projects(batch)
+    projects = _logical_projects(batch)
     if not projects:
         raise ProductionDeliveryError("OpenCoesione produced zero canonical funded projects")
     ted = collect_complete_ted_italy(cutoff)
     results = build_live_runway_results(batch, ted, cutoff_date=cutoff)
+    if len(results) != len(projects):
+        raise ProductionDeliveryError("production runway omitted one or more funded projects")
     read_models = tuple(build_runway_read_model(result) for result in results)
     useful = tuple(model for model in read_models if model.state is not ProjectState.UNRESOLVED)
     if not useful:
         raise ProductionDeliveryError(
-            "live sources produced zero resolved customer runway projects; web build remains blocked"
+            "live sources produced zero resolved customer runway projects; publication is prohibited"
         )
     completed_at = datetime.now(timezone.utc)
     persist_live_results(
@@ -405,7 +578,7 @@ def run_live_delivery(
         funded_projects=len(projects),
         ted_records=len(ted.records),
         ted_pages=ted.pages_fetched,
-        projects_with_components=len(results),
+        projects_with_components=sum(bool(result.components) for result in results),
         published_projects=len(read_models),
         useful_projects=len(useful),
         unresolved_projects=sum(model.state is ProjectState.UNRESOLVED for model in read_models),

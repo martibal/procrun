@@ -1,4 +1,4 @@
-"""Coverage-bound negative-search semantics for customer-visible OPEN states."""
+"""Coverage-bound semantics for customer-visible rule-bounded OPEN states."""
 
 from __future__ import annotations
 
@@ -13,11 +13,16 @@ class CoverageScope(StrEnum):
 
 
 class UnsupportedCoverageScopeError(ValueError):
-    """Raised when code attempts to create a broader OPEN claim than the MVP supports."""
+    """Raised when code attempts to create a broader OPEN claim than the product proves."""
 
 
 def ted_open_wording(cutoff_date: date) -> str:
-    return f"No relevant procurement found in TED as of {cutoff_date.isoformat()}."
+    """Return the strongest negative claim ProcRun can prove without subjective absence claims."""
+
+    return (
+        "No procurement match satisfying ProcRun's frozen exact-evidence rules was found in TED "
+        f"as of {cutoff_date.isoformat()}."
+    )
 
 
 def make_open_assessment(
@@ -27,10 +32,11 @@ def make_open_assessment(
     coverage_scope: CoverageScope,
     evidence_ids: tuple[str, ...] = (),
 ) -> ComponentAssessment:
-    """Create OPEN only under the permanent MVP TED coverage boundary."""
+    """Create OPEN only under complete TED coverage and rule-bounded semantics."""
+
     if coverage_scope is not CoverageScope.TED:
         raise UnsupportedCoverageScopeError(
-            "MVP OPEN may only be created from complete TED-scoped negative-search coverage"
+            "OPEN may only be created from complete TED-scoped rule-bounded coverage"
         )
     wording = ted_open_wording(cutoff_date)
     return ComponentAssessment(
@@ -41,7 +47,7 @@ def make_open_assessment(
         evidence_ids=evidence_ids,
         coverage_note=(
             wording
-            + " This does not establish absence outside TED, including purely national "
-            "or below-threshold procedures."
+            + " This is a rule-bounded observation. It does not establish absence of procurement "
+            "outside TED or under different wording/classification."
         ),
     )

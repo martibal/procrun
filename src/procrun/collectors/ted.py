@@ -5,6 +5,7 @@ qualified live. Fields that were not part of that frozen qualification are not r
 because TED can return them.
 """
 
+import threading
 import time
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
@@ -21,9 +22,13 @@ TED_SOURCE_ID = "ted_search_api"
 TED_DEFAULT_PAGE_SIZE = 100
 TED_MAX_PAGE_SIZE = 250
 TED_FIELD_CELL_LIMIT = 10_000
-TED_MAX_THROTTLE_RETRIES = 5
+TED_MAX_THROTTLE_RETRIES = 8
 TED_THROTTLE_BACKOFF_SECONDS = 2.0
+TED_MIN_LIVE_REQUEST_INTERVAL_SECONDS = 1.0
 TED_TRANSIENT_HTTP_STATUSES = frozenset({429, 502, 503, 504})
+
+_LIVE_PACE_LOCK = threading.Lock()
+_NEXT_LIVE_REQUEST_AT = 0.0
 
 # Frozen production subset of scripts/qualify_ted_foundation.py SAFE_FIELDS.
 # Deliberately excluded until separately qualified for the intelligence plane:
@@ -203,14 +208,28 @@ def _parse_envelope(response: httpx.Response) -> dict[str, Any]:
     return body
 
 
+def _pace_live_request() -> None:
+    """Bound aggregate live request starts across concurrent TED segments."""
+    global _NEXT_LIVE_REQUEST_AT
+    with _LIVE_PACE_LOCK:
+        now = time.monotonic()
+        if now < _NEXT_LIVE_REQUEST_AT:
+            time.sleep(_NEXT_LIVE_REQUEST_AT - now)
+            now = time.monotonic()
+        _NEXT_LIVE_REQUEST_AT = max(now, _NEXT_LIVE_REQUEST_AT) + TED_MIN_LIVE_REQUEST_INTERVAL_SECONDS
+
+
 def _post_with_throttle_retry(
     http: httpx.Client,
     payload: dict[str, Any],
     *,
     sleep: Any = time.sleep,
+    pace_live: bool = False,
 ) -> httpx.Response:
     """Retry bounded TED throttling/transient gateway failures; otherwise fail closed."""
     for retry in range(TED_MAX_THROTTLE_RETRIES + 1):
+        if pace_live:
+            _pace_live_request()
         try:
             response = http.post(TED_SEARCH_URL, json=payload)
         except httpx.HTTPError as exc:
@@ -275,7 +294,7 @@ def collect_ted_notices(
             if token is not None:
                 payload["iterationNextToken"] = token
 
-            response = _post_with_throttle_retry(http, payload)
+            response = _post_with_throttle_retry(http, payload, pace_live=owns_client)
 
             body = _parse_envelope(response)
             if body["timedOut"] is not False:
