@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import signal
 import time
 from collections.abc import Callable
@@ -22,7 +23,7 @@ import procrun.production_delivery as production_delivery
 from procrun.a21_identity import a21_projects_by_local_operation_id
 from procrun.collectors.opencoesione import to_funding_projects
 from procrun.collectors.opencoesione_live import collect_open_coesione_live
-from procrun.component_engine import extract_components
+from procrun.component_engine import RULES, extract_components
 from procrun.domain import ComponentState, ProjectState
 from procrun.ledger import content_sha256
 from procrun.matching import CandidateDisposition
@@ -198,6 +199,48 @@ def _run_phase[T](
     return result
 
 
+def _fast_candidate_index(ted_records, categories):
+    rules_by_category = {
+        production_delivery._rule_key(rule): rule
+        for rule in RULES
+        if production_delivery._rule_key(rule) in categories
+    }
+    if set(rules_by_category) != set(categories):
+        missing = sorted(set(categories) - set(rules_by_category))
+        raise RuntimeError(f"component categories are not uniquely frozen: {missing}")
+
+    phrase_patterns = {
+        category: re.compile(
+            "|".join(rf"(?<!\w){re.escape(phrase)}(?!\w)" for phrase in rule.phrases),
+            flags=re.IGNORECASE,
+        )
+        if rule.phrases
+        else None
+        for category, rule in rules_by_category.items()
+    }
+    mutable = {category: [] for category in categories}
+    for record in ted_records:
+        text = "\n".join(
+            value
+            for value in (
+                str(record.get("title") or ""),
+                str(record.get("scope_description") or ""),
+            )
+            if value
+        )
+        cpv_codes = production_delivery._record_cpv_codes(record)
+        for category, rule in rules_by_category.items():
+            pattern = phrase_patterns[category]
+            phrase_match = pattern.search(text) is not None if pattern is not None else False
+            cpv_match = bool(rule.cpv_prefixes) and any(
+                production_delivery.cpv_matches_prefixes(code, rule.cpv_prefixes)
+                for code in cpv_codes
+            )
+            if phrase_match or cpv_match:
+                mutable[category].append(record)
+    return {category: tuple(records) for category, records in mutable.items()}
+
+
 def _install_candidate_index_cache(batch, logical_projects, ted):
     operations = {operation.operation_id: operation for operation in batch.operations}
     categories: set[str] = set()
@@ -208,7 +251,7 @@ def _install_candidate_index_cache(batch, logical_projects, ted):
         categories.update(item.component.category for item in extraction.components)
 
     category_set = frozenset(categories)
-    candidate_index = production_delivery._build_candidate_index(ted.records, category_set)
+    candidate_index = _fast_candidate_index(ted.records, category_set)
     original_builder = production_delivery._build_candidate_index
     cache_hits = {"count": 0}
 
