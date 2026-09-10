@@ -2,9 +2,9 @@ from procrun.a21a_release_freeze import (
     CURRENT_FINAL_POPULATION,
     EVIDENCE_RETRIEVAL_BLOB_SHA,
     EXPECTED_EXTRACTOR_VERSION,
-    FinalPopulationFreeze,
     RELEASE_CANDIDATE_BASELINE_COMMIT,
     RELEASE_CANDIDATE_ID,
+    FinalPopulationFreeze,
     release_candidate_is_frozen,
     require_final_holdout_ready,
 )
