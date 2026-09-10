@@ -2,6 +2,8 @@
 
 **Status:** AUTHORITATIVE CLARIFICATION FOR PROCRUN 2.0 A21a
 
+This clarification supersedes only the earlier A21a wording in `PROCRUN_2_0_PRODUCT_REQUIREMENTS.md` that required every evidence result to consist of 1–3 sentences. All safety, provenance, zero-PII, source, launch and A21b requirements remain unchanged.
+
 ## Decision
 
 A21a validates **source wording**, not document length.
