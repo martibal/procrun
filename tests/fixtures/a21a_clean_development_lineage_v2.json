@@ -1,0 +1,18 @@
+{
+  "schema_version": "a21a-clean-development-lineage-v2",
+  "status": "PENDING_INDEPENDENT_REVIEW",
+  "source_pool_artifact_id": 10155244738,
+  "source_pool_workflow_run_id": 34485064842,
+  "source_pool_artifact_sha256": "119c5e910dcf3d9495f8f4f3d74f131d68c0e8d850a85588e80bbac0542bcf95",
+  "source_pool_content_sha256": "b34974616732dd7a1b95f0f8f577ce9f5b939f5448fc02610d02a5bf43955424",
+  "development_sample_canonical_sha256": "3a53c93484a2c2eac6ec2fa2942b803ac72f0112ea0c4b52fffde0dd0a67fbd9",
+  "case_count": 60,
+  "selection_seed": "a21a-evidence-development-set-v1",
+  "pii_review_status": "ZERO_PII_CONFIRMED",
+  "download_then_filter_used": false,
+  "engine_output_used_for_review": false,
+  "sealed_holdout_touched": false,
+  "prior_review_labels_reused": false,
+  "independent_review_complete": false,
+  "threshold_preregistration_active": false
+}
