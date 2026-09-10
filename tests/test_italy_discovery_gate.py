@@ -7,16 +7,16 @@ def _read(path: str) -> str:
         return handle.read()
 
 
-def test_beneficiary_operation_csv_is_rejected_after_provenance_review() -> None:
+def test_bounded_opencoesione_route_records_superseding_provenance() -> None:
     doc = _read(DOC)
 
-    assert "Phase-3 record smoke test: **PROHIBITED**" in doc
-    assert (
-        "production eligibility: **REJECTED under the current zero-PII product requirement**"
-        in doc
-    )
-    assert "source-side projection excluding `OperationSummary`: **NOT FOUND**" in doc
-    assert "A local filter, post-download scanner or sample inspection is not sufficient." in doc
+    assert "Vademecum per il Monitoraggio" in doc
+    assert "`TITOLO_PROGETTO` and `SINTESI_PROG`" in doc
+    assert "previous blanket rejection" in doc
+    assert "**superseded**" in doc
+    assert "bounded `PR FESR LOMBARDIA` route: **QUALIFIED for A21a source-wording use**" in doc
+    assert "general OpenCoesione project/API/search surfaces: **NOT REOPENED" in doc
+    assert "No raw source may be downloaded merely to test whether an unqualified route is safe." in doc
 
 
 def test_metadata_probe_cannot_authorise_record_receipt() -> None:
