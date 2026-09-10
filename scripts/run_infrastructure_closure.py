@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import signal
 import time
 from collections.abc import Callable
@@ -199,6 +198,47 @@ def _run_phase[T](
     return result
 
 
+def _is_word_char(value: str) -> bool:
+    return value == "_" or value.isalnum()
+
+
+def _build_phrase_trie(rules_by_category):
+    trie: dict[str, Any] = {}
+    for category, rule in rules_by_category.items():
+        for phrase in rule.phrases:
+            node = trie
+            for char in phrase.lower():
+                node = node.setdefault(char, {})
+            node.setdefault("", set()).add(category)
+    return trie
+
+
+def _phrase_categories(text: str, trie, all_categories: frozenset[str]) -> set[str]:
+    lowered = text.lower()
+    matched: set[str] = set()
+    root_chars = trie.keys()
+    length = len(lowered)
+    for start, char in enumerate(lowered):
+        if char not in root_chars:
+            continue
+        if start and _is_word_char(lowered[start - 1]):
+            continue
+        node = trie
+        pos = start
+        while pos < length:
+            next_node = node.get(lowered[pos])
+            if next_node is None:
+                break
+            node = next_node
+            pos += 1
+            terminal = node.get("")
+            if terminal and (pos == length or not _is_word_char(lowered[pos])):
+                matched.update(terminal)
+                if matched == all_categories:
+                    return matched
+    return matched
+
+
 def _fast_candidate_index(ted_records, categories):
     rules_by_category = {
         production_delivery._rule_key(rule): rule
@@ -209,15 +249,12 @@ def _fast_candidate_index(ted_records, categories):
         missing = sorted(set(categories) - set(rules_by_category))
         raise RuntimeError(f"component categories are not uniquely frozen: {missing}")
 
-    phrase_patterns = {
-        category: re.compile(
-            "|".join(rf"(?<!\w){re.escape(phrase)}(?!\w)" for phrase in rule.phrases),
-            flags=re.IGNORECASE,
-        )
-        if rule.phrases
-        else None
+    phrase_trie = _build_phrase_trie(rules_by_category)
+    cpv_rules = tuple(
+        (category, rule.cpv_prefixes)
         for category, rule in rules_by_category.items()
-    }
+        if rule.cpv_prefixes
+    )
     mutable = {category: [] for category in categories}
     for record in ted_records:
         text = "\n".join(
@@ -228,16 +265,19 @@ def _fast_candidate_index(ted_records, categories):
             )
             if value
         )
+        matched = _phrase_categories(text, phrase_trie, categories)
         cpv_codes = production_delivery._record_cpv_codes(record)
-        for category, rule in rules_by_category.items():
-            pattern = phrase_patterns[category]
-            phrase_match = pattern.search(text) is not None if pattern is not None else False
-            cpv_match = bool(rule.cpv_prefixes) and any(
-                production_delivery.cpv_matches_prefixes(code, rule.cpv_prefixes)
-                for code in cpv_codes
-            )
-            if phrase_match or cpv_match:
-                mutable[category].append(record)
+        if cpv_codes:
+            for category, prefixes in cpv_rules:
+                if category in matched:
+                    continue
+                if any(
+                    production_delivery.cpv_matches_prefixes(code, prefixes)
+                    for code in cpv_codes
+                ):
+                    matched.add(category)
+        for category in matched:
+            mutable[category].append(record)
     return {category: tuple(records) for category, records in mutable.items()}
 
 
