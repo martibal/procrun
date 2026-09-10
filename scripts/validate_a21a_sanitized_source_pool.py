@@ -20,6 +20,18 @@ ALLOWED_TOP_LEVEL = {
     "sanitization_provenance",
     "cases",
 }
+ALLOWED_PROVENANCE_FIELDS = {
+    "raw_archive_present",
+    "download_then_filter_used",
+    "source_only_projection_confirmed",
+    "projection_boundary",
+    "transport_kind",
+    "projection_evidence_url",
+}
+ALLOWED_TRANSPORT_KINDS = {
+    "field_selective_endpoint",
+    "prebuilt_sanitized_resource",
+}
 ALLOWED_CASE_FIELDS = {
     "operation_code",
     "project_title",
@@ -83,12 +95,22 @@ def validate(document: dict[str, Any]) -> dict[str, Any]:
     provenance = document.get("sanitization_provenance")
     if not isinstance(provenance, dict):
         raise ValueError("sanitization_provenance is required")
+    extra_provenance = set(provenance) - ALLOWED_PROVENANCE_FIELDS
+    if extra_provenance:
+        raise ValueError(f"unexpected sanitization provenance fields: {sorted(extra_provenance)}")
     if provenance.get("raw_archive_present") is not False:
         raise ValueError("raw archives are prohibited")
     if provenance.get("download_then_filter_used") is not False:
         raise ValueError("download-then-filter is prohibited")
     if provenance.get("source_only_projection_confirmed") is not True:
         raise ValueError("source-only projection must be explicitly confirmed")
+    if provenance.get("projection_boundary") != "upstream_before_receipt":
+        raise ValueError("source-only projection must occur upstream before ProcRun receipt")
+    if provenance.get("transport_kind") not in ALLOWED_TRANSPORT_KINDS:
+        raise ValueError("transport_kind must prove field-selective or prebuilt sanitized transport")
+    evidence_url = provenance.get("projection_evidence_url")
+    if not isinstance(evidence_url, str) or not evidence_url.startswith("https://"):
+        raise ValueError("HTTPS projection_evidence_url is required")
 
     cases = document.get("cases")
     if not isinstance(cases, list) or not cases:
@@ -128,6 +150,8 @@ def validate(document: dict[str, Any]) -> dict[str, Any]:
         "download_then_filter_used": False,
         "engine_output_present": False,
         "source_only_projection_confirmed": True,
+        "projection_boundary": "upstream_before_receipt",
+        "transport_kind": provenance["transport_kind"],
         "canonical_sha256": canonical_sha256,
         "ingress_pass": True,
     }
