@@ -6,20 +6,19 @@ def _doc_text() -> str:
         return handle.read()
 
 
-def test_beneficiary_operation_csv_is_rejected_under_zero_pii_boundary() -> None:
+def test_bounded_lombardia_route_is_qualified_without_general_reopening() -> None:
     text = _doc_text()
 
-    assert "Phase-3 record smoke test: **PROHIBITED**" in text
-    assert (
-        "production eligibility: **REJECTED under the current zero-PII product requirement**"
-        in text
-    )
-    assert "source-side projection excluding `OperationSummary`: **NOT FOUND**" in text
-    assert "A local filter, post-download scanner or sample inspection is not sufficient." in text
+    assert "`SINTESI_PROG` pre-receipt natural-person rule: **PASS" in text
+    assert "bounded `PR FESR LOMBARDIA` route: **QUALIFIED for A21a source-wording use**" in text
+    assert "general OpenCoesione project/API/search surfaces: **NOT REOPENED" in text
+    assert "production eligibility of the broad Candidate 3 family: **NOT GRANTED" in text
+    assert "No raw source may be downloaded merely to test whether an unqualified route is safe." in text
 
 
-def test_italy_has_no_production_approved_funded_project_source() -> None:
+def test_italy_has_no_blanket_production_approval() -> None:
     text = _doc_text()
 
-    assert "No Italy funded-project source is production-approved yet." in text
-    assert "**rejected under zero-PII boundary**" in text
+    assert "No broad Italy funded-project source family is production-approved" in text
+    assert "qualified for A21a source-wording use" in text
+    assert "must not be generalized to unqualified OpenCoesione surfaces" in text

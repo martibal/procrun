@@ -1,6 +1,6 @@
 # Italy 2021-2027 funded-project discovery gate
 
-Status date: 2026-09-03.
+Status date: 2026-09-10.
 
 This document freezes the current research decision for Italy. It does **not** approve a live source and does not add an entry to `SOURCE_CONTRACTS`.
 
@@ -44,32 +44,47 @@ No email, phone, personal contact, personal social identifier or equivalent dire
 
 The route otherwise has strong product scope: `SintesiProgetto_OperationSummary`, start/end dates, eligible expenditure, EU co-financing rate, postcode/country, intervention category and update date.
 
-### Final provenance review — `OperationSummary`
+### Provenance review — `OperationSummary`
 
 Documentation-only research was completed before any beneficiary/operation CSV was retrieved.
 
 Authoritative evidence reviewed:
 
 1. OpenCoesione's current `Lista beneficiari e operazioni 2021-2027` page states that the published minimum dataset includes operation name **and operation summary**, and that beneficiary name is published only for legal persons. The route is an open CSV, split by programme, updated bimonthly and licensed CC BY 4.0.
-2. OpenCoesione's 2021-2027 communication guidelines map `Operation summary` to PUC2127 `SINTESI_PRG`. They explicitly state that `Operation name` must not contain names of natural persons, then describe `SINTESI_PRG` only as a maximum-1,300-character description of what the project does, its purpose and, where needed, territory. No equivalent exclusion, anonymisation or masking rule is stated for `SINTESI_PRG`.
-3. Regulation (EU) 2021/1060 treats the short description of the operation as a distinct operation-data field. It does not establish a guarantee that arbitrary personal identifiers cannot occur in that free-text description before publication.
-4. OpenCoesione's programme widgets republish the same operation/beneficiary lists; no documented server-side/source-side field projection was found that would allow ProcRun to request the record without `OperationSummary` before receipt.
+2. OpenCoesione's 2021-2027 communication guidelines map `Operation summary` to PUC2127 `SINTESI_PRG`. They explicitly state that `Operation name` must not contain names of natural persons, then describe `SINTESI_PRG` as a maximum-1,300-character description of what the project does, its purpose and, where needed, territory. Read in isolation, this document did **not** state an equivalent exclusion, anonymisation or masking rule for `SINTESI_PRG`.
+3. Regulation (EU) 2021/1060 treats the short description of the operation as a distinct operation-data field. It does not itself establish a guarantee that arbitrary personal identifiers cannot occur in that free-text description before publication.
+4. OpenCoesione's programme widgets republish the same operation/beneficiary lists; no documented general server-side/source-side field projection was found that would make the broad OpenCoesione project route independently safe.
+5. **Ragioneria Generale dello Stato, `Vademecum per il Monitoraggio`, versione 1.0, dicembre 2024, AP00 — Anagrafica progetto** is the more direct technical source for the ReGiS/PUC project-field definitions. It states that the fields `TITOLO_PROGETTO` and `SINTESI_PROG` must not contain sensitive information attributable to natural persons, including name, fiscal code, telephone number or email address. This later source qualification therefore supersedes the earlier conclusion that no pre-receipt rule for `SINTESI_PROG` had been established.
 
-The exact safety condition therefore remains unprovable from the source contract. This is not something ProcRun may resolve by downloading records and scanning the free text afterwards: that would itself receive and process potentially identifying data.
+The distinction between evidence sources matters. The communication guidelines remain relevant for publication semantics and field mapping, but the monitoring vademecum is the stronger source for what may be entered into the underlying project fields. The earlier `FAIL / NOT ESTABLISHED` conclusion for `SINTESI_PROG` was correct on the narrower evidence set available at that time; it is no longer the current conclusion for a route whose field identity is proven to be the vademecum-governed `SINTESI_PROG`.
 
-### Final decision for Candidate 3
+### Subsequent bounded source qualification
+
+Later A21a source qualification established one bounded OpenCoesione route:
+
+`https://opencoesione.gov.it/it/opendata/beneficiari/2021-2027/beneficiari_PR_FESR_LOMBARDIA.zip`
+
+For this route, the field mapping and the Vademecum Monitoraggio rule jointly support pre-receipt admission of `TITOLO_PROGETTO` and `SINTESI_PROG` under ProcRun's zero-PII contract. This does **not** reopen the general OpenCoesione `/api/progetti` route, the project-search CSV, or any other source surface whose exact fields and pre-receipt contract have not separately been qualified.
+
+The bounded Lombardia source also exposes an important product limitation: in the observed live data, `SINTESI_PROG` is textually identical to `TITOLO_PROGETTO`. It therefore does not provide a richer project-description fallback. Under A21a semantics the customer-facing source type must remain truthful: when the only distinct project wording is the title, ProcRun may surface `Project title`; it may not upgrade the evidence using programme objective/context or generated prose.
+
+### Current decision for Candidate 3
+
+The previous blanket rejection of Candidate 3 on the ground that `SINTESI_PROG` lacked a source-side PII rule is **superseded**.
+
+Current status is intentionally split:
 
 - rights: **PASS**;
-- automated/public access: **PASS**;
+- automated/public access: **PASS** for the bounded published programme archive;
 - structured beneficiary identity masking: **PASS**;
-- operation-title natural-person rule: **PASS**;
-- scope sufficiency: **PASS**;
-- `OperationSummary` pre-receipt zero-PII guarantee: **FAIL / NOT ESTABLISHED**;
-- source-side projection excluding `OperationSummary`: **NOT FOUND**;
-- Phase-3 record smoke test: **PROHIBITED**;
-- production eligibility: **REJECTED under the current zero-PII product requirement**.
+- `TITOLO_PROGETTO` natural-person rule: **PASS**;
+- `SINTESI_PROG` pre-receipt natural-person rule: **PASS where field identity is proven against the Vademecum Monitoraggio contract**;
+- bounded `PR FESR LOMBARDIA` route: **QUALIFIED for A21a source-wording use**;
+- general OpenCoesione project/API/search surfaces: **NOT REOPENED / require independent qualification**;
+- richer-description fallback on the qualified Lombardia route: **NOT AVAILABLE because `SINTESI_PROG` duplicates `TITOLO_PROGETTO`**;
+- production eligibility of the broad Candidate 3 family: **NOT GRANTED by this document**.
 
-This candidate may only be reconsidered if OpenCoesione/MEF later publishes a source-side guarantee covering `SINTESI_PRG`, or provides an official server-side projection that excludes the field before ProcRun receives a record. A local filter, post-download scanner or sample inspection is not sufficient.
+No raw source may be downloaded merely to test whether an unqualified route is safe. Qualification must continue to be established before receipt from authoritative field/content contracts.
 
 ## Candidate 4 — OpenBDAP / MOP public-works project data
 
@@ -138,14 +153,15 @@ OpenCUP remains rejected because available project surfaces can include benefici
 
 ## Production status
 
-No Italy funded-project source is production-approved yet.
+No broad Italy funded-project source family is production-approved by this discovery document. A later A21a qualification has admitted the bounded `PR FESR LOMBARDIA` archive for source-wording validation only; that narrower result must not be generalized to unqualified OpenCoesione surfaces.
 
 | Route | Rights | Access | Data safety | Scope | Research decision |
 | --- | --- | --- | --- | --- | --- |
 | OpenCoesione relational `Progetti` | strong | strong | promising | **blocked for 2021-2027** | reject as current-cycle scope source |
 | OpenCoesione `/api/progetti` | strong | strong | unresolved | unresolved | do not call project records |
-| 2021-2027 beneficiary/operation list | **strong** | **strong** | **FAIL: summary pre-receipt safety unproven** | **strong** | **rejected under zero-PII boundary** |
+| 2021-2027 beneficiary/operation list — broad family | **strong** | **strong** | **qualified only where exact field contract is proven** | **strong in schema; variable in live wording** | **no blanket production approval** |
+| `PR FESR LOMBARDIA` bounded archive | **strong** | **strong** | **PASS for admitted project title/summary fields** | **title-level only in observed live data** | **qualified for A21a source-wording use** |
 | OpenBDAP / MOP project data | **strong** | **promising** | **FAIL: scope text not source-guaranteed PII-safe** | **insufficient if description excluded** | **rejected under zero-PII/scope boundary** |
 | OpenCUP project/API | strong/open-data signal | conditional | **blocked** | strong | reject as enrichment |
 
-Nothing in this document changes the executable production registry. The Italy research path must now move to a different source family rather than issue an OpenBDAP/MOP project-row request.
+Nothing in this document changes the executable production registry. Any production promotion must remain separately gated, source-bounded, and hash-anchored.
