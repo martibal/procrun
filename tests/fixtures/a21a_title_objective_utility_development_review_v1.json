@@ -1,0 +1,33 @@
+{
+  "review_version": "a21a-title-objective-utility-development-review-v1",
+  "purpose": "Development-only blind assessment of whether exact project title plus exact specific objective is sufficiently descriptive to explain project relevance for the 14 frozen weak-title cases.",
+  "blind_sample_canonical_sha256": "d014391f1e6f0f4e10bc0041352a4ea15fb12e4fe03cc974d31709a2c0dee02b",
+  "parent_sample_canonical_sha256": "f214a0ee54bec0de8ef67d29707e18562fee582db57c60448b7014841e8e0b37",
+  "live_source_sha256": "35dc073ec9e5e06201080bc949a9da19dfd3366deee3524417491e2b2fd21c6a",
+  "case_count": 14,
+  "engine_output_used_for_review": false,
+  "sealed_holdout_touched": false,
+  "new_source_fields_received": false,
+  "context_promoted_to_evidence": false,
+  "rubric": {
+    "CLEAR": "Title plus specific objective identifies a concrete funded intervention, asset, system or activity sufficiently to understand the substance of the project.",
+    "PARTIAL": "The combination adds meaningful domain or activity context but remains too broad to explain the funded intervention precisely.",
+    "NOT_USEFUL": "The combination still does not explain the funded intervention beyond a brand, company, event, administrative label, slogan or broad programme objective."
+  },
+  "cases": [
+    {"case_id":"A21A-DEV-0005","label":"PARTIAL"},
+    {"case_id":"A21A-DEV-0013","label":"PARTIAL"},
+    {"case_id":"A21A-DEV-0025","label":"NOT_USEFUL"},
+    {"case_id":"A21A-DEV-0027","label":"NOT_USEFUL"},
+    {"case_id":"A21A-DEV-0028","label":"NOT_USEFUL"},
+    {"case_id":"A21A-DEV-0032","label":"PARTIAL"},
+    {"case_id":"A21A-DEV-0034","label":"PARTIAL"},
+    {"case_id":"A21A-DEV-0035","label":"PARTIAL"},
+    {"case_id":"A21A-DEV-0038","label":"NOT_USEFUL"},
+    {"case_id":"A21A-DEV-0041","label":"NOT_USEFUL"},
+    {"case_id":"A21A-DEV-0052","label":"NOT_USEFUL"},
+    {"case_id":"A21A-DEV-0054","label":"PARTIAL"},
+    {"case_id":"A21A-DEV-0055","label":"NOT_USEFUL"},
+    {"case_id":"A21A-DEV-0058","label":"NOT_USEFUL"}
+  ]
+}
