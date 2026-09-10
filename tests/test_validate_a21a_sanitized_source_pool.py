@@ -81,11 +81,42 @@ def test_rejects_bulk_archive_transport_even_with_safe_flags() -> None:
         validate(document)
 
 
-def test_accepts_prebuilt_sanitized_resource_transport() -> None:
+def test_accepts_frozen_opencoesione_prebuilt_sanitized_resource() -> None:
     document = _document()
-    document["sanitization_provenance"]["transport_kind"] = "prebuilt_sanitized_resource"
+    document["sanitization_provenance"].update(
+        {
+            "transport_kind": "prebuilt_sanitized_resource",
+            "source_id": "opencoesione_2021_2027_operations",
+            "publisher_resource_sha256": "a" * 64,
+            "list_updated_on": "2026-08-31",
+            "publisher_zero_pii_contract": "opencoesione-art49-minimum-rgs-v1",
+        }
+    )
     report = validate(document)
     assert report["transport_kind"] == "prebuilt_sanitized_resource"
+    assert report["publisher_resource_sha256"] == "a" * 64
+
+
+def test_rejects_prebuilt_resource_without_frozen_publisher_provenance() -> None:
+    for field, value in (
+        ("source_id", "other"),
+        ("publisher_resource_sha256", "bad"),
+        ("list_updated_on", "31-08-2026"),
+        ("publisher_zero_pii_contract", "unknown"),
+    ):
+        document = _document()
+        document["sanitization_provenance"].update(
+            {
+                "transport_kind": "prebuilt_sanitized_resource",
+                "source_id": "opencoesione_2021_2027_operations",
+                "publisher_resource_sha256": "a" * 64,
+                "list_updated_on": "2026-08-31",
+                "publisher_zero_pii_contract": "opencoesione-art49-minimum-rgs-v1",
+            }
+        )
+        document["sanitization_provenance"][field] = value
+        with pytest.raises(ValueError):
+            validate(document)
 
 
 def test_requires_https_projection_evidence() -> None:
