@@ -15,6 +15,7 @@ import signal
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Callable, TypeVar
 
 import procrun.production_delivery as production_delivery
 from procrun.a21_identity import a21_projects_by_local_operation_id
@@ -48,7 +49,21 @@ FORBIDDEN_PUBLIC_KEYS = frozenset(
         "model_prompt",
     }
 )
-BUILD_PASS_BUDGET_SECONDS = 180
+
+PHASE_BUDGET_SECONDS = {
+    "open_coesione_collect": 120,
+    "ted_collect": 300,
+    "candidate_index": 120,
+    "runway_build_1": 180,
+    "runway_build_2": 180,
+    "runway_build_3": 180,
+    "persist_postgres": 120,
+    "write_jsonl": 30,
+}
+
+T = TypeVar("T")
+_CURRENT_PHASE = "startup"
+_CURRENT_BUDGET = 0
 
 
 def _walk_public(value: object) -> None:
@@ -136,20 +151,51 @@ def _validate_run(results, models) -> dict[str, int]:
 def _timeout_handler(signum, frame) -> None:
     del signum, frame
     raise TimeoutError(
-        f"runway build exceeded {BUILD_PASS_BUDGET_SECONDS}s preflight budget; optimize before retry"
+        f"phase {_CURRENT_PHASE!r} exceeded {_CURRENT_BUDGET}s budget; optimize before retry"
     )
 
 
-def _build_with_budget(batch, ted, *, cutoff):
-    previous_handler = signal.signal(signal.SIGALRM, _timeout_handler)
-    signal.alarm(BUILD_PASS_BUDGET_SECONDS)
+def _write_diagnostics(path: Path, diagnostics: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(diagnostics, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+
+def _run_phase(
+    name: str,
+    diagnostics: dict[str, Any],
+    diagnostics_path: Path,
+    func: Callable[..., T],
+    *args,
+    **kwargs,
+) -> T:
+    global _CURRENT_PHASE, _CURRENT_BUDGET
+    budget = PHASE_BUDGET_SECONDS[name]
+    _CURRENT_PHASE = name
+    _CURRENT_BUDGET = budget
+    print(f"PHASE_START {name} budget={budget}s", flush=True)
     started = time.monotonic()
+    previous_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+    signal.alarm(budget)
     try:
-        result = build_live_runway_results(batch, ted, cutoff_date=cutoff)
+        result = func(*args, **kwargs)
+    except Exception as exc:
+        elapsed = time.monotonic() - started
+        diagnostics["status"] = "FAIL"
+        diagnostics["failed_phase"] = name
+        diagnostics["error_type"] = type(exc).__name__
+        diagnostics["error_message"] = str(exc)
+        diagnostics["phase_seconds"][name] = round(elapsed, 3)
+        _write_diagnostics(diagnostics_path, diagnostics)
+        print(f"PHASE_FAIL {name} elapsed={elapsed:.3f}s type={type(exc).__name__}", flush=True)
+        raise
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, previous_handler)
-    return result, time.monotonic() - started
+    elapsed = time.monotonic() - started
+    diagnostics["phase_seconds"][name] = round(elapsed, 3)
+    _write_diagnostics(diagnostics_path, diagnostics)
+    print(f"PHASE_OK {name} elapsed={elapsed:.3f}s", flush=True)
+    return result
 
 
 def _install_candidate_index_cache(batch, logical_projects, ted):
@@ -162,9 +208,7 @@ def _install_candidate_index_cache(batch, logical_projects, ted):
         categories.update(item.component.category for item in extraction.components)
 
     category_set = frozenset(categories)
-    started = time.monotonic()
     candidate_index = production_delivery._build_candidate_index(ted.records, category_set)
-    index_seconds = time.monotonic() - started
     original_builder = production_delivery._build_candidate_index
     cache_hits = {"count": 0}
 
@@ -176,7 +220,17 @@ def _install_candidate_index_cache(batch, logical_projects, ted):
 
     production_delivery._build_candidate_index = cached_builder
     candidate_count = sum(len(records) for records in candidate_index.values())
-    return index_seconds, candidate_count, cache_hits
+    return candidate_count, cache_hits
+
+
+def _build_and_validate(batch, ted, logical_projects, cutoff):
+    results = build_live_runway_results(batch, ted, cutoff_date=cutoff)
+    if len(results) != len(logical_projects):
+        raise RuntimeError("one or more logical funded projects were omitted")
+    models = tuple(build_runway_read_model(result) for result in results)
+    counts = _validate_run(results, models)
+    digest = content_sha256([model.model_dump(mode="json") for model in models])
+    return results, models, counts, digest
 
 
 def main() -> int:
@@ -184,35 +238,75 @@ def main() -> int:
     parser.add_argument("--database-url", required=True)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--jsonl", type=Path, required=True)
+    parser.add_argument("--diagnostics", type=Path, required=True)
     args = parser.parse_args()
+
+    diagnostics: dict[str, Any] = {
+        "schema_version": "infrastructure-closure-diagnostics-v1",
+        "status": "RUNNING",
+        "failed_phase": None,
+        "error_type": None,
+        "error_message": None,
+        "phase_budgets_seconds": PHASE_BUDGET_SECONDS,
+        "phase_seconds": {},
+    }
+    _write_diagnostics(args.diagnostics, diagnostics)
 
     started = datetime.now(timezone.utc)
     cutoff = started.date()
-    batch = collect_open_coesione_live()
+
+    batch = _run_phase(
+        "open_coesione_collect",
+        diagnostics,
+        args.diagnostics,
+        collect_open_coesione_live,
+    )
     logical_projects = a21_projects_by_local_operation_id(
         batch.operations, to_funding_projects(batch)
     )
-    ted = collect_complete_ted_italy(cutoff)
+    diagnostics["logical_project_count"] = len(logical_projects)
+    _write_diagnostics(args.diagnostics, diagnostics)
 
-    index_seconds, indexed_candidate_count, cache_hits = _install_candidate_index_cache(
-        batch, logical_projects, ted
+    ted = _run_phase(
+        "ted_collect",
+        diagnostics,
+        args.diagnostics,
+        collect_complete_ted_italy,
+        cutoff,
     )
+    diagnostics["ted_record_count"] = len(ted.records)
+    diagnostics["ted_page_count"] = ted.pages_fetched
+    diagnostics["ted_complete"] = ted.complete
+    _write_diagnostics(args.diagnostics, diagnostics)
+
+    indexed_candidate_count, cache_hits = _run_phase(
+        "candidate_index",
+        diagnostics,
+        args.diagnostics,
+        _install_candidate_index_cache,
+        batch,
+        logical_projects,
+        ted,
+    )
+    diagnostics["indexed_candidate_count"] = indexed_candidate_count
+    _write_diagnostics(args.diagnostics, diagnostics)
 
     serialized_runs: list[str] = []
-    build_seconds: list[float] = []
     first_results = None
     first_models = None
     first_counts = None
-    for _ in range(3):
-        results, elapsed = _build_with_budget(batch, ted, cutoff=cutoff)
-        build_seconds.append(elapsed)
-        if len(results) != len(logical_projects):
-            raise RuntimeError("one or more logical funded projects were omitted")
-        models = tuple(build_runway_read_model(result) for result in results)
-        counts = _validate_run(results, models)
-        serialized_runs.append(
-            content_sha256([model.model_dump(mode="json") for model in models])
+    for run_number in range(1, 4):
+        results, models, counts, digest = _run_phase(
+            f"runway_build_{run_number}",
+            diagnostics,
+            args.diagnostics,
+            _build_and_validate,
+            batch,
+            ted,
+            logical_projects,
+            cutoff,
         )
+        serialized_runs.append(digest)
         if first_results is None:
             first_results = results
             first_models = models
@@ -227,7 +321,11 @@ def main() -> int:
     assert first_counts is not None
 
     completed = datetime.now(timezone.utc)
-    persist_live_results(
+    _run_phase(
+        "persist_postgres",
+        diagnostics,
+        args.diagnostics,
+        persist_live_results,
         args.database_url,
         batch=batch,
         results=first_results,
@@ -237,7 +335,15 @@ def main() -> int:
         completed_at=completed,
         ted_count=len(ted.records),
     )
-    written_hash = write_customer_safe_jsonl(args.jsonl, first_models)
+
+    written_hash = _run_phase(
+        "write_jsonl",
+        diagnostics,
+        args.diagnostics,
+        write_customer_safe_jsonl,
+        args.jsonl,
+        first_models,
+    )
     if written_hash != serialized_runs[0]:
         raise RuntimeError("persisted customer JSONL hash differs from in-memory proof hash")
     if len(args.jsonl.read_text(encoding="utf-8").splitlines()) != len(first_models):
@@ -255,10 +361,9 @@ def main() -> int:
         "ted_complete": ted.complete,
         "three_run_determinism": True,
         "candidate_index_reused": True,
-        "candidate_index_build_seconds": round(index_seconds, 3),
         "indexed_candidate_count": indexed_candidate_count,
-        "runway_build_seconds": [round(value, 3) for value in build_seconds],
-        "build_pass_budget_seconds": BUILD_PASS_BUDGET_SECONDS,
+        "phase_seconds": diagnostics["phase_seconds"],
+        "phase_budgets_seconds": PHASE_BUDGET_SECONDS,
         "customer_output_sha256": serialized_runs[0],
         "sealed_holdout_required": False,
         "sealed_holdout_touched": False,
@@ -267,7 +372,14 @@ def main() -> int:
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(report, sort_keys=True))
+
+    diagnostics["status"] = "PASS"
+    diagnostics["failed_phase"] = None
+    diagnostics["error_type"] = None
+    diagnostics["error_message"] = None
+    diagnostics["completed_at"] = datetime.now(timezone.utc).isoformat()
+    _write_diagnostics(args.diagnostics, diagnostics)
+    print(json.dumps(report, sort_keys=True), flush=True)
     return 0
 
 

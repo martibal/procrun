@@ -15,7 +15,7 @@ jobs:
   live-own-code-proof:
     if: github.head_ref == 'release/infrastructure-closure'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -46,7 +46,17 @@ jobs:
           --database-url "$PROCRUN_CLOSURE_DATABASE_URL"
           --report artifacts/infrastructure-closure-v1.json
           --jsonl artifacts/customer-runway.jsonl
+          --diagnostics artifacts/infrastructure-closure-diagnostics-v1.json
+      - name: Publish phase diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: infrastructure-closure-diagnostics
+          path: artifacts/infrastructure-closure-diagnostics-v1.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Publish proof report only
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: infrastructure-closure-proof
