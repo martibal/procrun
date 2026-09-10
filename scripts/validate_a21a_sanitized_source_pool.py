@@ -1,18 +1,17 @@
-"""Validate an already-sanitized A21a source pool before development-set selection.
-
-This validator never downloads source archives. It accepts only a pre-sanitized JSON package
-containing the explicitly allowlisted project fields needed by A21a evidence retrieval.
-"""
+"""Validate an already-sanitized A21a source pool before development-set selection."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = "a21a-sanitized-source-pool-v1"
+OPENCOESIONE_SOURCE_ID = "opencoesione_2021_2027_operations"
+PUBLISHER_ZERO_PII_CONTRACT = "opencoesione-art49-minimum-rgs-v1"
 ALLOWED_TOP_LEVEL = {
     "schema_version",
     "pii_review_status",
@@ -27,6 +26,10 @@ ALLOWED_PROVENANCE_FIELDS = {
     "projection_boundary",
     "transport_kind",
     "projection_evidence_url",
+    "source_id",
+    "publisher_resource_sha256",
+    "list_updated_on",
+    "publisher_zero_pii_contract",
 }
 ALLOWED_TRANSPORT_KINDS = {
     "field_selective_endpoint",
@@ -58,6 +61,8 @@ FORBIDDEN_FIELD_FRAGMENTS = (
     "classification_output",
     "engine_output",
 )
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -82,6 +87,19 @@ def _contains_forbidden_key(value: Any) -> str | None:
     return None
 
 
+def _validate_prebuilt_publisher_resource(provenance: dict[str, Any]) -> None:
+    if provenance.get("source_id") != OPENCOESIONE_SOURCE_ID:
+        raise ValueError("prebuilt resource must use the frozen OpenCoesione source id")
+    if provenance.get("publisher_zero_pii_contract") != PUBLISHER_ZERO_PII_CONTRACT:
+        raise ValueError("publisher zero-PII contract is not the frozen approved contract")
+    source_hash = provenance.get("publisher_resource_sha256")
+    if not isinstance(source_hash, str) or _SHA256_RE.fullmatch(source_hash) is None:
+        raise ValueError("publisher_resource_sha256 must be a lowercase SHA-256")
+    updated_on = provenance.get("list_updated_on")
+    if not isinstance(updated_on, str) or _DATE_RE.fullmatch(updated_on) is None:
+        raise ValueError("list_updated_on must be an ISO date")
+
+
 def validate(document: dict[str, Any]) -> dict[str, Any]:
     if set(document) - ALLOWED_TOP_LEVEL:
         raise ValueError(f"unexpected top-level fields: {sorted(set(document) - ALLOWED_TOP_LEVEL)}")
@@ -99,26 +117,26 @@ def validate(document: dict[str, Any]) -> dict[str, Any]:
     if extra_provenance:
         raise ValueError(f"unexpected sanitization provenance fields: {sorted(extra_provenance)}")
     if provenance.get("raw_archive_present") is not False:
-        raise ValueError("raw archives are prohibited")
+        raise ValueError("unqualified raw archives are prohibited")
     if provenance.get("download_then_filter_used") is not False:
         raise ValueError("download-then-filter is prohibited")
     if provenance.get("source_only_projection_confirmed") is not True:
         raise ValueError("source-only projection must be explicitly confirmed")
     if provenance.get("projection_boundary") != "upstream_before_receipt":
-        raise ValueError("source-only projection must occur upstream before ProcRun receipt")
-    if provenance.get("transport_kind") not in ALLOWED_TRANSPORT_KINDS:
+        raise ValueError("privacy sanitization must occur upstream before ProcRun receipt")
+    transport_kind = provenance.get("transport_kind")
+    if transport_kind not in ALLOWED_TRANSPORT_KINDS:
         raise ValueError("transport_kind must prove field-selective or prebuilt sanitized transport")
     evidence_url = provenance.get("projection_evidence_url")
     if not isinstance(evidence_url, str) or not evidence_url.startswith("https://"):
         raise ValueError("HTTPS projection_evidence_url is required")
+    if transport_kind == "prebuilt_sanitized_resource":
+        _validate_prebuilt_publisher_resource(provenance)
 
     cases = document.get("cases")
     if not isinstance(cases, list) or not cases:
         raise ValueError("cases must be a non-empty list")
 
-    # Search only the row-bearing case payload for prohibited fields. The top-level
-    # engine_output_present=false declaration is an intentional fail-closed attestation,
-    # not engine output itself.
     forbidden = _contains_forbidden_key(cases)
     if forbidden is not None:
         raise ValueError(f"forbidden field detected: {forbidden}")
@@ -151,7 +169,8 @@ def validate(document: dict[str, Any]) -> dict[str, Any]:
         "engine_output_present": False,
         "source_only_projection_confirmed": True,
         "projection_boundary": "upstream_before_receipt",
-        "transport_kind": provenance["transport_kind"],
+        "transport_kind": transport_kind,
+        "publisher_resource_sha256": provenance.get("publisher_resource_sha256"),
         "canonical_sha256": canonical_sha256,
         "ingress_pass": True,
     }
