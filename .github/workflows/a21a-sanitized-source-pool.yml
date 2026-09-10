@@ -1,0 +1,42 @@
+name: a21a-sanitized-source-pool
+
+on:
+  pull_request:
+    paths:
+      - "scripts/build_a21a_sanitized_source_pool.py"
+      - "scripts/validate_a21a_sanitized_source_pool.py"
+      - "src/procrun/collectors/opencoesione.py"
+      - "src/procrun/collectors/opencoesione_live.py"
+      - "src/procrun/source_contracts.py"
+      - ".github/workflows/a21a-sanitized-source-pool.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+      - name: Install project
+        run: pip install -e .
+      - name: Build publisher-safe source pool
+        run: |
+          python scripts/build_a21a_sanitized_source_pool.py --output artifacts/a21a-sanitized-source-pool-v1.json
+      - name: Validate ingress contract
+        run: |
+          python scripts/validate_a21a_sanitized_source_pool.py \
+            --input artifacts/a21a-sanitized-source-pool-v1.json \
+            --output artifacts/a21a-sanitized-source-ingress-report-v1.json
+      - name: Upload sanctioned pool
+        uses: actions/upload-artifact@v4
+        with:
+          name: a21a-sanitized-source-pool
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
