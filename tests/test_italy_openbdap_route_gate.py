@@ -24,4 +24,4 @@ def test_openbdap_mop_cannot_be_rescued_by_projection_alone() -> None:
     assert "That is an input instruction, not a source-side guarantee." in text
     assert "structured taxonomy as scope replacement: **INSUFFICIENT" in text
     assert "Proving `$select` alone would not make the route eligible." in text
-    assert "rather than issue an OpenBDAP/MOP project-row request" in text
+    assert "No `DataRows` request was made merely to test it." in text
