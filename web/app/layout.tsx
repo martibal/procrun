@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./launch-web.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "ProcRun — infrastructure procurement runway",
+    default: "ProcRun — funded-project procurement evidence",
     template: "%s — ProcRun",
   },
   description:
-    "Evidence-first infrastructure procurement runway for suppliers, with source-evidenced matches and explicitly TED-scoped absence conclusions.",
+    "Evidence-bounded funded-project procurement intelligence with exact source wording, TED procurement evidence and explicit OPEN/CLOSED/UNRESOLVED interpretation.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

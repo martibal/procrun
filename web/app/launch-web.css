@@ -1,0 +1,68 @@
+.opportunity-table-wrap {
+  margin-top: 22px;
+  overflow-x: auto;
+  border: 1px solid #d6d9d3;
+  background: var(--surface);
+}
+
+.opportunity-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.opportunity-table th {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid #c8cec7;
+  background: #e8ebe5;
+  color: #5f6962;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  vertical-align: bottom;
+}
+
+.opportunity-table th:nth-child(1) { width: 22%; }
+.opportunity-table th:nth-child(2) { width: 26%; }
+.opportunity-table th:nth-child(3) { width: 28%; }
+.opportunity-table th:nth-child(4) { width: 14%; }
+.opportunity-table th:nth-child(5) { width: 10%; }
+
+.opportunity-table td {
+  padding: 18px 14px;
+  border-bottom: 1px solid #dfe3dd;
+  vertical-align: top;
+}
+
+.opportunity-table tbody tr:last-child td { border-bottom: 0; }
+.opportunity-table tbody tr:hover { background: #faf9f3; }
+.row-title { font-weight: 800; line-height: 1.35; margin-bottom: 6px; }
+.micro { font-size: 11px; line-height: 1.45; color: #79837c; }
+.evidence-label { margin-bottom: 7px; text-transform: uppercase; letter-spacing: .06em; font-weight: 800; }
+.evidence { margin: 0; padding-left: 12px; border-left: 3px solid var(--accent); color: var(--ink); font-size: 13px; line-height: 1.55; }
+.interpretation { margin: 0 0 8px; color: var(--ink); }
+.state-copy { margin-top: 9px; }
+.table-action { text-align: right; }
+.table-action .button { min-height: 38px; padding: 0 12px; white-space: nowrap; font-size: 12px; }
+.pill { display: inline-flex; align-items: center; padding: 5px 8px; border-radius: 999px; background: #dcece5; color: var(--open); font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+.pill.closed { background: #e8e5e0; color: var(--closed); }
+.pill.unresolved { background: #f3dfd2; color: var(--unresolved); }
+.evidence-chain { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 18px; align-items: stretch; margin-top: 18px; }
+.chain-node { background: var(--surface); border: 1px solid #d6d9d3; padding: 20px; }
+.chain-node p { line-height: 1.6; }
+.chain-arrow { display: flex; align-items: center; color: var(--muted); }
+.section { margin-top: 42px; }
+.section-label { text-transform: uppercase; letter-spacing: .12em; font-size: 10px; font-weight: 800; color: #7a847d; }
+.h1 { font-size: clamp(38px, 5vw, 62px); line-height: 1; letter-spacing: -.04em; }
+.kpi { margin-top: 8px; font-family: Georgia, serif; font-size: 34px; }
+.grid.two { grid-template-columns: repeat(2, 1fr); }
+.notice.scope { margin: 24px 0; }
+
+@media (max-width: 900px) {
+  .evidence-chain { grid-template-columns: 1fr; }
+  .chain-arrow { transform: rotate(90deg); justify-content: center; min-height: 18px; }
+  .grid.two { grid-template-columns: 1fr; }
+}

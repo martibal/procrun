@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 const proof = [
-  ["4,631", "funded projects in the accepted production run"],
-  ["176,540", "TED notices retrieved across the complete accepted Italy universe"],
-  ["37", "projects resolved usefully from the production runway run"],
+  ["4,305", "logical funded projects in the accepted production proof"],
+  ["177,160", "TED notices across the complete accepted Italy universe"],
+  ["116", "projects with evidence-bounded OPEN runway at the proof cutoff"],
 ] as const;
 
 export default function HomePage() {
@@ -22,25 +22,21 @@ export default function HomePage() {
       <main>
         <section className="hero hero-grid">
           <div>
-            <div className="eyebrow">Infrastructure procurement runway</div>
-            <h1>Find funded projects where procurement may still be open.</h1>
+            <div className="eyebrow">Funded-project procurement evidence</div>
+            <h1>See what a funded project says — and what ProcRun can safely conclude.</h1>
             <p className="lede">
-              ProcRun starts with approved funded-project scope, maps purchasable components,
-              checks source-evidenced procurement activity in TED, and shows the remaining runway
-              without inventing demand.
+              ProcRun starts with exact wording from approved funded-project publications, identifies only components supported by that wording, checks the complete accepted TED search universe, and keeps source evidence separate from ProcRun interpretation.
             </p>
             <div className="actions">
-              <Link className="button" href="/product">See how it works</Link>
+              <Link className="button" href="/product">See the product</Link>
               <Link className="button secondary" href="/methodology">Read the evidence rules</Link>
             </div>
           </div>
           <aside className="hero-panel" aria-label="ProcRun trust contract">
-            <div className="eyebrow">The trust contract</div>
-            <h2>Positive matches keep their evidence. Absence stays bounded.</h2>
+            <div className="eyebrow">Evidence boundary</div>
+            <h2>Source wording is evidence. State is interpretation.</h2>
             <p>
-              In the MVP, <strong>OPEN</strong> means exactly: no relevant procurement found in TED
-              as of the stated date. It is not a claim that no procurement exists outside TED,
-              including national or below-threshold procedures.
+              ProcRun never rewrites source wording into evidence. OPEN, CLOSED and UNRESOLVED are derived states with explicit rules and provenance. OPEN is bounded to TED and never means that procurement is absent everywhere.
             </p>
           </aside>
         </section>
@@ -56,36 +52,36 @@ export default function HomePage() {
 
         <section className="public-section">
           <div className="section-heading">
-            <div className="eyebrow">What ProcRun does</div>
-            <h2>One evidence chain from funded scope to supplier runway.</h2>
+            <div className="eyebrow">How the product works</div>
+            <h2>Four steps, with the evidence visible at each one.</h2>
           </div>
           <div className="step-grid">
-            <article className="step-card"><span>01</span><h3>Start with funded scope</h3><p>Use only approved funded-project publications and admitted project fields.</p></article>
-            <article className="step-card"><span>02</span><h3>Extract purchasable components</h3><p>Components must be supported by exact project-scope evidence. Unsupported demand is discarded.</p></article>
-            <article className="step-card"><span>03</span><h3>Check procurement evidence</h3><p>Accepted TED evidence can close a component. Ambiguous or incomplete retrieval stays unresolved.</p></article>
-            <article className="step-card"><span>04</span><h3>Show remaining runway</h3><p>Customer-safe project states surface what is closed, unresolved, partial, or still open in the TED-scoped MVP.</p></article>
+            <article className="step-card"><span>01</span><h3>Read approved project scope</h3><p>Only admitted project fields enter the intelligence pipeline. Exact source wording remains identifiable.</p></article>
+            <article className="step-card"><span>02</span><h3>Identify supported components</h3><p>A component exists in production only when frozen rules can anchor it to exact project wording.</p></article>
+            <article className="step-card"><span>03</span><h3>Check TED evidence</h3><p>Accepted procurement evidence may close a component. Plausible ambiguity blocks an OPEN conclusion.</p></article>
+            <article className="step-card"><span>04</span><h3>Show the bounded state</h3><p>The workspace presents source wording and ProcRun interpretation separately: OPEN, CLOSED or UNRESOLVED.</p></article>
           </div>
         </section>
 
         <section className="public-section split-section">
           <div>
-            <div className="eyebrow">Built for suppliers</div>
+            <div className="eyebrow">Why it exists</div>
             <h2>Not another tender portal.</h2>
           </div>
           <div className="body-copy">
-            <p>ProcRun is designed to answer a different question: which already-funded projects still have evidence-supported procurement runway?</p>
-            <p>It does not score your chance of winning, create buyer-person intelligence, or claim complete national procurement coverage.</p>
+            <p>ProcRun is designed for suppliers who want to inspect already-funded projects before a conventional tender search answers the question.</p>
+            <p>It does not manufacture leads, score win probability, infer buyer-person intelligence, or hide uncertainty behind a confidence label.</p>
           </div>
         </section>
 
         <section className="scope-banner">
-          <div><div className="eyebrow">MVP coverage</div><h2>TED-scoped by design.</h2></div>
-          <p>Every OPEN conclusion preserves the same limitation: no relevant procurement found in TED as of the observation date. Broader absence is never inferred.</p>
+          <div><div className="eyebrow">Launch coverage</div><h2>Italy source scope. TED procurement boundary.</h2></div>
+          <p>The accepted production proof covers 4,305 logical funded projects and the complete accepted Italy TED universe at the cutoff. Every OPEN conclusion remains explicitly limited to the frozen TED search rules and date shown to the customer.</p>
         </section>
       </main>
 
       <footer className="public-footer">
-        <div><strong>ProcRun</strong><span>Evidence-first infrastructure procurement runway.</span></div>
+        <div><strong>ProcRun</strong><span>Evidence-bounded funded-project procurement intelligence.</span></div>
         <nav><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/methodology">Methodology</Link></nav>
       </footer>
     </div>
