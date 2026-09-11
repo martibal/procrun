@@ -29,7 +29,7 @@ The portal clearly makes data publicly viewable and describes it as open, but th
 
 **FAIL.**
 
-The official API documentation states that registration for interoperability services is requested through the `contattaci` form. ProcRun permanently prohibits requesting registration, permission, clarification or access from a human/source owner. Therefore the API route cannot be activated.
+The official API documentation states that interoperability registration is available only through the `contattaci` form. Human/source-owner contact is forbidden by ProcRun's permanent build constraints, so this route is rejected and cannot be activated.
 
 ## DATA SAFETY
 
@@ -44,7 +44,7 @@ ProcRun therefore cannot retrieve the broad project payload and discard the unwa
 The OpenCUP/Sistema CUP classification candidate is **rejected** for ProcRun production ingestion under the current source contract:
 
 - RIGHTS: unresolved;
-- ACCESS: fail because API registration requires contact;
+- ACCESS: fail because the only documented API onboarding path requires forbidden human contact;
 - DATA SAFETY: fail because no documented pre-receipt field projection was established for the required classification-only payload.
 
 No live API request, row probe or data download is permitted to try to work around those failures.
