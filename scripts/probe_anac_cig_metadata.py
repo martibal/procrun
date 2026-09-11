@@ -68,7 +68,8 @@ def _fetch_package(package_id: str) -> dict[str, Any]:
     with httpx.Client(timeout=45.0, follow_redirects=False, headers=BROWSER_HEADERS) as client:
         response = client.post(CKAN_ACTION, json={"id": package_id})
         if response.is_redirect:
-            raise RuntimeError(f"unexpected redirect for {package_id}: {response.headers.get('location')}")
+            location = response.headers.get("location")
+            raise RuntimeError(f"unexpected redirect for {package_id}: {location}")
         response.raise_for_status()
         if len(response.content) > MAX_RESPONSE_BYTES:
             raise RuntimeError(f"metadata response too large for {package_id}")
