@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Discover the exact OpenBDAP MOP Totale resource using metadata only.
 
-The probe calls the OpenBDAP CKAN-compatible catalogue. It never requests a
+The probe calls only CKAN-compatible catalogue endpoints. It never requests a
 resource body or OData DataRows.
 """
 from __future__ import annotations
@@ -12,11 +12,13 @@ from urllib.parse import urlparse
 
 import httpx
 
-CATALOG_ACTION = "https://bdap-opendata.rgs.mef.gov.it/SpodCkanApi/api/3/action/package_search"
+CATALOG_BASE = "https://bdap-opendata.rgs.mef.gov.it/SpodCkanApi/api/3/action"
+PACKAGE_LIST = f"{CATALOG_BASE}/package_list"
+PACKAGE_SHOW = f"{CATALOG_BASE}/package_show"
 ALLOWED_HOST = "bdap-opendata.rgs.mef.gov.it"
 EXACT_TITLE = "Progetti Opere Pubbliche MOP - Totale"
 MAX_RESPONSE_BYTES = 4_000_000
-MAX_RESULTS = 20
+MAX_CANDIDATES = 100
 
 
 def _url_shape(value: object) -> dict[str, str] | None:
@@ -53,9 +55,7 @@ def _resource_metadata(resource: dict[str, Any]) -> dict[str, Any]:
 
 
 def _package_metadata(package: dict[str, Any]) -> dict[str, Any]:
-    resources = package.get("resources")
-    if resources is None:
-        resources = []
+    resources = package.get("resources") or []
     if not isinstance(resources, list):
         raise RuntimeError("OpenBDAP package resources are not a list")
     return {
@@ -74,48 +74,69 @@ def _package_metadata(package: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def main() -> int:
-    parsed = urlparse(CATALOG_ACTION)
-    if parsed.scheme != "https" or parsed.hostname != ALLOWED_HOST:
-        raise RuntimeError("OpenBDAP catalogue endpoint left the frozen origin")
+def _ckan_get(client: httpx.Client, url: str, params: dict[str, str] | None = None) -> Any:
+    response = client.get(url, params=params)
+    if response.is_redirect:
+        raise RuntimeError("OpenBDAP catalogue request redirected")
+    response.raise_for_status()
+    if len(response.content) > MAX_RESPONSE_BYTES:
+        raise RuntimeError("OpenBDAP catalogue response exceeded safety bound")
+    payload = response.json()
+    if not isinstance(payload, dict) or payload.get("success") is not True:
+        raise RuntimeError("OpenBDAP catalogue returned an invalid CKAN response")
+    return payload.get("result")
 
-    params = {"q": f'title:"{EXACT_TITLE}"', "rows": str(MAX_RESULTS)}
+
+def main() -> int:
+    for endpoint in (PACKAGE_LIST, PACKAGE_SHOW):
+        parsed = urlparse(endpoint)
+        if parsed.scheme != "https" or parsed.hostname != ALLOWED_HOST:
+            raise RuntimeError("OpenBDAP catalogue endpoint left the frozen origin")
+
     headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Catalog-Probe/1.0",
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Catalog-Probe/2.0",
         "Accept": "application/json",
     }
     with httpx.Client(timeout=60.0, follow_redirects=False, headers=headers) as client:
-        response = client.get(CATALOG_ACTION, params=params)
-        if response.is_redirect:
-            raise RuntimeError("OpenBDAP catalogue request redirected")
-        response.raise_for_status()
-        if len(response.content) > MAX_RESPONSE_BYTES:
-            raise RuntimeError("OpenBDAP catalogue response exceeded safety bound")
-        payload = response.json()
+        package_ids = _ckan_get(client, PACKAGE_LIST)
+        if not isinstance(package_ids, list) or not all(
+            isinstance(item, str) for item in package_ids
+        ):
+            raise RuntimeError("OpenBDAP package_list returned an invalid ID list")
+        candidates = [
+            package_id
+            for package_id in package_ids
+            if "mop" in package_id.casefold()
+            and ("prg" in package_id.casefold() or "opere" in package_id.casefold())
+        ]
+        if not candidates or len(candidates) > MAX_CANDIDATES:
+            raise RuntimeError(
+                f"unexpected MOP candidate count from package_list: {len(candidates)}"
+            )
 
-    if not isinstance(payload, dict) or payload.get("success") is not True:
-        raise RuntimeError("OpenBDAP catalogue returned an invalid CKAN response")
-    result = payload.get("result")
-    if not isinstance(result, dict):
-        raise RuntimeError("OpenBDAP catalogue response has no result object")
-    packages = result.get("results")
-    if not isinstance(packages, list):
-        raise RuntimeError("OpenBDAP catalogue response has no package result list")
+        exact: list[dict[str, Any]] = []
+        candidate_titles: list[dict[str, object]] = []
+        for package_id in candidates:
+            package = _ckan_get(client, PACKAGE_SHOW, {"id": package_id})
+            if not isinstance(package, dict):
+                raise RuntimeError(f"package_show returned invalid metadata for {package_id}")
+            candidate_titles.append({"id": package_id, "title": package.get("title")})
+            if package.get("title") == EXACT_TITLE:
+                exact.append(package)
 
-    exact = [
-        package
-        for package in packages
-        if isinstance(package, dict) and package.get("title") == EXACT_TITLE
-    ]
     if len(exact) != 1:
-        raise RuntimeError(f"expected one exact MOP Totale package, found {len(exact)}")
+        raise RuntimeError(
+            "expected one exact MOP Totale package; "
+            f"found={len(exact)}, candidates={candidate_titles!r}"
+        )
 
     report = {
-        "probe_contract": "openbdap-mop-catalog-metadata-v1",
+        "probe_contract": "openbdap-mop-catalog-metadata-v2",
         "metadata_only": True,
         "resource_body_called": False,
         "odata_datarows_called": False,
-        "query_result_count": result.get("count"),
+        "catalog_package_count": len(package_ids),
+        "mop_candidate_count": len(candidates),
         "exact_match": _package_metadata(exact[0]),
     }
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
