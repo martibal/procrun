@@ -1,10 +1,13 @@
 import Link from "next/link";
 
-const nav = [
-  ["Runway", "/app"],
-  ["Market", "/app/market"],
+const primaryNav = [
+  ["Opportunities", "/app"],
   ["Saved", "/app/saved"],
-  ["Supplier profile", "/app/profile"],
+  ["Market", "/app/market"],
+] as const;
+
+const accountNav = [
+  ["Supplier Profile", "/app/profile"],
   ["Account", "/app/account"],
 ] as const;
 
@@ -12,21 +15,17 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
   return (
     <div className="shell">
       <header className="topbar">
-        <div className="topbar-inner">
+        <div className="topbar-inner" style={{ paddingRight: 40 }}>
           <Link href="/app" className="brand">ProcRun</Link>
-          <div className="topmeta"><span className="status-dot" /> Customer-safe workspace · TED-scoped MVP</div>
-          <nav className="nav"><Link href="/methodology">Methodology</Link><Link href="/pricing">Pricing</Link></nav>
+          <nav className="workspace-nav" aria-label="Workspace navigation">
+            {primaryNav.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
+          </nav>
+          <nav className="workspace-nav secondary" aria-label="Account navigation" style={{ paddingRight: 4 }}>
+            {accountNav.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
+          </nav>
         </div>
       </header>
       <div className="layout">
-        <aside className="side">
-          <div className="side-label">Workspace</div>
-          {nav.map(([label, href]) => <Link key={href} href={href}>{label}</Link>)}
-          <div className="side-footer">
-            Intelligence boundary: customer-runway-v1<br />
-            No raw source payloads or person intelligence
-          </div>
-        </aside>
         <main className="main">{children}</main>
       </div>
     </div>
