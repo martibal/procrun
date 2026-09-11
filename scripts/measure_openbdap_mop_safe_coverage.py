@@ -2,10 +2,10 @@
 """Measure safe OpenBDAP MOP national counts and frozen Lombardia overlap.
 
 The diagnostic uses only server-side projected OData requests. National scale is
-measured with top=0 inline counts, so no national project row values are received.
-The Lombardia overlap then requests only CUP, project status, intervention sector
-and effective works cost for CUPs already present in the frozen corpus. Raw MOP
-rows are never persisted.
+measured with top=1 inline counts using CUP-only projection; the single projected
+value is validated but never persisted. The Lombardia overlap then requests only
+CUP, project status, intervention sector and effective works cost for CUPs already
+present in the frozen corpus. Raw MOP rows are never persisted.
 """
 from __future__ import annotations
 
@@ -42,6 +42,7 @@ SECTOR: Final = "Ccsettore_inter1475973826"
 COST_EFFECTIVE: Final = "Cccosto_lavori_e582037416"
 SAFE_FIELDS: Final = (CUP, STATUS_CODE, STATUS_DESC, SECTOR, COST_EFFECTIVE)
 ALLOWED_RETURNED_KEYS: Final = set(SAFE_FIELDS) | {"row_id"}
+COUNT_ALLOWED_RETURNED_KEYS: Final = {CUP, "row_id"}
 BATCH_SIZE: Final = 60
 MAX_ROWS_PER_BATCH: Final = 300
 MAX_RESPONSE_BYTES: Final = 2_000_000
@@ -94,10 +95,10 @@ def _batches(values: list[str], size: int) -> Iterable[list[str]]:
 
 
 def _count_rows(client: httpx.Client, filter_expr: str | None = None) -> int:
-    """Return a server-side row count without receiving any row values."""
+    """Return a server-side row count from one CUP-only projected probe row."""
     params = {
         "$select": CUP,
-        "$top": "0",
+        "$top": "1",
         "$inlinecount": "allpages",
         "$format": "json",
     }
@@ -111,8 +112,17 @@ def _count_rows(client: httpx.Client, filter_expr: str | None = None) -> int:
         raise RuntimeError("OpenBDAP national count response exceeded safety bound")
     payload = response.json()
     rows = _extract_rows(payload)
-    if rows:
-        raise RuntimeError("OpenBDAP top=0 count unexpectedly returned row values")
+    if len(rows) != 1:
+        raise RuntimeError(f"OpenBDAP count probe expected one row, got {len(rows)}")
+    unexpected = _data_keys(rows[0]) - COUNT_ALLOWED_RETURNED_KEYS
+    if unexpected:
+        raise RuntimeError(
+            "OpenBDAP CUP-only count projection escaped allowlist: "
+            + ", ".join(sorted(unexpected))
+        )
+    if not _norm(rows[0].get(CUP)):
+        raise RuntimeError("OpenBDAP CUP-only count probe returned no CUP")
+
     data = payload.get("d")
     assert isinstance(data, dict)
     count = data.get("__count")
@@ -167,7 +177,7 @@ def main() -> int:
         raise RuntimeError("OpenBDAP endpoint left the frozen origin")
 
     headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/2.0",
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/2.1",
         "Accept": "application/json",
     }
     timeout = httpx.Timeout(30.0, connect=15.0)
@@ -247,10 +257,13 @@ def main() -> int:
     structured_matched = matched_local_ids & structured_local_ids
 
     report = {
-        "measurement_contract": "openbdap-mop-safe-coverage-v2",
+        "measurement_contract": "openbdap-mop-safe-coverage-v2.1",
         "resource_id": RESOURCE_ID,
-        "national_count_method": "OData $inlinecount=allpages with $top=0",
-        "national_row_values_received": False,
+        "national_count_method": (
+            "OData $inlinecount=allpages with $top=1 and CUP-only projection"
+        ),
+        "national_count_probe_rows_received_per_query": 1,
+        "national_count_probe_values_persisted": False,
         "national_total_mop_rows": national_total_rows,
         "national_active_mop_rows": national_active_rows,
         "national_active_pct": round(national_active_rows * 100 / national_total_rows, 4),
