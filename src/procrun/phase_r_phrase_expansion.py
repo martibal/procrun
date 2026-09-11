@@ -8,8 +8,9 @@ suggests the same ProcRun domain. It therefore cannot manufacture OPEN/CLOSED ev
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Final, Sequence
+from typing import Final
 
 from procrun.component_engine import ComponentDomain, StructuredComponentSuggestion
 from procrun.domain import FundingProject

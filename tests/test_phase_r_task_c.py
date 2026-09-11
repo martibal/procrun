@@ -1,4 +1,8 @@
-from procrun.component_engine import ComponentDomain, StructuredComponentSuggestion, StructuredSignalSource
+from procrun.component_engine import (
+    ComponentDomain,
+    StructuredComponentSuggestion,
+    StructuredSignalSource,
+)
 from procrun.domain import FundingProject
 from procrun.phase_r_phrase_expansion import TASK_C_RULE_VERSION, task_c_phrase_evidence
 
