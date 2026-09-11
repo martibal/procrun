@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-"""Measure safe OpenBDAP MOP overlap on the exact frozen Lombardia project corpus.
+"""Measure safe OpenBDAP MOP national counts and frozen Lombardia overlap.
 
-This is the commercially relevant Phase R test. Instead of scanning the full national
-MOP table, it asks only for CUPs already present in the frozen 4,305-project corpus.
-Every OData request uses a frozen server-side projection containing only CUP, project
-status, intervention sector and effective works cost. Raw MOP rows are never persisted.
+The diagnostic uses only server-side projected OData requests. National scale is
+measured with top=0 inline counts, so no national project row values are received.
+The Lombardia overlap then requests only CUP, project status, intervention sector
+and effective works cost for CUPs already present in the frozen corpus. Raw MOP
+rows are never persisted.
 """
 from __future__ import annotations
 
 import json
 import time
 from collections import Counter
+from collections.abc import Iterable
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Final, Iterable
+from typing import Any, Final
 from urllib.parse import urlparse
 
 import httpx
@@ -91,6 +93,34 @@ def _batches(values: list[str], size: int) -> Iterable[list[str]]:
         yield values[start : start + size]
 
 
+def _count_rows(client: httpx.Client, filter_expr: str | None = None) -> int:
+    """Return a server-side row count without receiving any row values."""
+    params = {
+        "$select": CUP,
+        "$top": "0",
+        "$inlinecount": "allpages",
+        "$format": "json",
+    }
+    if filter_expr:
+        params["$filter"] = filter_expr
+    response = client.get(BASE_URL, params=params)
+    if response.is_redirect:
+        raise RuntimeError("OpenBDAP national count request redirected")
+    response.raise_for_status()
+    if len(response.content) > MAX_RESPONSE_BYTES:
+        raise RuntimeError("OpenBDAP national count response exceeded safety bound")
+    payload = response.json()
+    rows = _extract_rows(payload)
+    if rows:
+        raise RuntimeError("OpenBDAP top=0 count unexpectedly returned row values")
+    data = payload.get("d")
+    assert isinstance(data, dict)
+    count = data.get("__count")
+    if not isinstance(count, (str, int)) or not str(count).isdigit():
+        raise RuntimeError("OpenBDAP OData did not return a usable inline count")
+    return int(count)
+
+
 def _fetch_batch(client: httpx.Client, cups: list[str]) -> list[dict[str, Any]]:
     requested = set(cups)
     filter_expr = " or ".join(f"{CUP} eq '{cup}'" for cup in cups)
@@ -136,6 +166,20 @@ def main() -> int:
     if parsed.scheme != "https" or parsed.hostname != ALLOWED_HOST:
         raise RuntimeError("OpenBDAP endpoint left the frozen origin")
 
+    headers = {
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/2.0",
+        "Accept": "application/json",
+    }
+    timeout = httpx.Timeout(30.0, connect=15.0)
+    with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
+        national_total_rows = _count_rows(client)
+        national_active_rows = _count_rows(client, f"{STATUS_CODE} eq 'A'")
+
+    if national_total_rows <= 0:
+        raise RuntimeError("OpenBDAP national MOP count is unexpectedly empty")
+    if not 0 <= national_active_rows <= national_total_rows:
+        raise RuntimeError("OpenBDAP national active count is inconsistent")
+
     batch = collect_open_coesione_live()
     if batch.source_sha256 != FROZEN_SOURCE_SHA256:
         raise RuntimeError("frozen OpenCoesione source hash drift")
@@ -172,11 +216,6 @@ def main() -> int:
     returned_rows = 0
     batch_count = 0
 
-    headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Frozen-Overlap/1.0",
-        "Accept": "application/json",
-    }
-    timeout = httpx.Timeout(30.0, connect=15.0)
     with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
         for cup_batch in _batches(unique_funded_cups, BATCH_SIZE):
             rows = _fetch_batch(client, cup_batch)
@@ -206,23 +245,15 @@ def main() -> int:
     }
     unresolved_matched = matched_local_ids & unresolved_local_ids
     structured_matched = matched_local_ids & structured_local_ids
-    active_matched_cups = {
-        cup
-        for cup in matched_cups
-        if any(
-            code == "A"
-            for code in [
-                _norm(code)
-                for code, count in status_codes.items()
-                for _ in range(1 if count else 0)
-            ]
-        )
-    }
-    del active_matched_cups  # aggregate status counters are authoritative; no row data retained.
 
     report = {
-        "measurement_contract": "openbdap-mop-frozen-overlap-v1",
+        "measurement_contract": "openbdap-mop-safe-coverage-v2",
         "resource_id": RESOURCE_ID,
+        "national_count_method": "OData $inlinecount=allpages with $top=0",
+        "national_row_values_received": False,
+        "national_total_mop_rows": national_total_rows,
+        "national_active_mop_rows": national_active_rows,
+        "national_active_pct": round(national_active_rows * 100 / national_total_rows, 4),
         "frozen_source_sha256": batch.source_sha256,
         "frozen_projects": len(projects),
         "frozen_projects_with_cup": len(cups_by_local_id),
