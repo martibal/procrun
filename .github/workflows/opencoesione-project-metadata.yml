@@ -1,0 +1,30 @@
+name: opencoesione-project-metadata
+
+on:
+  pull_request:
+    paths:
+      - "scripts/probe_opencoesione_project_metadata.ps1"
+      - ".github/workflows/opencoesione-project-metadata.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe-project-schema:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Probe project metadata workbook only
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          ./scripts/probe_opencoesione_project_metadata.ps1 | Out-File -Encoding utf8 artifacts/opencoesione-project-metadata.json
+      - name: Upload schema-only result
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencoesione-project-metadata
+          path: artifacts/opencoesione-project-metadata.json
+          if-no-files-found: error
+          retention-days: 30
