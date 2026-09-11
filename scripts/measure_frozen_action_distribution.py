@@ -46,7 +46,7 @@ def _fetch_rows() -> list[dict[str, object]]:
                     "$offset": str(offset),
                     "$order": "cup",
                 },
-                headers={"User-Agent": "ProcRun-frozen-action-diagnostic/1.0"},
+                headers={"User-Agent": "ProcRun-frozen-action-diagnostic/2.0"},
             )
             response.raise_for_status()
             payload = response.json()
@@ -73,16 +73,24 @@ def main() -> int:
     if len(projects) != FROZEN_PROJECT_COUNT:
         raise RuntimeError("frozen project count drift")
 
-    frozen_cups = {
-        _norm(operation.cup)
-        for operation in batch.operations
-        if operation.cup and operation.operation_id in {project.operation_code for project in projects}
-    }
-    frozen_cups.discard(None)
-    if len(frozen_cups) != FROZEN_PROJECT_COUNT:
+    selected_ids = {project.operation_code for project in projects}
+    cup_by_project_id: dict[str, str] = {}
+    for operation in batch.operations:
+        if operation.operation_id not in selected_ids or not operation.cup:
+            continue
+        cup = _norm(operation.cup)
+        if cup is not None:
+            cup_by_project_id[operation.operation_id] = cup
+    if len(cup_by_project_id) != FROZEN_PROJECT_COUNT:
         raise RuntimeError(
-            f"expected one CUP per frozen project: projects={FROZEN_PROJECT_COUNT}, cups={len(frozen_cups)}"
+            "expected a CUP on every frozen project: "
+            f"projects={FROZEN_PROJECT_COUNT}, mapped={len(cup_by_project_id)}"
         )
+
+    project_ids_by_cup: dict[str, set[str]] = defaultdict(set)
+    for project_id, cup in cup_by_project_id.items():
+        project_ids_by_cup[cup].add(project_id)
+    frozen_cups = set(project_ids_by_cup)
 
     rows = _fetch_rows()
     actions_by_cup: dict[str, set[str]] = defaultdict(set)
@@ -111,35 +119,60 @@ def main() -> int:
 
     action_project_counts: Counter[str] = Counter()
     bando_project_counts: Counter[str] = Counter()
-    action_bando_counts: Counter[str] = Counter()
-    for cup in frozen_cups:
-        for action in actions_by_cup.get(cup, set()):
-            action_project_counts[action] += 1
-        for bando in bandi_by_cup.get(cup, set()):
-            bando_project_counts[bando] += 1
-        for action in actions_by_cup.get(cup, set()):
-            for bando in bandi_by_cup.get(cup, set()):
-                action_bando_counts[f"{action}|{bando}"] += 1
+    action_bando_project_counts: Counter[str] = Counter()
+    joined_project_ids: set[str] = set()
+    action_project_ids: set[str] = set()
+    bando_project_ids: set[str] = set()
+    objective_project_ids: set[str] = set()
+    priority_project_ids: set[str] = set()
+    multiple_action_project_ids: set[str] = set()
 
-    ambiguous_action_cups = sum(1 for cup in frozen_cups if len(actions_by_cup.get(cup, set())) > 1)
+    for cup, project_ids in project_ids_by_cup.items():
+        if cup in joined_cups:
+            joined_project_ids.update(project_ids)
+        actions = actions_by_cup.get(cup, set())
+        bandi = bandi_by_cup.get(cup, set())
+        objectives = objectives_by_cup.get(cup, set())
+        priorities = priorities_by_cup.get(cup, set())
+        if actions:
+            action_project_ids.update(project_ids)
+        if bandi:
+            bando_project_ids.update(project_ids)
+        if objectives:
+            objective_project_ids.update(project_ids)
+        if priorities:
+            priority_project_ids.update(project_ids)
+        if len(actions) > 1:
+            multiple_action_project_ids.update(project_ids)
+        for action in actions:
+            action_project_counts[action] += len(project_ids)
+        for bando in bandi:
+            bando_project_counts[bando] += len(project_ids)
+        for action in actions:
+            for bando in bandi:
+                action_bando_project_counts[f"{action}|{bando}"] += len(project_ids)
+
     report = {
-        "schema_version": "lombardia-frozen-action-distribution-v1",
+        "schema_version": "lombardia-frozen-action-distribution-v2",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "frozen_projects": FROZEN_PROJECT_COUNT,
-        "frozen_cups": len(frozen_cups),
-        "joined_projects": len(joined_cups),
-        "joined_pct": round(len(joined_cups) / FROZEN_PROJECT_COUNT * 100, 4),
-        "projects_with_action": len(actions_by_cup),
-        "projects_with_action_pct": round(len(actions_by_cup) / FROZEN_PROJECT_COUNT * 100, 4),
-        "projects_with_bando": len(bandi_by_cup),
-        "projects_with_objective": len(objectives_by_cup),
-        "projects_with_priority": len(priorities_by_cup),
-        "projects_with_multiple_actions": ambiguous_action_cups,
+        "distinct_frozen_cups": len(frozen_cups),
+        "shared_cup_projects": FROZEN_PROJECT_COUNT - len(frozen_cups),
+        "joined_projects": len(joined_project_ids),
+        "joined_pct": round(len(joined_project_ids) / FROZEN_PROJECT_COUNT * 100, 4),
+        "projects_with_action": len(action_project_ids),
+        "projects_with_action_pct": round(len(action_project_ids) / FROZEN_PROJECT_COUNT * 100, 4),
+        "projects_with_bando": len(bando_project_ids),
+        "projects_with_objective": len(objective_project_ids),
+        "projects_with_priority": len(priority_project_ids),
+        "projects_with_multiple_actions": len(multiple_action_project_ids),
         "distinct_actions": len(action_project_counts),
-        "action_project_counts": dict(sorted(action_project_counts.items(), key=lambda x: (-x[1], x[0]))),
+        "action_project_counts": dict(
+            sorted(action_project_counts.items(), key=lambda item: (-item[1], item[0]))
+        ),
         "distinct_bandi": len(bando_project_counts),
         "top_bando_project_counts": dict(bando_project_counts.most_common(100)),
-        "top_action_bando_counts": dict(action_bando_counts.most_common(100)),
+        "top_action_bando_project_counts": dict(action_bando_project_counts.most_common(100)),
     }
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
