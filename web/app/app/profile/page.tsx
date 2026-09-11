@@ -1,6 +1,5 @@
 export default function ProfilePage() {
   return <>
-    <div className="eyebrow">Supplier profile</div>
     <h1 className="h1">Define the work you want ProcRun to prioritise.</h1>
     <p className="lede">Supplier relevance is deterministic. Profile choices can filter and order opportunities; they never change evidence state and are never presented as win probability.</p>
 

@@ -8,7 +8,6 @@ export default function RunwayPage() {
   const unresolved = opportunities.filter((item) => item.state === "UNRESOLVED").length;
 
   return <>
-    <div className="eyebrow">Supplier runway</div>
     <h1 className="h1">Source evidence on the left. ProcRun interpretation on the right.</h1>
     <p className="lede">The workspace keeps exact project wording separate from the state ProcRun derives from it. OPEN is a bounded TED conclusion; ambiguity remains UNRESOLVED and visible.</p>
 
