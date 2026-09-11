@@ -36,6 +36,21 @@ export function defaultCustomerSnapshotPath(): string {
   return process.env.PROCRUN_PUBLISHED_JSONL_PATH ?? path.resolve(process.cwd(), "data", "customer-runway.jsonl");
 }
 
+function customerInterpretation(project: RunwayProject, item: Opportunity, matchCount: number): string {
+  if (!item.componentId) {
+    return "The published project text does not identify a purchasing need clearly enough for ProcRun to classify it. The exact source wording is shown so you can review it directly.";
+  }
+  if (item.state === "OPEN") {
+    return `A purchasing need was identified in the project text, and ProcRun found no matching procurement notice in TED up to ${item.cutoffDate}. It is therefore shown as Open within ProcRun's TED coverage.`;
+  }
+  if (item.state === "CLOSED") {
+    return matchCount > 0
+      ? "A purchasing need was identified in the project text and ProcRun found matching procurement evidence in TED. It is therefore shown as Closed."
+      : "This purchasing need is shown as Closed based on the published procurement evidence linked to the project.";
+  }
+  return "A possible purchasing need was identified, but the available published evidence is not clear enough to mark it Open or Closed. Review the source wording and any linked procurement evidence.";
+}
+
 export function buildCustomerOpportunities(projects: readonly RunwayProject[]): CustomerOpportunity[] {
   const byProject = new Map(projects.map((project) => [project.operation_code, project]));
   const items = toOpportunities(projects);
@@ -48,11 +63,10 @@ export function buildCustomerOpportunities(projects: readonly RunwayProject[]): 
     if (item.componentId && !component) {
       throw new Error(`customer opportunity references missing component: ${item.componentId}`);
     }
+    const procurementMatches = component?.procurement_matches ?? [];
     return {
       ...item,
-      interpretation:
-        component?.state_explanation ??
-        "No bounded purchase component was emitted for this project under the frozen production rules. The project remains UNRESOLVED and the exact admitted source wording is shown.",
+      interpretation: customerInterpretation(project, item, procurementMatches.length),
       projectState: project.state,
       projectStart: project.project_start,
       projectEnd: project.project_end,
@@ -64,7 +78,7 @@ export function buildCustomerOpportunities(projects: readonly RunwayProject[]): 
       matchRuleVersion: project.match_rule_version,
       projectClassifierVersion: project.project_classifier_version,
       readModelVersion: project.read_model_version,
-      procurementMatches: component?.procurement_matches ?? [],
+      procurementMatches,
     };
   });
   const represented = new Set(enriched.map((item) => item.projectId));
