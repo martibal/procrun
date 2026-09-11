@@ -1,143 +1,265 @@
 #!/usr/bin/env python3
-"""Discover the exact OpenBDAP MOP Totale resource using metadata only.
+"""Qualify OpenBDAP MOP OData pre-receipt field projection.
 
-The probe calls only CKAN-compatible catalogue endpoints. It never requests a
-resource body or OData DataRows.
+Safety contract:
+- the exact MOP Totale UUID is frozen from OpenBDAP download metadata;
+- MdData metadata is fetched first;
+- DataRows is never called unless a small set of safe project fields can be
+  identified from metadata;
+- the single-row DataRows request uses server-side $select and $top=1;
+- the run fails if the response contains any field outside the selected set.
+
+No bulk resource body is downloaded and no unrestricted project row is ever
+requested.
 """
 from __future__ import annotations
 
 import json
+import re
+from collections.abc import Iterable
 from typing import Any
 from urllib.parse import urlparse
 
 import httpx
 
-CATALOG_BASE = "https://bdap-opendata.rgs.mef.gov.it/SpodCkanApi/api/3/action"
-PACKAGE_LIST = f"{CATALOG_BASE}/package_list"
-PACKAGE_SHOW = f"{CATALOG_BASE}/package_show"
 ALLOWED_HOST = "bdap-opendata.rgs.mef.gov.it"
-EXACT_TITLE = "Progetti Opere Pubbliche MOP - Totale"
-MAX_RESPONSE_BYTES = 4_000_000
-MAX_CANDIDATES = 100
+RESOURCE_KEY = "bda1676b-62ab-44b7-8f9a-ca93b8534488@rgs"
+ODATA_ENTITY = (
+    "https://bdap-opendata.rgs.mef.gov.it/ODataProxy/"
+    f"MdData('{RESOURCE_KEY}')"
+)
+ODATA_ROWS = f"{ODATA_ENTITY}/DataRows"
+MAX_METADATA_BYTES = 4_000_000
+MAX_ROW_BYTES = 200_000
+
+# Only structured, non-identity, non-free-text concepts are eligible. The probe
+# deliberately does not select project owner, fiscal code, title or description.
+SAFE_CONCEPT_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("cup", (r"^cup$", r"codice.*cup", r"cup.*codice")),
+    ("nature", (r"natura",)),
+    ("typology", (r"tipologia",)),
+    ("sector", (r"^settore$", r"settore.*cup")),
+    ("subsector", (r"sottosettore",)),
+    ("category", (r"categoria",)),
+    ("status", (r"stato.*progetto", r"stato.*opera", r"stato.*cup")),
+    ("planned_start", (r"data.*inizio.*prev", r"inizio.*prev")),
+    ("actual_start", (r"data.*inizio.*eff", r"inizio.*eff")),
+    ("planned_end", (r"data.*fine.*prev", r"fine.*prev")),
+    ("actual_end", (r"data.*fine.*eff", r"fine.*eff")),
+)
+
+FORBIDDEN_TERMS = (
+    "codice fiscale",
+    "codice_fiscale",
+    "cf titolare",
+    "titolare",
+    "responsabile",
+    "rup",
+    "beneficiario",
+    "aggiudicatario",
+    "fornitore",
+    "nome",
+    "cognome",
+    "denominazione",
+    "descrizione",
+    "titolo",
+)
+
+NAME_KEYS = {
+    "name",
+    "field",
+    "fieldname",
+    "column",
+    "columnname",
+    "property",
+    "propertyname",
+    "key",
+    "code",
+    "codice",
+}
+LABEL_KEYS = {
+    "label",
+    "title",
+    "description",
+    "descrizione",
+    "displayname",
+    "caption",
+    "nome",
+}
 
 
-def _url_shape(value: object) -> dict[str, str] | None:
-    if not isinstance(value, str) or not value:
-        return None
-    parsed = urlparse(value)
-    return {
-        "scheme": parsed.scheme,
-        "host": parsed.hostname or "",
-        "path": parsed.path,
-    }
+def _normalise(value: str) -> str:
+    value = value.casefold().replace("_", " ").replace("-", " ")
+    return re.sub(r"\s+", " ", value).strip()
 
 
-def _resource_metadata(resource: dict[str, Any]) -> dict[str, Any]:
-    allowed = {
-        "id",
-        "name",
-        "description",
-        "format",
-        "mimetype",
-        "mimetype_inner",
-        "resource_type",
-        "url_type",
-        "size",
-        "created",
-        "last_modified",
-        "metadata_modified",
-        "hash",
-    }
-    result = {key: resource.get(key) for key in sorted(allowed) if key in resource}
-    result["url_shape"] = _url_shape(resource.get("url"))
-    result["metadata_keys"] = sorted(resource)
+def _check_endpoint(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.hostname != ALLOWED_HOST:
+        raise RuntimeError("OpenBDAP OData endpoint left the frozen origin")
+
+
+def _safe_get(
+    client: httpx.Client,
+    url: str,
+    *,
+    params: dict[str, str] | None,
+    max_bytes: int,
+) -> Any:
+    response = client.get(url, params=params)
+    if response.is_redirect:
+        raise RuntimeError(f"unexpected OpenBDAP redirect: {response.headers.get('location')}")
+    response.raise_for_status()
+    if len(response.content) > max_bytes:
+        raise RuntimeError("OpenBDAP response exceeded safety bound")
+    return response.json()
+
+
+def _iter_dicts(value: Any) -> Iterable[dict[str, Any]]:
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _iter_dicts(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _iter_dicts(child)
+
+
+def _candidate_fields(metadata: Any) -> list[tuple[str, str]]:
+    """Extract (wire-name, human label) pairs conservatively from metadata."""
+    candidates: list[tuple[str, str]] = []
+    for obj in _iter_dicts(metadata):
+        name_values = [
+            value
+            for key, value in obj.items()
+            if key.casefold() in NAME_KEYS and isinstance(value, str) and value.strip()
+        ]
+        if not name_values:
+            continue
+        labels = [
+            value
+            for key, value in obj.items()
+            if key.casefold() in LABEL_KEYS and isinstance(value, str) and value.strip()
+        ]
+        wire_name = name_values[0].strip()
+        label = " | ".join(labels) if labels else wire_name
+        candidates.append((wire_name, label))
+
+    # Stable dedupe preserving first metadata occurrence.
+    seen: set[str] = set()
+    result: list[tuple[str, str]] = []
+    for wire_name, label in candidates:
+        if wire_name in seen:
+            continue
+        seen.add(wire_name)
+        result.append((wire_name, label))
     return result
 
 
-def _package_metadata(package: dict[str, Any]) -> dict[str, Any]:
-    resources = package.get("resources") or []
-    if not isinstance(resources, list):
-        raise RuntimeError("OpenBDAP package resources are not a list")
-    return {
-        "id": package.get("id"),
-        "name": package.get("name"),
-        "title": package.get("title"),
-        "license_id": package.get("license_id"),
-        "license_title": package.get("license_title"),
-        "metadata_modified": package.get("metadata_modified"),
-        "metadata_keys": sorted(package),
-        "resources": [
-            _resource_metadata(resource)
-            for resource in resources
-            if isinstance(resource, dict)
-        ],
-    }
+def _is_forbidden(wire_name: str, label: str) -> bool:
+    combined = _normalise(f"{wire_name} {label}")
+    return any(term in combined for term in FORBIDDEN_TERMS)
 
 
-def _ckan_get(client: httpx.Client, url: str, params: dict[str, str] | None = None) -> Any:
-    response = client.get(url, params=params)
-    if response.is_redirect:
-        raise RuntimeError("OpenBDAP catalogue request redirected")
-    response.raise_for_status()
-    if len(response.content) > MAX_RESPONSE_BYTES:
-        raise RuntimeError("OpenBDAP catalogue response exceeded safety bound")
-    payload = response.json()
-    if not isinstance(payload, dict) or payload.get("success") is not True:
-        raise RuntimeError("OpenBDAP catalogue returned an invalid CKAN response")
-    return payload.get("result")
+def _select_safe_fields(candidates: list[tuple[str, str]]) -> dict[str, str]:
+    selected: dict[str, str] = {}
+    for concept, patterns in SAFE_CONCEPT_PATTERNS:
+        matches: list[str] = []
+        for wire_name, label in candidates:
+            if _is_forbidden(wire_name, label):
+                continue
+            haystack = _normalise(f"{wire_name} {label}")
+            if any(re.search(pattern, haystack) for pattern in patterns):
+                matches.append(wire_name)
+        unique = sorted(set(matches))
+        if len(unique) == 1:
+            selected[concept] = unique[0]
+
+    # Require enough structure to make the projection test meaningful and to
+    # support the intended ProcRun use-case if the gate passes.
+    required = {"cup", "sector", "category"}
+    missing = sorted(required - set(selected))
+    if missing:
+        raise RuntimeError(
+            "metadata did not identify an unambiguous safe field set; "
+            f"missing={missing!r}, discovered_candidates={len(candidates)}"
+        )
+    return selected
+
+
+def _row_objects(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+    if isinstance(payload.get("value"), list):
+        return [item for item in payload["value"] if isinstance(item, dict)]
+    d_value = payload.get("d")
+    if isinstance(d_value, dict) and isinstance(d_value.get("results"), list):
+        return [item for item in d_value["results"] if isinstance(item, dict)]
+    if isinstance(d_value, list):
+        return [item for item in d_value if isinstance(item, dict)]
+    return []
+
+
+def _strip_odata_meta(keys: set[str]) -> set[str]:
+    return {key for key in keys if not key.startswith("__") and not key.startswith("@odata.")}
 
 
 def main() -> int:
-    for endpoint in (PACKAGE_LIST, PACKAGE_SHOW):
-        parsed = urlparse(endpoint)
-        if parsed.scheme != "https" or parsed.hostname != ALLOWED_HOST:
-            raise RuntimeError("OpenBDAP catalogue endpoint left the frozen origin")
+    for endpoint in (ODATA_ENTITY, ODATA_ROWS):
+        _check_endpoint(endpoint)
 
     headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Catalog-Probe/2.0",
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Projection-Probe/1.0",
         "Accept": "application/json",
     }
     with httpx.Client(timeout=60.0, follow_redirects=False, headers=headers) as client:
-        package_ids = _ckan_get(client, PACKAGE_LIST)
-        if not isinstance(package_ids, list) or not all(
-            isinstance(item, str) for item in package_ids
-        ):
-            raise RuntimeError("OpenBDAP package_list returned an invalid ID list")
-        candidates = [
-            package_id
-            for package_id in package_ids
-            if "mop" in package_id.casefold()
-            and ("prg" in package_id.casefold() or "opere" in package_id.casefold())
-        ]
-        if not candidates or len(candidates) > MAX_CANDIDATES:
-            raise RuntimeError(
-                f"unexpected MOP candidate count from package_list: {len(candidates)}"
-            )
+        metadata = _safe_get(
+            client,
+            ODATA_ENTITY,
+            params=None,
+            max_bytes=MAX_METADATA_BYTES,
+        )
+        candidates = _candidate_fields(metadata)
+        selected_by_concept = _select_safe_fields(candidates)
+        selected_fields = sorted(set(selected_by_concept.values()))
 
-        exact: list[dict[str, Any]] = []
-        candidate_titles: list[dict[str, object]] = []
-        for package_id in candidates:
-            package = _ckan_get(client, PACKAGE_SHOW, {"id": package_id})
-            if not isinstance(package, dict):
-                raise RuntimeError(f"package_show returned invalid metadata for {package_id}")
-            candidate_titles.append({"id": package_id, "title": package.get("title")})
-            if package.get("title") == EXACT_TITLE:
-                exact.append(package)
-
-    if len(exact) != 1:
-        raise RuntimeError(
-            "expected one exact MOP Totale package; "
-            f"found={len(exact)}, candidates={candidate_titles!r}"
+        row_payload = _safe_get(
+            client,
+            ODATA_ROWS,
+            params={"$select": ",".join(selected_fields), "$top": "1"},
+            max_bytes=MAX_ROW_BYTES,
         )
 
+    rows = _row_objects(row_payload)
+    if len(rows) != 1:
+        raise RuntimeError(f"expected exactly one projected OData row, got {len(rows)}")
+
+    returned_fields = _strip_odata_meta(set(rows[0]))
+    expected_fields = set(selected_fields)
+    unexpected = sorted(returned_fields - expected_fields)
+    missing = sorted(expected_fields - returned_fields)
+    if unexpected:
+        raise RuntimeError(f"OData $select projection leaked unexpected fields: {unexpected!r}")
+    if missing:
+        raise RuntimeError(f"OData $select omitted selected fields: {missing!r}")
+
+    # The report contains schema/projection facts only. It intentionally never
+    # persists the row values fetched for the transport-contract test.
     report = {
-        "probe_contract": "openbdap-mop-catalog-metadata-v2",
-        "metadata_only": True,
-        "resource_body_called": False,
-        "odata_datarows_called": False,
-        "catalog_package_count": len(package_ids),
-        "mop_candidate_count": len(candidates),
-        "exact_match": _package_metadata(exact[0]),
+        "probe_contract": "openbdap-mop-odata-projection-v1",
+        "resource_key": RESOURCE_KEY,
+        "bulk_resource_called": False,
+        "metadata_called": True,
+        "datarows_called": True,
+        "datarows_top": 1,
+        "selected_by_concept": selected_by_concept,
+        "selected_fields": selected_fields,
+        "returned_fields": sorted(returned_fields),
+        "unexpected_fields": unexpected,
+        "row_values_persisted": False,
+        "projection_gate": "PASS",
     }
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
