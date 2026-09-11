@@ -7,6 +7,32 @@ function stateClass(state: CustomerOpportunity["state"]): string {
   return "";
 }
 
+function sourceTextCell(item: CustomerOpportunity) {
+  const repeatsTitle = item.projectEvidenceType === "Project title" && item.projectEvidence.trim() === item.projectTitle.trim();
+
+  if (repeatsTitle) {
+    return (
+      <>
+        <div className="micro evidence-label">Project title</div>
+        <div className="source-same-as-title">Same as the project title</div>
+        <details className="source-text-details">
+          <summary>Show exact source text</summary>
+          <div className="evidence">{item.projectEvidence}</div>
+        </details>
+        {item.unresolvedEvidence.length > 0 && <div className="micro state-copy">Text needing review: {item.unresolvedEvidence.join(" | ")}</div>}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="micro evidence-label">{item.projectEvidenceType}</div>
+      <div className="evidence source-text-preview">{item.projectEvidence}</div>
+      {item.unresolvedEvidence.length > 0 && <div className="micro state-copy">Text needing review: {item.unresolvedEvidence.join(" | ")}</div>}
+    </>
+  );
+}
+
 export function OpportunityList({ items }: { items: readonly CustomerOpportunity[] }) {
   return (
     <div className="opportunity-table-wrap">
@@ -30,11 +56,7 @@ export function OpportunityList({ items }: { items: readonly CustomerOpportunity
                 {item.programme && <div className="micro">{item.programme}</div>}
                 {item.valueEur != null && <div className="micro">Approved funding: €{item.valueEur.toLocaleString("en-US")}</div>}
               </td>
-              <td>
-                <div className="micro evidence-label">{item.projectEvidenceType}</div>
-                <div className="evidence">{item.projectEvidence}</div>
-                {item.unresolvedEvidence.length > 0 && <div className="micro state-copy">Text needing review: {item.unresolvedEvidence.join(" | ")}</div>}
-              </td>
+              <td>{sourceTextCell(item)}</td>
               <td>
                 <p className="small interpretation">{item.interpretation}</p>
                 {item.procurementEvidence && <p className="micro">Matching TED text: {item.procurementEvidence}</p>}
