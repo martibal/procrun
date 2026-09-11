@@ -6,8 +6,7 @@ lifecycle cohorts are counted by probing existence at $skip offsets with $top=1 
 CUP-only projection; this needs O(log n) requests and never receives unrestricted
 rows. Lifecycle fields are referenced only inside server-side filters, so their row
 values are not returned or persisted by the count probes. The Lombardia overlap
-requests only CUP, project status, intervention sector and effective works cost for
-CUPs already in the frozen corpus. Raw MOP rows are never persisted.
+requests only CUP, project status, intervention sector and effective works cost for CUPs already in the frozen corpus. Raw MOP rows are never persisted.
 """
 from __future__ import annotations
 
@@ -145,22 +144,41 @@ def _row_exists_at_skip(
     return True
 
 
-def _count_rows(client: httpx.Client, filter_expr: str | None = None) -> tuple[int, int]:
-    """Count rows exactly with exponential bracketing plus binary search."""
+def _count_rows(
+    client: httpx.Client,
+    filter_expr: str | None = None,
+    *,
+    known_upper_bound: int | None = None,
+) -> tuple[int, int]:
+    """Count rows exactly with binary search, reusing a known upper bound when available.
+
+    Passing a known upper bound avoids a second exponential-bracketing phase for every
+    lifecycle cohort. Because every lifecycle cohort is a subset of active MOP rows,
+    the already measured active-row count is a safe upper bound.
+    """
     requests = 1
     if not _row_exists_at_skip(client, 0, filter_expr):
         return 0, requests
 
-    low = 0
-    high = 1
-    while high < MAX_COUNT_PROBE_OFFSET:
+    if known_upper_bound is not None:
+        if known_upper_bound <= 0:
+            raise ValueError("known_upper_bound must be positive")
+        low = 0
+        high = known_upper_bound
+        if _row_exists_at_skip(client, high - 1, filter_expr):
+            return high, requests + 1
         requests += 1
-        if not _row_exists_at_skip(client, high, filter_expr):
-            break
-        low = high
-        high *= 2
     else:
-        raise RuntimeError("OpenBDAP count exceeded frozen probe offset ceiling")
+        low = 0
+        high = 1
+        while high < MAX_COUNT_PROBE_OFFSET:
+            requests += 1
+            if not _row_exists_at_skip(client, high, filter_expr):
+                break
+            low = high
+            high *= 2
+        else:
+            raise RuntimeError("OpenBDAP count exceeded frozen probe offset ceiling")
 
     while low + 1 < high:
         middle = (low + high) // 2
@@ -192,7 +210,10 @@ def _between(field: str, start: str, end: str) -> str:
     return f"({field} ge '{start}' and {field} le '{end}')"
 
 
-def _lifecycle_counts(client: httpx.Client) -> tuple[dict[str, int], dict[str, int]]:
+def _lifecycle_counts(
+    client: httpx.Client,
+    active_rows: int,
+) -> tuple[dict[str, int], dict[str, int]]:
     """Count safe lifecycle cohorts without receiving lifecycle values."""
     filters = {
         "actual_execution_start_blank": _active_filter(f"{ACTUAL_EXECUTION_START} eq ''"),
@@ -216,7 +237,11 @@ def _lifecycle_counts(client: httpx.Client) -> tuple[dict[str, int], dict[str, i
     counts: dict[str, int] = {}
     requests: dict[str, int] = {}
     for name, filter_expr in filters.items():
-        count, request_count = _count_rows(client, filter_expr)
+        count, request_count = _count_rows(
+            client,
+            filter_expr,
+            known_upper_bound=active_rows,
+        )
         counts[name] = count
         requests[name] = request_count
     return counts, requests
@@ -268,7 +293,7 @@ def main() -> int:
         raise RuntimeError("OpenBDAP endpoint left the frozen origin")
 
     headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/4.0",
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/5.0",
         "Accept": "application/json",
     }
     timeout = httpx.Timeout(30.0, connect=15.0)
@@ -277,7 +302,10 @@ def main() -> int:
         national_active_rows, active_count_requests = _count_rows(
             client, _active_filter()
         )
-        lifecycle_counts, lifecycle_request_counts = _lifecycle_counts(client)
+        lifecycle_counts, lifecycle_request_counts = _lifecycle_counts(
+            client,
+            national_active_rows,
+        )
 
     if national_total_rows <= 0:
         raise RuntimeError("OpenBDAP national MOP count is unexpectedly empty")
@@ -385,27 +413,23 @@ def main() -> int:
     )
 
     report = {
-        "measurement_contract": "openbdap-mop-safe-coverage-v4",
+        "measurement_contract": "openbdap-mop-safe-coverage-v5",
         "resource_id": RESOURCE_ID,
         "national_count_method": (
-            "OData $skip binary search with $top=1 and CUP-only projection"
+            "OData $skip binary search with $top=1 and CUP-only projection; lifecycle cohorts reuse active-row upper bound"
         ),
         "national_count_probe_values_persisted": False,
         "national_total_count_probe_requests": total_count_requests,
         "national_active_count_probe_requests": active_count_requests,
+        "national_lifecycle_count_probe_requests": lifecycle_request_counts,
+        "national_lifecycle_count_probe_requests_total": sum(lifecycle_request_counts.values()),
         "national_total_mop_rows": national_total_rows,
         "national_active_mop_rows": national_active_rows,
         "national_active_pct": round(national_active_rows * 100 / national_total_rows, 4),
         "lifecycle_observed_date": LIFECYCLE_OBSERVED_DATE,
         "lifecycle_12m_end": LIFECYCLE_12M_END,
         "lifecycle_24m_end": LIFECYCLE_24M_END,
-        "lifecycle_filter_fields": {
-            "planned_execution_start": PLANNED_EXECUTION_START,
-            "actual_execution_start": ACTUAL_EXECUTION_START,
-        },
-        "lifecycle_values_received": False,
-        "lifecycle_values_persisted": False,
-        "lifecycle_count_probe_requests": lifecycle_request_counts,
+        "lifecycle_date_values_received": False,
         "lifecycle": lifecycle_report,
         "frozen_source_sha256": batch.source_sha256,
         "frozen_projects": len(projects),
