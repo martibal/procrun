@@ -4,16 +4,43 @@ import { loadCustomerView } from "@/lib/customer-view";
 
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZES = [10, 25, 50] as const;
+type PageSize = (typeof PAGE_SIZES)[number];
 
-export default async function RunwayPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+function parsePageSize(rawValue: string | undefined): PageSize {
+  const parsed = Number.parseInt(rawValue ?? "10", 10);
+  return PAGE_SIZES.includes(parsed as PageSize) ? (parsed as PageSize) : 10;
+}
+
+function PageSizeControl({ pageSize, position }: { pageSize: PageSize; position: "top" | "bottom" }) {
+  return (
+    <nav className={`table-controls table-controls-${position}`} aria-label={`Rows per page ${position}`}>
+      <span className="small">Rows per page</span>
+      <div className="page-size-options">
+        {PAGE_SIZES.map((size) => (
+          <Link
+            key={size}
+            className={`page-size-option${pageSize === size ? " active" : ""}`}
+            href={`/app?page=1&rows=${size}`}
+            aria-current={pageSize === size ? "page" : undefined}
+          >
+            {size}
+          </Link>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+export default async function RunwayPage({ searchParams }: { searchParams: Promise<{ page?: string; rows?: string }> }) {
   const view = await loadCustomerView();
-  const { page: rawPage } = await searchParams;
+  const { page: rawPage, rows: rawRows } = await searchParams;
+  const pageSize = parsePageSize(rawRows);
   const requestedPage = Number.parseInt(rawPage ?? "1", 10);
-  const totalPages = Math.max(1, Math.ceil(view.opportunities.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(view.opportunities.length / pageSize));
   const page = Number.isFinite(requestedPage) ? Math.min(Math.max(requestedPage, 1), totalPages) : 1;
-  const start = (page - 1) * PAGE_SIZE;
-  const rows = view.opportunities.slice(start, start + PAGE_SIZE);
+  const start = (page - 1) * pageSize;
+  const rows = view.opportunities.slice(start, start + pageSize);
 
   if (view.mode === "missing") {
     return <>
@@ -21,7 +48,7 @@ export default async function RunwayPage({ searchParams }: { searchParams: Promi
       <p className="lede">This workspace only renders the hardened customer-safe production read model. It does not silently substitute fixture rows.</p>
       <div className="notice scope">
         <strong>No production snapshot is loaded locally.</strong>
-        <p>From <code>C:\procrun</code>, run <code>py scripts\build_customer_snapshot.py</code>. When it completes, refresh this page.</p>
+        <p>From <code>C:\procrun</code>, run <code>python scripts\build_customer_snapshot.py</code>. When it completes, refresh this page.</p>
         <p className="micro">Expected local output: web/data/customer-runway.jsonl</p>
       </div>
     </>;
@@ -46,15 +73,19 @@ export default async function RunwayPage({ searchParams }: { searchParams: Promi
       <Link className="button secondary" href="/api/export">Export customer-safe CSV</Link>
     </div>
 
-    <section className="section">
+    <section className="section runway-section">
       <div className="section-label">All projects</div>
       <h2 className="h2">Evidence-bounded customer view</h2>
-      <p className="small">Showing rows {view.opportunities.length ? start + 1 : 0}–{Math.min(start + PAGE_SIZE, view.opportunities.length)} of {view.opportunities.length.toLocaleString("en-US")}. Projects without an emitted component still appear as UNRESOLVED rows, so no published project disappears from the customer view.</p>
+      <p className="small">Showing rows {view.opportunities.length ? start + 1 : 0}–{Math.min(start + pageSize, view.opportunities.length)} of {view.opportunities.length.toLocaleString("en-US")}. Projects without an emitted component still appear as UNRESOLVED rows, so no published project disappears from the customer view.</p>
+      <PageSizeControl pageSize={pageSize} position="top" />
       <OpportunityList items={rows} />
-      <div className="actions">
-        {page > 1 && <Link className="button secondary" href={`/app?page=${page - 1}`}>Previous</Link>}
-        <span className="small">Page {page} of {totalPages}</span>
-        {page < totalPages && <Link className="button secondary" href={`/app?page=${page + 1}`}>Next</Link>}
+      <div className="table-footer-controls">
+        <div className="actions pagination-actions">
+          {page > 1 && <Link className="button secondary" href={`/app?page=${page - 1}&rows=${pageSize}`}>Previous</Link>}
+          <span className="small">Page {page} of {totalPages}</span>
+          {page < totalPages && <Link className="button secondary" href={`/app?page=${page + 1}&rows=${pageSize}`}>Next</Link>}
+        </div>
+        <PageSizeControl pageSize={pageSize} position="bottom" />
       </div>
     </section>
   </>;
