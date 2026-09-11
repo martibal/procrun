@@ -8,6 +8,7 @@ persisted; only aggregate counters are written to stdout.
 from __future__ import annotations
 
 import json
+import time
 from collections import Counter
 from decimal import Decimal, InvalidOperation
 from typing import Any, Final
@@ -28,9 +29,10 @@ SECTOR: Final = "Ccsettore_inter1475973826"
 COST_EFFECTIVE: Final = "Cccosto_lavori_e582037416"
 SAFE_FIELDS: Final = (CUP, STATUS_CODE, STATUS_DESC, SECTOR, COST_EFFECTIVE)
 ALLOWED_RETURNED_KEYS: Final = set(SAFE_FIELDS) | {"row_id"}
-PAGE_SIZE: Final = 50_000
-MAX_ROWS: Final = 700_000
-MAX_RESPONSE_BYTES: Final = 40_000_000
+PAGE_SIZE: Final = 5_000
+MAX_ROWS: Final = 650_000
+MAX_RESPONSE_BYTES: Final = 8_000_000
+MAX_ATTEMPTS: Final = 3
 
 
 def _extract_rows(payload: Any) -> list[dict[str, Any]]:
@@ -62,7 +64,6 @@ def _amount(value: object) -> Decimal | None:
     text = str(value).strip().replace(" ", "")
     if not text:
         return None
-    # OData values are normally dot-decimal; tolerate Italian thousands/decimal formatting.
     if "," in text and "." in text:
         text = text.replace(".", "").replace(",", ".")
     elif "," in text:
@@ -71,6 +72,31 @@ def _amount(value: object) -> Decimal | None:
         return Decimal(text)
     except InvalidOperation:
         return None
+
+
+def _fetch_page(client: httpx.Client, skip: int) -> list[dict[str, Any]]:
+    params = {
+        "$select": ",".join(SAFE_FIELDS),
+        "$skip": str(skip),
+        "$top": str(PAGE_SIZE),
+        "$format": "json",
+    }
+    last_error: Exception | None = None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            response = client.get(BASE_URL, params=params)
+            if response.is_redirect:
+                raise RuntimeError("OpenBDAP coverage request redirected")
+            response.raise_for_status()
+            if len(response.content) > MAX_RESPONSE_BYTES:
+                raise RuntimeError("OpenBDAP coverage response exceeded safety bound")
+            return _extract_rows(response.json())
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            last_error = exc
+            if attempt == MAX_ATTEMPTS:
+                break
+            time.sleep(2**attempt)
+    raise RuntimeError(f"OpenBDAP page at skip={skip} failed after retries") from last_error
 
 
 def main() -> int:
@@ -89,27 +115,14 @@ def main() -> int:
     pages = 0
 
     headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/1.0",
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/1.1",
         "Accept": "application/json",
     }
-    with httpx.Client(timeout=120.0, follow_redirects=False, headers=headers) as client:
+    timeout = httpx.Timeout(45.0, connect=20.0)
+    with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
         skip = 0
         while skip < MAX_ROWS:
-            response = client.get(
-                BASE_URL,
-                params={
-                    "$select": ",".join(SAFE_FIELDS),
-                    "$skip": str(skip),
-                    "$top": str(PAGE_SIZE),
-                    "$format": "json",
-                },
-            )
-            if response.is_redirect:
-                raise RuntimeError("OpenBDAP coverage request redirected")
-            response.raise_for_status()
-            if len(response.content) > MAX_RESPONSE_BYTES:
-                raise RuntimeError("OpenBDAP coverage response exceeded safety bound")
-            rows = _extract_rows(response.json())
+            rows = _fetch_page(client, skip)
             pages += 1
 
             for row in rows:
@@ -144,6 +157,8 @@ def main() -> int:
         else:
             raise RuntimeError("MOP scan hit MAX_ROWS safety ceiling")
 
+    sector_pct = round(rows_with_sector * 100 / total_rows, 4) if total_rows else 0
+    cost_pct = round(rows_with_cost * 100 / total_rows, 4) if total_rows else 0
     report = {
         "measurement_contract": "openbdap-mop-safe-national-coverage-v1",
         "resource_id": RESOURCE_ID,
@@ -154,9 +169,9 @@ def main() -> int:
         "rows": total_rows,
         "unique_cups": len(unique_cups),
         "rows_with_sector": rows_with_sector,
-        "sector_coverage_pct": round(rows_with_sector * 100 / total_rows, 4) if total_rows else 0,
+        "sector_coverage_pct": sector_pct,
         "rows_with_effective_cost": rows_with_cost,
-        "effective_cost_coverage_pct": round(rows_with_cost * 100 / total_rows, 4) if total_rows else 0,
+        "effective_cost_coverage_pct": cost_pct,
         "effective_cost_total_eur": str(effective_cost_total),
         "status_codes": dict(status_codes.most_common()),
         "status_labels": dict(status_labels.most_common()),
