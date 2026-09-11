@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Measure national OpenBDAP MOP coverage using a frozen safe OData projection.
+"""Measure safe OpenBDAP MOP overlap on the exact frozen Lombardia project corpus.
 
-Only public project identifiers and non-identity project attributes are received:
-CUP, CUP status, intervention sector and effective works cost. Raw rows are never
-persisted; only aggregate counters are written to stdout.
+This is the commercially relevant Phase R test. Instead of scanning the full national
+MOP table, it asks only for CUPs already present in the frozen 4,305-project corpus.
+Every OData request uses a frozen server-side projection containing only CUP, project
+status, intervention sector and effective works cost. Raw MOP rows are never persisted.
 """
 from __future__ import annotations
 
@@ -11,11 +12,21 @@ import json
 import time
 from collections import Counter
 from decimal import Decimal, InvalidOperation
-from typing import Any, Final
+from pathlib import Path
+from typing import Any, Final, Iterable
 from urllib.parse import urlparse
 
 import httpx
 
+from procrun.a21_identity import a21_projects_by_local_operation_id
+from procrun.collectors.opencoesione import to_funding_projects
+from procrun.collectors.opencoesione_live import collect_open_coesione_live
+from procrun.component_engine import structured_component_suggestions
+from procrun.production_delivery import ALL_COMPONENT_DOMAINS
+
+FROZEN_PROJECT_COUNT: Final = 4305
+FROZEN_SOURCE_SHA256: Final = "35dc073ec9e5e06201080bc949a9da19dfd3366deee3524417491e2b2fd21c6a"
+FROZEN_STRUCTURED_PROJECTS: Final = 133
 RESOURCE_ID: Final = "bda1676b-62ab-44b7-8f9a-ca93b8534488@rgs"
 BASE_URL: Final = (
     "https://bdap-opendata.rgs.mef.gov.it/"
@@ -29,10 +40,11 @@ SECTOR: Final = "Ccsettore_inter1475973826"
 COST_EFFECTIVE: Final = "Cccosto_lavori_e582037416"
 SAFE_FIELDS: Final = (CUP, STATUS_CODE, STATUS_DESC, SECTOR, COST_EFFECTIVE)
 ALLOWED_RETURNED_KEYS: Final = set(SAFE_FIELDS) | {"row_id"}
-PAGE_SIZE: Final = 5_000
-MAX_ROWS: Final = 650_000
-MAX_RESPONSE_BYTES: Final = 8_000_000
+BATCH_SIZE: Final = 60
+MAX_ROWS_PER_BATCH: Final = 300
+MAX_RESPONSE_BYTES: Final = 2_000_000
 MAX_ATTEMPTS: Final = 3
+REPORT_PATH = Path("artifacts/openbdap-mop-safe-coverage.json")
 
 
 def _extract_rows(payload: Any) -> list[dict[str, Any]]:
@@ -54,7 +66,7 @@ def _data_keys(row: dict[str, Any]) -> set[str]:
 def _norm(value: object) -> str | None:
     if not isinstance(value, str):
         return None
-    text = " ".join(value.split()).strip()
+    text = " ".join(value.split()).strip().upper()
     return text or None
 
 
@@ -74,11 +86,18 @@ def _amount(value: object) -> Decimal | None:
         return None
 
 
-def _fetch_page(client: httpx.Client, skip: int) -> list[dict[str, Any]]:
+def _batches(values: list[str], size: int) -> Iterable[list[str]]:
+    for start in range(0, len(values), size):
+        yield values[start : start + size]
+
+
+def _fetch_batch(client: httpx.Client, cups: list[str]) -> list[dict[str, Any]]:
+    requested = set(cups)
+    filter_expr = " or ".join(f"{CUP} eq '{cup}'" for cup in cups)
     params = {
         "$select": ",".join(SAFE_FIELDS),
-        "$skip": str(skip),
-        "$top": str(PAGE_SIZE),
+        "$filter": filter_expr,
+        "$top": str(MAX_ROWS_PER_BATCH),
         "$format": "json",
     }
     last_error: Exception | None = None
@@ -86,45 +105,13 @@ def _fetch_page(client: httpx.Client, skip: int) -> list[dict[str, Any]]:
         try:
             response = client.get(BASE_URL, params=params)
             if response.is_redirect:
-                raise RuntimeError("OpenBDAP coverage request redirected")
+                raise RuntimeError("OpenBDAP overlap request redirected")
             response.raise_for_status()
             if len(response.content) > MAX_RESPONSE_BYTES:
-                raise RuntimeError("OpenBDAP coverage response exceeded safety bound")
-            return _extract_rows(response.json())
-        except (httpx.TimeoutException, httpx.TransportError) as exc:
-            last_error = exc
-            if attempt == MAX_ATTEMPTS:
-                break
-            time.sleep(2**attempt)
-    raise RuntimeError(f"OpenBDAP page at skip={skip} failed after retries") from last_error
-
-
-def main() -> int:
-    parsed = urlparse(BASE_URL)
-    if parsed.scheme != "https" or parsed.hostname != ALLOWED_HOST:
-        raise RuntimeError("OpenBDAP endpoint left the frozen origin")
-
-    status_codes: Counter[str] = Counter()
-    status_labels: Counter[str] = Counter()
-    sectors: Counter[str] = Counter()
-    total_rows = 0
-    unique_cups: set[str] = set()
-    rows_with_sector = 0
-    rows_with_cost = 0
-    effective_cost_total = Decimal("0")
-    pages = 0
-
-    headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/1.1",
-        "Accept": "application/json",
-    }
-    timeout = httpx.Timeout(45.0, connect=20.0)
-    with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
-        skip = 0
-        while skip < MAX_ROWS:
-            rows = _fetch_page(client, skip)
-            pages += 1
-
+                raise RuntimeError("OpenBDAP overlap response exceeded safety bound")
+            rows = _extract_rows(response.json())
+            if len(rows) >= MAX_ROWS_PER_BATCH:
+                raise RuntimeError("OpenBDAP batch hit row ceiling; result may be truncated")
             for row in rows:
                 keys = _data_keys(row)
                 unexpected = keys - ALLOWED_RETURNED_KEYS
@@ -132,9 +119,73 @@ def main() -> int:
                     raise RuntimeError(
                         "safe projection escaped allowlist: " + ", ".join(sorted(unexpected))
                     )
+                returned_cup = _norm(row.get(CUP))
+                if not returned_cup or returned_cup not in requested:
+                    raise RuntimeError("OpenBDAP returned a CUP outside the requested batch")
+            return rows
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            last_error = exc
+            if attempt == MAX_ATTEMPTS:
+                break
+            time.sleep(2**attempt)
+    raise RuntimeError("OpenBDAP CUP batch failed after retries") from last_error
+
+
+def main() -> int:
+    parsed = urlparse(BASE_URL)
+    if parsed.scheme != "https" or parsed.hostname != ALLOWED_HOST:
+        raise RuntimeError("OpenBDAP endpoint left the frozen origin")
+
+    batch = collect_open_coesione_live()
+    if batch.source_sha256 != FROZEN_SOURCE_SHA256:
+        raise RuntimeError("frozen OpenCoesione source hash drift")
+    projects = a21_projects_by_local_operation_id(batch.operations, to_funding_projects(batch))
+    if len(projects) != FROZEN_PROJECT_COUNT:
+        raise RuntimeError("frozen OpenCoesione project count drift")
+
+    selected_local_ids = {project.operation_code for project in projects}
+    cups_by_local_id: dict[str, str] = {}
+    for operation in batch.operations:
+        if operation.operation_id not in selected_local_ids or not operation.cup:
+            continue
+        cup = _norm(operation.cup)
+        if cup:
+            cups_by_local_id[operation.operation_id] = cup
+
+    structured_local_ids = {
+        project.operation_code
+        for project in projects
+        if structured_component_suggestions(project, list(ALL_COMPONENT_DOMAINS))
+    }
+    if len(structured_local_ids) != FROZEN_STRUCTURED_PROJECTS:
+        raise RuntimeError("structured baseline drift")
+    unresolved_local_ids = selected_local_ids - structured_local_ids
+
+    unique_funded_cups = sorted(set(cups_by_local_id.values()))
+    matched_cups: set[str] = set()
+    status_codes: Counter[str] = Counter()
+    status_labels: Counter[str] = Counter()
+    sectors: Counter[str] = Counter()
+    cups_with_sector: set[str] = set()
+    cups_with_cost: set[str] = set()
+    total_effective_cost = Decimal("0")
+    returned_rows = 0
+    batch_count = 0
+
+    headers = {
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Frozen-Overlap/1.0",
+        "Accept": "application/json",
+    }
+    timeout = httpx.Timeout(30.0, connect=15.0)
+    with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
+        for cup_batch in _batches(unique_funded_cups, BATCH_SIZE):
+            rows = _fetch_batch(client, cup_batch)
+            batch_count += 1
+            returned_rows += len(rows)
+            for row in rows:
                 cup = _norm(row.get(CUP))
-                if cup:
-                    unique_cups.add(cup)
+                assert cup is not None
+                matched_cups.add(cup)
                 status_code = _norm(row.get(STATUS_CODE))
                 if status_code:
                     status_codes[status_code] += 1
@@ -143,41 +194,75 @@ def main() -> int:
                     status_labels[status_label] += 1
                 sector = _norm(row.get(SECTOR))
                 if sector:
-                    rows_with_sector += 1
                     sectors[sector] += 1
+                    cups_with_sector.add(cup)
                 amount = _amount(row.get(COST_EFFECTIVE))
                 if amount is not None:
-                    rows_with_cost += 1
-                    effective_cost_total += amount
+                    cups_with_cost.add(cup)
+                    total_effective_cost += amount
 
-            total_rows += len(rows)
-            if len(rows) < PAGE_SIZE:
-                break
-            skip += PAGE_SIZE
-        else:
-            raise RuntimeError("MOP scan hit MAX_ROWS safety ceiling")
+    matched_local_ids = {
+        local_id for local_id, cup in cups_by_local_id.items() if cup in matched_cups
+    }
+    unresolved_matched = matched_local_ids & unresolved_local_ids
+    structured_matched = matched_local_ids & structured_local_ids
+    active_matched_cups = {
+        cup
+        for cup in matched_cups
+        if any(
+            code == "A"
+            for code in [
+                _norm(code)
+                for code, count in status_codes.items()
+                for _ in range(1 if count else 0)
+            ]
+        )
+    }
+    del active_matched_cups  # aggregate status counters are authoritative; no row data retained.
 
-    sector_pct = round(rows_with_sector * 100 / total_rows, 4) if total_rows else 0
-    cost_pct = round(rows_with_cost * 100 / total_rows, 4) if total_rows else 0
     report = {
-        "measurement_contract": "openbdap-mop-safe-national-coverage-v1",
+        "measurement_contract": "openbdap-mop-frozen-overlap-v1",
         "resource_id": RESOURCE_ID,
+        "frozen_source_sha256": batch.source_sha256,
+        "frozen_projects": len(projects),
+        "frozen_projects_with_cup": len(cups_by_local_id),
+        "unique_funded_cups": len(unique_funded_cups),
+        "baseline_structured_projects": len(structured_local_ids),
+        "baseline_unresolved_projects": len(unresolved_local_ids),
         "projection_fields": list(SAFE_FIELDS),
         "identity_fields_received": False,
-        "raw_rows_persisted": False,
-        "pages": pages,
-        "rows": total_rows,
-        "unique_cups": len(unique_cups),
-        "rows_with_sector": rows_with_sector,
-        "sector_coverage_pct": sector_pct,
-        "rows_with_effective_cost": rows_with_cost,
-        "effective_cost_coverage_pct": cost_pct,
-        "effective_cost_total_eur": str(effective_cost_total),
+        "raw_mop_rows_persisted": False,
+        "request_batches": batch_count,
+        "returned_mop_rows": returned_rows,
+        "matched_unique_cups": len(matched_cups),
+        "matched_cup_pct": round(len(matched_cups) * 100 / len(unique_funded_cups), 4),
+        "matched_frozen_projects": len(matched_local_ids),
+        "matched_frozen_project_pct": round(len(matched_local_ids) * 100 / len(projects), 4),
+        "matched_baseline_unresolved_projects": len(unresolved_matched),
+        "matched_unresolved_pct": round(
+            len(unresolved_matched) * 100 / len(unresolved_local_ids), 4
+        ),
+        "matched_baseline_structured_projects": len(structured_matched),
+        "matched_cups_with_sector": len(cups_with_sector),
+        "sector_coverage_pct_of_matched": round(
+            len(cups_with_sector) * 100 / len(matched_cups), 4
+        )
+        if matched_cups
+        else 0.0,
+        "matched_cups_with_effective_cost": len(cups_with_cost),
+        "cost_coverage_pct_of_matched": round(
+            len(cups_with_cost) * 100 / len(matched_cups), 4
+        )
+        if matched_cups
+        else 0.0,
+        "effective_cost_total_eur": str(total_effective_cost),
         "status_codes": dict(status_codes.most_common()),
         "status_labels": dict(status_labels.most_common()),
         "top_sectors": dict(sectors.most_common(25)),
     }
-    print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    REPORT_PATH.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), flush=True)
     return 0
 
 
