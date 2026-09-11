@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 const publicLinks = [
-  ["Product", "/product"],
   ["Methodology", "/methodology"],
   ["Pricing", "/pricing"],
 ] as const;
@@ -32,8 +31,7 @@ export function PublicFooter() {
           <p className="small footer-copy">Evidence-bounded funded-project procurement intelligence for suppliers.</p>
         </div>
         <div>
-          <div className="footer-label">Product</div>
-          <Link href="/product">Product</Link>
+          <div className="footer-label">Explore</div>
           <Link href="/methodology">Methodology & coverage</Link>
           <Link href="/pricing">Pricing</Link>
         </div>

@@ -6,7 +6,6 @@ export default function MarketPage() {
   const states = ["OPEN", "CLOSED", "UNRESOLVED"] as const;
 
   return <>
-    <div className="eyebrow">Market intelligence</div>
     <h1 className="h1">Market context with the coverage boundary attached.</h1>
     <p className="lede">This view summarises only the customer-safe fixture set. In production, TED market measures will disclose their observation window, missingness and exact indexed scope.</p>
     <div className="notice scope"><strong>Fixture workspace.</strong> These totals are interface fixtures, not market-size claims and not Portuguese national procurement totals.</div>
@@ -28,8 +27,8 @@ export default function MarketPage() {
     </section>
 
     <section className="section grid two">
-      <div className="card flat"><div className="eyebrow">Coverage</div><p><strong>TED only for MVP negative search.</strong></p><p className="small">No relevant procurement found in TED as of the item cutoff does not establish absence outside TED.</p></div>
-      <div className="card flat"><div className="eyebrow">Funded-project expansion</div><p><strong>OpenCoesione 2021–2027</strong></p><p className="small">Italian funded-project data remains fixture-only in the browser until live transfer/E2E acceptance is green.</p></div>
+      <div className="card flat"><div className="small">Coverage</div><p><strong>TED only for MVP negative search.</strong></p><p className="small">No relevant procurement found in TED as of the item cutoff does not establish absence outside TED.</p></div>
+      <div className="card flat"><div className="small">Funded-project expansion</div><p><strong>OpenCoesione 2021–2027</strong></p><p className="small">Italian funded-project data remains fixture-only in the browser until live transfer/E2E acceptance is green.</p></div>
     </section>
   </>;
 }

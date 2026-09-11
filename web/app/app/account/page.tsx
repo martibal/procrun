@@ -1,6 +1,5 @@
 export default function AccountPage() {
   return <>
-    <div className="eyebrow">Account</div>
     <h1 className="h1">Workspace and billing.</h1>
     <p className="lede">Control-plane account and billing data remain separate from ProcRun's intelligence plane.</p>
     <div className="grid">

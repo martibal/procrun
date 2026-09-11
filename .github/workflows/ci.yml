@@ -122,6 +122,20 @@ jobs:
         run: |
           node --version
           npm --version
+      - name: Visual route regression guards
+        run: |
+          if grep -R -n --include='*.tsx' 'className="eyebrow"' app components; then
+            echo 'Forbidden eyebrow class found in customer web.' >&2
+            exit 1
+          fi
+          if [ -d app/product ]; then
+            echo 'Deprecated /product route exists.' >&2
+            exit 1
+          fi
+          if grep -R -n --include='*.tsx' --include='*.ts' '"/product"' app components lib; then
+            echo 'Deprecated /product reference found.' >&2
+            exit 1
+          fi
       - name: Install web dependencies
         run: npm install --no-audit --no-fund
       - name: Web unit and database-isolation tests
