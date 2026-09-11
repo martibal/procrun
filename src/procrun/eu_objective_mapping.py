@@ -11,7 +11,6 @@ import re
 from dataclasses import dataclass
 from typing import Final
 
-
 MAPPING_VERSION: Final = "eu-structured-mapping-v1"
 
 
@@ -47,18 +46,24 @@ SPECIFIC_OBJECTIVE_MAP: Final[dict[str, StructuredMapping]] = {
 # to map to an existing ProcRun domain without using project free text.
 INTERVENTION_FIELD_MAP: Final[dict[str, StructuredMapping]] = {
     **{
-        code: StructuredMapping("intervention_category", code, "energy_efficiency", "Energy efficiency")
+        code: StructuredMapping(
+            "intervention_category", code, "energy_efficiency", "Energy efficiency"
+        )
         for code in ("038", "039", "040", "041", "042", "043", "044", "045")
     },
     "059": StructuredMapping(
         "intervention_category", "059", "resilience_fire", "Fire-risk resilience"
     ),
     **{
-        code: StructuredMapping("intervention_category", code, "water_wastewater", "Water and wastewater")
+        code: StructuredMapping(
+            "intervention_category", code, "water_wastewater", "Water and wastewater"
+        )
         for code in ("062", "063", "064", "065", "066")
     },
     **{
-        code: StructuredMapping("intervention_category", code, "rail_transport", "Rail transport")
+        code: StructuredMapping(
+            "intervention_category", code, "rail_transport", "Rail transport"
+        )
         for code in (
             "096",
             "097",
@@ -75,7 +80,9 @@ INTERVENTION_FIELD_MAP: Final[dict[str, StructuredMapping]] = {
         )
     },
     **{
-        code: StructuredMapping("intervention_category", code, "ports_coastal", "Ports and coastal")
+        code: StructuredMapping(
+            "intervention_category", code, "ports_coastal", "Ports and coastal"
+        )
         for code in ("110", "111", "112", "113", "114", "115")
     },
 }
@@ -101,7 +108,9 @@ def _intervention_key(value: str | None) -> str | None:
     return None
 
 
-def mappings_for(*, specific_objective: str | None, intervention_category: str | None) -> tuple[StructuredMapping, ...]:
+def mappings_for(
+    *, specific_objective: str | None, intervention_category: str | None
+) -> tuple[StructuredMapping, ...]:
     """Return deterministic structured mappings, deduplicated by source/key/domain."""
 
     found: list[StructuredMapping] = []

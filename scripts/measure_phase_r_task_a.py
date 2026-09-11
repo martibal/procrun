@@ -19,7 +19,6 @@ from procrun.collectors.opencoesione import to_funding_projects
 from procrun.collectors.opencoesione_live import collect_open_coesione_live
 from procrun.component_engine import (
     STRUCTURED_RULE_VERSION,
-    ComponentDomain,
     extract_components,
     structured_component_suggestions,
 )
