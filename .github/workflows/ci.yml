@@ -122,7 +122,7 @@ jobs:
         run: |
           node --version
           npm --version
-      - name: Visual route regression guards
+      - name: Customer web regression guards
         run: |
           if grep -R -n --include='*.tsx' 'className="eyebrow"' app components; then
             echo 'Forbidden eyebrow class found in customer web.' >&2
@@ -134,6 +134,14 @@ jobs:
           fi
           if grep -R -n --include='*.tsx' --include='*.ts' '"/product"' app components lib; then
             echo 'Deprecated /product reference found.' >&2
+            exit 1
+          fi
+          if [ -f lib/read-model.ts ]; then
+            echo 'Fixture customer read-model file exists; customer pages must use published customer-safe data.' >&2
+            exit 1
+          fi
+          if grep -R -n --include='*.tsx' --include='*.ts' '@/lib/read-model' app components lib; then
+            echo 'Fixture customer read-model import found.' >&2
             exit 1
           fi
       - name: Install web dependencies

@@ -1,34 +1,43 @@
-import { opportunities } from "@/lib/read-model";
+import { loadCustomerView } from "@/lib/customer-view";
 
-export default function MarketPage() {
-  const total = opportunities.reduce((sum, item) => sum + (item.valueEur ?? 0), 0);
-  const openValue = opportunities.filter((item) => item.state === "OPEN").reduce((sum, item) => sum + (item.valueEur ?? 0), 0);
-  const states = ["OPEN", "CLOSED", "UNRESOLVED"] as const;
+export const dynamic = "force-dynamic";
+
+export default async function MarketPage() {
+  const view = await loadCustomerView();
+  if (view.mode === "missing") {
+    return <>
+      <h1 className="h1">Market context with the coverage boundary attached.</h1>
+      <div className="notice scope"><strong>No production snapshot is loaded.</strong> Build web/data/customer-runway.jsonl with <code>py scripts\build_customer_snapshot.py</code>.</div>
+    </>;
+  }
+
+  const totalFunding = view.projects.reduce((sum, project) => sum + (project.approved_funding_eur ?? 0), 0);
+  const states = ["OPEN", "CLOSED", "PARTIAL", "UNRESOLVED"] as const;
 
   return <>
     <h1 className="h1">Market context with the coverage boundary attached.</h1>
-    <p className="lede">This view summarises only the customer-safe fixture set. In production, TED market measures will disclose their observation window, missingness and exact indexed scope.</p>
-    <div className="notice scope"><strong>Fixture workspace.</strong> These totals are interface fixtures, not market-size claims and not Portuguese national procurement totals.</div>
+    <p className="lede">This view summarises the published customer-safe funded-project snapshot. It is not a claim about the total addressable market or procurement outside the indexed scope.</p>
+    <div className="notice scope"><strong>Published snapshot.</strong> {view.projects.length.toLocaleString("en-US")} funded projects · data through {view.cutoffDate}.</div>
 
     <div className="grid">
-      <div className="card"><div className="small">Fixture opportunities</div><div className="kpi">{opportunities.length}</div></div>
-      <div className="card"><div className="small">Fixture project value</div><div className="kpi">€{(total / 1_000_000).toFixed(1)}m</div></div>
-      <div className="card"><div className="small">TED-scoped OPEN value</div><div className="kpi">€{(openValue / 1_000_000).toFixed(1)}m</div></div>
+      <div className="card"><div className="small">Published projects</div><div className="kpi">{view.projects.length.toLocaleString("en-US")}</div></div>
+      <div className="card"><div className="small">Approved project funding</div><div className="kpi">€{(totalFunding / 1_000_000_000).toFixed(2)}bn</div><div className="micro">Sum only where the source states approved funding</div></div>
+      <div className="card"><div className="small">Evidence rows</div><div className="kpi">{view.opportunities.length.toLocaleString("en-US")}</div><div className="micro">Every project represented at least once</div></div>
     </div>
 
     <section className="section card flat">
-      <div className="section-label">State distribution</div>
-      <h2 className="h2">What the current fixture evidence supports</h2>
+      <div className="section-label">Project state distribution</div>
+      <h2 className="h2">What the current evidence supports</h2>
       {states.map((state) => {
-        const count = opportunities.filter((item) => item.state === state).length;
-        const pct = opportunities.length ? Math.round((count / opportunities.length) * 100) : 0;
-        return <div key={state} style={{marginTop:18}}><div className="small"><strong>{state}</strong> · {count} item{count === 1 ? "" : "s"}</div><div className="bar"><span style={{width:`${pct}%`}} /></div></div>;
+        const count = view.projects.filter((project) => project.state === state).length;
+        const pct = view.projects.length ? Math.round((count / view.projects.length) * 100) : 0;
+        return <div key={state} style={{marginTop:18}}><div className="small"><strong>{state}</strong> · {count.toLocaleString("en-US")} project{count === 1 ? "" : "s"}</div><div className="bar"><span style={{width:`${pct}%`}} /></div></div>;
       })}
     </section>
 
     <section className="section grid two">
-      <div className="card flat"><div className="small">Coverage</div><p><strong>TED only for MVP negative search.</strong></p><p className="small">No relevant procurement found in TED as of the item cutoff does not establish absence outside TED.</p></div>
-      <div className="card flat"><div className="small">Funded-project expansion</div><p><strong>OpenCoesione 2021–2027</strong></p><p className="small">Italian funded-project data remains fixture-only in the browser until live transfer/E2E acceptance is green.</p></div>
+      <div className="card flat"><div className="small">Procurement coverage</div><p><strong>Complete TED Italy query universe through each snapshot cutoff.</strong></p><p className="small">OPEN means only that no procurement match satisfying the frozen exact-evidence rules was found in that universe. It does not establish absence outside TED or under different wording/classification.</p></div>
+      <div className="card flat"><div className="small">Funded-project source</div><p><strong>Approved OpenCoesione 2021–2027 source contract.</strong></p><p className="small">The browser consumes only the validated customer-safe read model; raw source envelopes and identity-shaped source fields are not exposed.</p></div>
     </section>
   </>;
 }
