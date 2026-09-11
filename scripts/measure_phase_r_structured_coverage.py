@@ -73,7 +73,10 @@ def main() -> int:
         if project.objective:
             objective_nonempty += 1
             objective_exact[project.objective] += 1
-            matches = [match.group(1).upper() for match in _OBJECTIVE_CODE_RE.finditer(project.objective)]
+            matches = [
+                match.group(1).upper()
+                for match in _OBJECTIVE_CODE_RE.finditer(project.objective)
+            ]
             if matches:
                 objective_codes.update(set(matches))
             else:
