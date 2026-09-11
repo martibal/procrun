@@ -1,6 +1,6 @@
 # ProcRun source status
 
-Status date: 2026-09-05
+Status date: 2026-09-11
 Canonical product spec: `docs/PRODUCT_FOUNDATION_FINAL.md`
 Authoritative readiness gate: `docs/BUILD_GATES.md` A20
 
@@ -24,6 +24,7 @@ The required response cannot satisfy ProcRun's pre-receipt data-safety/source-co
 | --- | --- | --- | --- | --- | --- |
 | TED Search API projected route | A | APPROVED / LIVE | 2026-09-05 | TED projected contract | MVP procurement evidence and TED-scoped negative-search coverage |
 | OpenCoesione PR FESR Lombardia 2021-2027 operation-list ZIP/CSV | A | APPROVED / IMPLEMENTED / LIVE-ACCEPTED | 2026-09-04 | live 20-column transport header | Funded-project source; exact frozen route/schema |
+| OpenCUP / Sistema CUP structured classification API/project payload | B | REJECTED | 2026-09-11 | `docs/OPENCUP_PHASE_R_QUALIFICATION.md` | Desired Settore/Sottosettore/Categoria metadata is public, but official API access requires registration through the contact form and no documented classification-only pre-receipt projection was established. ACCESS and DATA SAFETY fail; no live row probe/download permitted. |
 | OpenCoesione all-program 2021-2027 ZIP | A source family | NOT ACTIVATED | 2026-09-05 | `https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls` | Official metadata is 38,400 bytes / 37.5 KiB but does not equal ProcRun's frozen 20-column transport contract; six exact runtime headers are absent or named differently. Previous bounded header probe also failed. |
 | OpenCoesione PR FESR FSE+ Puglia 2021-2027 ZIP | A source family | NOT ACTIVATED | 2026-09-05 | `https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls` | Same official beneficiary metadata contract; not exact-equal to frozen 20-column runtime header. No data rows retrieved for this qualification. |
 | OpenCoesione PR FESR Campania 2021-2027 ZIP | A source family | NOT ACTIVATED | 2026-09-05 | `https://opencoesione.gov.it/media/opendata/metadati_beneficiari.xls` | Same official beneficiary metadata contract; not exact-equal to frozen 20-column runtime header. No data rows retrieved. |
@@ -37,6 +38,12 @@ The required response cannot satisfy ProcRun's pre-receipt data-safety/source-co
 | PT2030 operations bulk workbook | B | PERMANENTLY BLOCKED | 2026-09-05 | n/a | Broad identity-bearing transport; no download-then-filter |
 | Portal BASE / APIBase2 current route | B | PERMANENTLY BLOCKED | 2026-09-05 | n/a | Broad identity-bearing response; no approved projection |
 | Poland public EU-funds project surfaces reviewed | B | REJECTED | 2026-09-05 | n/a | No exact safe machine route established from public documentation |
+
+## Phase R — OpenCUP decision
+
+Canonical qualification record: `docs/OPENCUP_PHASE_R_QUALIFICATION.md`.
+
+The public OpenCUP portal confirms that CUP projects carry structured classification fields such as project nature/type, Settore, Sottosettore and Categoria. The official API documentation, however, states that interoperability registration is requested through the contact form. ProcRun's permanent no-contact rule therefore makes that API route unavailable. Public project payloads also expose broader holder/project identity fields, and no documented server-side projection limited to the required classification fields was established. ProcRun will not retrieve a broader project response and filter it locally. Task B is closed as rejected and does not block the remaining Phase R work.
 
 ## OpenCoesione production acceptance
 
