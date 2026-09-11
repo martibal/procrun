@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Measure safe OpenBDAP MOP national counts and frozen Lombardia overlap.
+"""Measure safe OpenBDAP MOP national counts, lifecycle runway and Lombardia overlap.
 
-The diagnostic uses only server-side projected OData requests. National scale is
-counted by probing existence at $skip offsets with $top=1 and CUP-only projection;
-this needs O(log n) requests and never receives unrestricted rows. Projected CUP
-values are validated but never persisted. The Lombardia overlap requests only CUP,
-project status, intervention sector and effective works cost for CUPs already in the
-frozen corpus. Raw MOP rows are never persisted.
+The diagnostic uses only server-side projected OData requests. National scale and
+lifecycle cohorts are counted by probing existence at $skip offsets with $top=1 and
+CUP-only projection; this needs O(log n) requests and never receives unrestricted
+rows. Lifecycle fields are referenced only inside server-side filters, so their row
+values are not returned or persisted by the count probes. The Lombardia overlap
+requests only CUP, project status, intervention sector and effective works cost for
+CUPs already in the frozen corpus. Raw MOP rows are never persisted.
 """
 from __future__ import annotations
 
@@ -41,6 +42,8 @@ STATUS_CODE: Final = "Cccodice_stato_1426672593"
 STATUS_DESC: Final = "Ccdescrizione_s1176782119"
 SECTOR: Final = "Ccsettore_inter1475973826"
 COST_EFFECTIVE: Final = "Cccosto_lavori_e582037416"
+PLANNED_EXECUTION_START: Final = "Ccinizio_esecuz2103627579"
+ACTUAL_EXECUTION_START: Final = "Ccinizio_esecuzi167207395"
 SAFE_FIELDS: Final = (CUP, STATUS_CODE, STATUS_DESC, SECTOR, COST_EFFECTIVE)
 ALLOWED_RETURNED_KEYS: Final = set(SAFE_FIELDS) | {"row_id"}
 COUNT_ALLOWED_RETURNED_KEYS: Final = {CUP, "row_id"}
@@ -50,6 +53,16 @@ MAX_RESPONSE_BYTES: Final = 2_000_000
 MAX_ATTEMPTS: Final = 3
 MAX_COUNT_PROBE_OFFSET: Final = 2_000_000
 REPORT_PATH = Path("artifacts/openbdap-mop-safe-coverage.json")
+
+# The current official MOP release was published 2026-09-04 and describes data
+# observed at 2026-08-31. These bounds are deliberately frozen for this diagnostic
+# so a later source refresh cannot silently move the commercial measurement window.
+LIFECYCLE_OBSERVED_DATE: Final = "2026-08-31"
+LIFECYCLE_12M_END: Final = "2027-08-31"
+LIFECYCLE_24M_END: Final = "2028-08-31"
+VALID_DATE_FLOOR: Final = "2000-01-01"
+VALID_DATE_CEILING: Final = "2100-12-31"
+SENTINEL_DATE: Final = "9999-12-31"
 
 
 def _extract_rows(payload: Any) -> list[dict[str, Any]]:
@@ -159,6 +172,56 @@ def _count_rows(client: httpx.Client, filter_expr: str | None = None) -> tuple[i
     return high, requests
 
 
+def _active_filter(extra: str | None = None) -> str:
+    base = f"{STATUS_CODE} eq 'A'"
+    return f"{base} and ({extra})" if extra else base
+
+
+def _missing_or_sentinel(field: str) -> str:
+    return f"({field} eq '' or {field} eq '{SENTINEL_DATE}')"
+
+
+def _valid_date(field: str) -> str:
+    return (
+        f"({field} ge '{VALID_DATE_FLOOR}' and "
+        f"{field} le '{VALID_DATE_CEILING}')"
+    )
+
+
+def _between(field: str, start: str, end: str) -> str:
+    return f"({field} ge '{start}' and {field} le '{end}')"
+
+
+def _lifecycle_counts(client: httpx.Client) -> tuple[dict[str, int], dict[str, int]]:
+    """Count safe lifecycle cohorts without receiving lifecycle values."""
+    filters = {
+        "actual_execution_start_blank": _active_filter(f"{ACTUAL_EXECUTION_START} eq ''"),
+        "actual_execution_start_sentinel": _active_filter(
+            f"{ACTUAL_EXECUTION_START} eq '{SENTINEL_DATE}'"
+        ),
+        "actual_execution_start_valid": _active_filter(_valid_date(ACTUAL_EXECUTION_START)),
+        "no_actual_start_with_valid_planned_start": _active_filter(
+            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and "
+            f"{_valid_date(PLANNED_EXECUTION_START)}"
+        ),
+        "no_actual_start_planned_next_12m": _active_filter(
+            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and "
+            f"{_between(PLANNED_EXECUTION_START, LIFECYCLE_OBSERVED_DATE, LIFECYCLE_12M_END)}"
+        ),
+        "no_actual_start_planned_next_24m": _active_filter(
+            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and "
+            f"{_between(PLANNED_EXECUTION_START, LIFECYCLE_OBSERVED_DATE, LIFECYCLE_24M_END)}"
+        ),
+    }
+    counts: dict[str, int] = {}
+    requests: dict[str, int] = {}
+    for name, filter_expr in filters.items():
+        count, request_count = _count_rows(client, filter_expr)
+        counts[name] = count
+        requests[name] = request_count
+    return counts, requests
+
+
 def _fetch_batch(client: httpx.Client, cups: list[str]) -> list[dict[str, Any]]:
     requested = set(cups)
     filter_expr = " or ".join(f"{CUP} eq '{cup}'" for cup in cups)
@@ -205,20 +268,33 @@ def main() -> int:
         raise RuntimeError("OpenBDAP endpoint left the frozen origin")
 
     headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/3.0",
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/4.0",
         "Accept": "application/json",
     }
     timeout = httpx.Timeout(30.0, connect=15.0)
     with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
         national_total_rows, total_count_requests = _count_rows(client)
         national_active_rows, active_count_requests = _count_rows(
-            client, f"{STATUS_CODE} eq 'A'"
+            client, _active_filter()
         )
+        lifecycle_counts, lifecycle_request_counts = _lifecycle_counts(client)
 
     if national_total_rows <= 0:
         raise RuntimeError("OpenBDAP national MOP count is unexpectedly empty")
     if not 0 <= national_active_rows <= national_total_rows:
         raise RuntimeError("OpenBDAP national active count is inconsistent")
+    if any(not 0 <= count <= national_active_rows for count in lifecycle_counts.values()):
+        raise RuntimeError("OpenBDAP lifecycle count exceeds active national population")
+    if (
+        lifecycle_counts["no_actual_start_planned_next_12m"]
+        > lifecycle_counts["no_actual_start_planned_next_24m"]
+    ):
+        raise RuntimeError("OpenBDAP 12m lifecycle cohort exceeds 24m cohort")
+    if (
+        lifecycle_counts["no_actual_start_planned_next_24m"]
+        > lifecycle_counts["no_actual_start_with_valid_planned_start"]
+    ):
+        raise RuntimeError("OpenBDAP future cohort exceeds valid-planned-start cohort")
 
     batch = collect_open_coesione_live()
     if batch.source_sha256 != FROZEN_SOURCE_SHA256:
@@ -286,8 +362,30 @@ def main() -> int:
     unresolved_matched = matched_local_ids & unresolved_local_ids
     structured_matched = matched_local_ids & structured_local_ids
 
+    lifecycle_report = dict(lifecycle_counts)
+    lifecycle_report["no_actual_start_with_valid_planned_start_pct_of_active"] = round(
+        lifecycle_counts["no_actual_start_with_valid_planned_start"]
+        * 100
+        / national_active_rows,
+        4,
+    )
+    lifecycle_report["no_actual_start_planned_next_12m_pct_of_active"] = round(
+        lifecycle_counts["no_actual_start_planned_next_12m"] * 100 / national_active_rows,
+        4,
+    )
+    lifecycle_report["no_actual_start_planned_next_24m_pct_of_active"] = round(
+        lifecycle_counts["no_actual_start_planned_next_24m"] * 100 / national_active_rows,
+        4,
+    )
+    lifecycle_report["active_unclassified_actual_start_residual"] = (
+        national_active_rows
+        - lifecycle_counts["actual_execution_start_blank"]
+        - lifecycle_counts["actual_execution_start_sentinel"]
+        - lifecycle_counts["actual_execution_start_valid"]
+    )
+
     report = {
-        "measurement_contract": "openbdap-mop-safe-coverage-v3",
+        "measurement_contract": "openbdap-mop-safe-coverage-v4",
         "resource_id": RESOURCE_ID,
         "national_count_method": (
             "OData $skip binary search with $top=1 and CUP-only projection"
@@ -298,6 +396,17 @@ def main() -> int:
         "national_total_mop_rows": national_total_rows,
         "national_active_mop_rows": national_active_rows,
         "national_active_pct": round(national_active_rows * 100 / national_total_rows, 4),
+        "lifecycle_observed_date": LIFECYCLE_OBSERVED_DATE,
+        "lifecycle_12m_end": LIFECYCLE_12M_END,
+        "lifecycle_24m_end": LIFECYCLE_24M_END,
+        "lifecycle_filter_fields": {
+            "planned_execution_start": PLANNED_EXECUTION_START,
+            "actual_execution_start": ACTUAL_EXECUTION_START,
+        },
+        "lifecycle_values_received": False,
+        "lifecycle_values_persisted": False,
+        "lifecycle_count_probe_requests": lifecycle_request_counts,
+        "lifecycle": lifecycle_report,
         "frozen_source_sha256": batch.source_sha256,
         "frozen_projects": len(projects),
         "frozen_projects_with_cup": len(cups_by_local_id),
