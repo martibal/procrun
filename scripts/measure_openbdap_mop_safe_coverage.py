@@ -53,9 +53,6 @@ MAX_ATTEMPTS: Final = 3
 MAX_COUNT_PROBE_OFFSET: Final = 2_000_000
 REPORT_PATH = Path("artifacts/openbdap-mop-safe-coverage.json")
 
-# The current official MOP release was published 2026-09-04 and describes data
-# observed at 2026-08-31. These bounds are deliberately frozen for this diagnostic
-# so a later source refresh cannot silently move the commercial measurement window.
 LIFECYCLE_OBSERVED_DATE: Final = "2026-08-31"
 LIFECYCLE_12M_END: Final = "2027-08-31"
 LIFECYCLE_24M_END: Final = "2028-08-31"
@@ -113,13 +110,7 @@ def _row_exists_at_skip(
     skip: int,
     filter_expr: str | None = None,
 ) -> bool:
-    """Probe one CUP-only row at an offset and persist no returned value."""
-    params = {
-        "$select": CUP,
-        "$skip": str(skip),
-        "$top": "1",
-        "$format": "json",
-    }
+    params = {"$select": CUP, "$skip": str(skip), "$top": "1", "$format": "json"}
     if filter_expr:
         params["$filter"] = filter_expr
     response = client.get(BASE_URL, params=params)
@@ -150,12 +141,7 @@ def _count_rows(
     *,
     known_upper_bound: int | None = None,
 ) -> tuple[int, int]:
-    """Count rows exactly with binary search, reusing a known upper bound when available.
-
-    Passing a known upper bound avoids a second exponential-bracketing phase for every
-    lifecycle cohort. Because every lifecycle cohort is a subset of active MOP rows,
-    the already measured active-row count is a safe upper bound.
-    """
+    """Count rows exactly, reusing a known population ceiling when possible."""
     requests = 1
     if not _row_exists_at_skip(client, 0, filter_expr):
         return 0, requests
@@ -165,9 +151,9 @@ def _count_rows(
             raise ValueError("known_upper_bound must be positive")
         low = 0
         high = known_upper_bound
-        if _row_exists_at_skip(client, high - 1, filter_expr):
-            return high, requests + 1
         requests += 1
+        if _row_exists_at_skip(client, high - 1, filter_expr):
+            return high, requests
     else:
         low = 0
         high = 1
@@ -200,10 +186,7 @@ def _missing_or_sentinel(field: str) -> str:
 
 
 def _valid_date(field: str) -> str:
-    return (
-        f"({field} ge '{VALID_DATE_FLOOR}' and "
-        f"{field} le '{VALID_DATE_CEILING}')"
-    )
+    return f"({field} ge '{VALID_DATE_FLOOR}' and {field} le '{VALID_DATE_CEILING}')"
 
 
 def _between(field: str, start: str, end: str) -> str:
@@ -214,7 +197,6 @@ def _lifecycle_counts(
     client: httpx.Client,
     active_rows: int,
 ) -> tuple[dict[str, int], dict[str, int]]:
-    """Count safe lifecycle cohorts without receiving lifecycle values."""
     filters = {
         "actual_execution_start_blank": _active_filter(f"{ACTUAL_EXECUTION_START} eq ''"),
         "actual_execution_start_sentinel": _active_filter(
@@ -222,25 +204,20 @@ def _lifecycle_counts(
         ),
         "actual_execution_start_valid": _active_filter(_valid_date(ACTUAL_EXECUTION_START)),
         "no_actual_start_with_valid_planned_start": _active_filter(
-            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and "
-            f"{_valid_date(PLANNED_EXECUTION_START)}"
+            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and {_valid_date(PLANNED_EXECUTION_START)}"
         ),
         "no_actual_start_planned_next_12m": _active_filter(
-            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and "
-            f"{_between(PLANNED_EXECUTION_START, LIFECYCLE_OBSERVED_DATE, LIFECYCLE_12M_END)}"
+            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and {_between(PLANNED_EXECUTION_START, LIFECYCLE_OBSERVED_DATE, LIFECYCLE_12M_END)}"
         ),
         "no_actual_start_planned_next_24m": _active_filter(
-            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and "
-            f"{_between(PLANNED_EXECUTION_START, LIFECYCLE_OBSERVED_DATE, LIFECYCLE_24M_END)}"
+            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and {_between(PLANNED_EXECUTION_START, LIFECYCLE_OBSERVED_DATE, LIFECYCLE_24M_END)}"
         ),
     }
     counts: dict[str, int] = {}
     requests: dict[str, int] = {}
     for name, filter_expr in filters.items():
         count, request_count = _count_rows(
-            client,
-            filter_expr,
-            known_upper_bound=active_rows,
+            client, filter_expr, known_upper_bound=active_rows
         )
         counts[name] = count
         requests[name] = request_count
@@ -269,8 +246,7 @@ def _fetch_batch(client: httpx.Client, cups: list[str]) -> list[dict[str, Any]]:
             if len(rows) >= MAX_ROWS_PER_BATCH:
                 raise RuntimeError("OpenBDAP batch hit row ceiling; result may be truncated")
             for row in rows:
-                keys = _data_keys(row)
-                unexpected = keys - ALLOWED_RETURNED_KEYS
+                unexpected = _data_keys(row) - ALLOWED_RETURNED_KEYS
                 if unexpected:
                     raise RuntimeError(
                         "safe projection escaped allowlist: " + ", ".join(sorted(unexpected))
@@ -293,18 +269,15 @@ def main() -> int:
         raise RuntimeError("OpenBDAP endpoint left the frozen origin")
 
     headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/5.0",
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/5.1",
         "Accept": "application/json",
     }
     timeout = httpx.Timeout(30.0, connect=15.0)
     with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
         national_total_rows, total_count_requests = _count_rows(client)
-        national_active_rows, active_count_requests = _count_rows(
-            client, _active_filter()
-        )
+        national_active_rows, active_count_requests = _count_rows(client, _active_filter())
         lifecycle_counts, lifecycle_request_counts = _lifecycle_counts(
-            client,
-            national_active_rows,
+            client, national_active_rows
         )
 
     if national_total_rows <= 0:
@@ -313,15 +286,9 @@ def main() -> int:
         raise RuntimeError("OpenBDAP national active count is inconsistent")
     if any(not 0 <= count <= national_active_rows for count in lifecycle_counts.values()):
         raise RuntimeError("OpenBDAP lifecycle count exceeds active national population")
-    if (
-        lifecycle_counts["no_actual_start_planned_next_12m"]
-        > lifecycle_counts["no_actual_start_planned_next_24m"]
-    ):
+    if lifecycle_counts["no_actual_start_planned_next_12m"] > lifecycle_counts["no_actual_start_planned_next_24m"]:
         raise RuntimeError("OpenBDAP 12m lifecycle cohort exceeds 24m cohort")
-    if (
-        lifecycle_counts["no_actual_start_planned_next_24m"]
-        > lifecycle_counts["no_actual_start_with_valid_planned_start"]
-    ):
+    if lifecycle_counts["no_actual_start_planned_next_24m"] > lifecycle_counts["no_actual_start_with_valid_planned_start"]:
         raise RuntimeError("OpenBDAP future cohort exceeds valid-planned-start cohort")
 
     batch = collect_open_coesione_live()
@@ -384,26 +351,19 @@ def main() -> int:
                     cups_with_cost.add(cup)
                     total_effective_cost += amount
 
-    matched_local_ids = {
-        local_id for local_id, cup in cups_by_local_id.items() if cup in matched_cups
-    }
+    matched_local_ids = {local_id for local_id, cup in cups_by_local_id.items() if cup in matched_cups}
     unresolved_matched = matched_local_ids & unresolved_local_ids
     structured_matched = matched_local_ids & structured_local_ids
 
     lifecycle_report = dict(lifecycle_counts)
     lifecycle_report["no_actual_start_with_valid_planned_start_pct_of_active"] = round(
-        lifecycle_counts["no_actual_start_with_valid_planned_start"]
-        * 100
-        / national_active_rows,
-        4,
+        lifecycle_counts["no_actual_start_with_valid_planned_start"] * 100 / national_active_rows, 4
     )
     lifecycle_report["no_actual_start_planned_next_12m_pct_of_active"] = round(
-        lifecycle_counts["no_actual_start_planned_next_12m"] * 100 / national_active_rows,
-        4,
+        lifecycle_counts["no_actual_start_planned_next_12m"] * 100 / national_active_rows, 4
     )
     lifecycle_report["no_actual_start_planned_next_24m_pct_of_active"] = round(
-        lifecycle_counts["no_actual_start_planned_next_24m"] * 100 / national_active_rows,
-        4,
+        lifecycle_counts["no_actual_start_planned_next_24m"] * 100 / national_active_rows, 4
     )
     lifecycle_report["active_unclassified_actual_start_residual"] = (
         national_active_rows
@@ -415,9 +375,7 @@ def main() -> int:
     report = {
         "measurement_contract": "openbdap-mop-safe-coverage-v5",
         "resource_id": RESOURCE_ID,
-        "national_count_method": (
-            "OData $skip binary search with $top=1 and CUP-only projection; lifecycle cohorts reuse active-row upper bound"
-        ),
+        "national_count_method": "OData $skip binary search with $top=1 and CUP-only projection; lifecycle cohorts reuse active-row upper bound",
         "national_count_probe_values_persisted": False,
         "national_total_count_probe_requests": total_count_requests,
         "national_active_count_probe_requests": active_count_requests,
@@ -447,22 +405,12 @@ def main() -> int:
         "matched_frozen_projects": len(matched_local_ids),
         "matched_frozen_project_pct": round(len(matched_local_ids) * 100 / len(projects), 4),
         "matched_baseline_unresolved_projects": len(unresolved_matched),
-        "matched_unresolved_pct": round(
-            len(unresolved_matched) * 100 / len(unresolved_local_ids), 4
-        ),
+        "matched_unresolved_pct": round(len(unresolved_matched) * 100 / len(unresolved_local_ids), 4),
         "matched_baseline_structured_projects": len(structured_matched),
         "matched_cups_with_sector": len(cups_with_sector),
-        "sector_coverage_pct_of_matched": round(
-            len(cups_with_sector) * 100 / len(matched_cups), 4
-        )
-        if matched_cups
-        else 0.0,
+        "sector_coverage_pct_of_matched": round(len(cups_with_sector) * 100 / len(matched_cups), 4) if matched_cups else 0.0,
         "matched_cups_with_effective_cost": len(cups_with_cost),
-        "cost_coverage_pct_of_matched": round(
-            len(cups_with_cost) * 100 / len(matched_cups), 4
-        )
-        if matched_cups
-        else 0.0,
+        "cost_coverage_pct_of_matched": round(len(cups_with_cost) * 100 / len(matched_cups), 4) if matched_cups else 0.0,
         "effective_cost_total_eur": str(total_effective_cost),
         "status_codes": dict(status_codes.most_common()),
         "status_labels": dict(status_labels.most_common()),
