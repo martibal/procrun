@@ -9,36 +9,45 @@ function stateClass(state: Opportunity["state"]): string {
 
 export function OpportunityList({ items }: { items: readonly Opportunity[] }) {
   return (
-    <div className="list">
-      {items.map((item) => {
-        const evidenceDuplicatesTitle =
-          item.projectEvidenceType === "Project title" && item.projectEvidence === item.projectTitle;
-
-        return (
-          <article className="row" key={item.id}>
-            <div>
-              <div className="small">{item.projectTitle} · {item.geography}</div>
-              <div className="row-title">{item.component}</div>
-              <div className="micro">Source wording · {item.projectEvidenceType}</div>
-              {!evidenceDuplicatesTitle && <div className="evidence">{item.projectEvidence}</div>}
-              {evidenceDuplicatesTitle && <div className="micro">Exact source wording shown in the project title above.</div>}
-            </div>
-            <div>
-              <span className={`pill ${stateClass(item.state)}`}>{item.state}</span>
-              <p className="small">
-                {item.state === "OPEN"
-                  ? item.openWording
-                  : item.procurementEvidence ?? "Evidence remains insufficient for a safe OPEN/CLOSED conclusion."}
-              </p>
-              <p className="micro">Coverage: {item.coverage} · as of {item.cutoffDate}</p>
-              <p className="micro">Version: {item.sourceVersion}</p>
-            </div>
-            <div>
-              <Link className="button" href={`/app/opportunities/${item.id}`}>Inspect evidence</Link>
-            </div>
-          </article>
-        );
-      })}
+    <div className="opportunity-table-wrap">
+      <table className="opportunity-table">
+        <thead>
+          <tr>
+            <th>Project / component</th>
+            <th>Exact source wording</th>
+            <th>ProcRun interpretation</th>
+            <th>State</th>
+            <th aria-label="Open details" />
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={item.id}>
+              <td>
+                <div className="row-title">{item.component}</div>
+                <div className="small">{item.projectTitle}</div>
+                <div className="micro">{item.geography}</div>
+              </td>
+              <td>
+                <div className="micro evidence-label">{item.projectEvidenceType}</div>
+                <div className="evidence">{item.projectEvidence}</div>
+              </td>
+              <td>
+                <p className="small interpretation">{item.interpretation}</p>
+                {item.procurementEvidence && <p className="micro">TED evidence: {item.procurementEvidence}</p>}
+                <p className="micro">Coverage: {item.coverage} · cutoff: {item.cutoffDate}</p>
+              </td>
+              <td>
+                <span className={`pill ${stateClass(item.state)}`}>{item.state}</span>
+                {item.state === "OPEN" && item.openWording && <p className="micro state-copy">{item.openWording}</p>}
+              </td>
+              <td className="table-action">
+                <Link className="button" href={`/app/opportunities/${item.id}`}>Inspect evidence</Link>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

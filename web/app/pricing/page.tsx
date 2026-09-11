@@ -10,20 +10,20 @@ export default function PricingPage() {
       <main className="page-shell narrow">
         <div className="eyebrow">Pricing</div>
         <h1 className="page-title">One professional launch package.</h1>
-        <p className="page-intro">ProcRun Portugal is defined at €149/month. The product is in the authorized customer-web build phase; paid launch remains blocked until authentication, billing, privacy/control-plane and final access tests are complete.</p>
+        <p className="page-intro">ProcRun is priced at €149/month for the launch product. Pricing is fixed; payment remains intentionally disabled until merchant, tax, invoicing, domain/TLS and final control-plane integrations are complete.</p>
 
         <section className="content-section">
           <div className="card">
-            <div className="eyebrow">ProcRun Portugal</div>
+            <div className="eyebrow">ProcRun</div>
             <h2 style={{marginTop: 10}}>€149 / month</h2>
-            <p className="small">TED-scoped runway feed, funded-project and component evidence, market context, supplier profile, saved opportunities and customer-safe export surfaces.</p>
-            <div className="notice"><strong>Checkout is not yet enabled.</strong> ProcRun is not accepting payment from this build until the web-phase launch controls are green.</div>
+            <p className="small">Evidence-bounded funded-project runway, exact project wording, component state, TED procurement evidence, supplier workspace, saved opportunities and customer-safe export surfaces.</p>
+            <div className="notice"><strong>Checkout remains disabled.</strong> No payment is accepted from this build. Activation is a separate launch-integration step and does not change the evidence rules described on this site.</div>
           </div>
         </section>
 
         <section className="content-section">
-          <h2>Coverage remains explicit at every price point</h2>
-          <p>OPEN means no relevant procurement found in TED as of the stated date. Subscription packaging never expands that conclusion into a claim about national or below-threshold procurement outside TED.</p>
+          <h2>What the subscription does not change</h2>
+          <p>OPEN remains a TED-bounded conclusion under the frozen exact-evidence rules. A paid subscription never expands that state into a claim that procurement is absent outside TED or under different wording, classification or procurement routes.</p>
         </section>
       </main>
     </div>
