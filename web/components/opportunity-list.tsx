@@ -1,13 +1,13 @@
 import Link from "next/link";
-import type { Opportunity } from "@/lib/read-model";
+import type { CustomerOpportunity } from "@/lib/customer-view";
 
-function stateClass(state: Opportunity["state"]): string {
+function stateClass(state: CustomerOpportunity["state"]): string {
   if (state === "CLOSED") return "closed";
   if (state === "UNRESOLVED") return "unresolved";
   return "";
 }
 
-export function OpportunityList({ items }: { items: readonly Opportunity[] }) {
+export function OpportunityList({ items }: { items: readonly CustomerOpportunity[] }) {
   return (
     <div className="opportunity-table-wrap">
       <table className="opportunity-table">
@@ -27,10 +27,13 @@ export function OpportunityList({ items }: { items: readonly Opportunity[] }) {
                 <div className="row-title">{item.component}</div>
                 <div className="small">{item.projectTitle}</div>
                 <div className="micro">{item.geography}</div>
+                {item.programme && <div className="micro">{item.programme}</div>}
+                {item.valueEur != null && <div className="micro">Approved funding: €{item.valueEur.toLocaleString("en-US")}</div>}
               </td>
               <td>
                 <div className="micro evidence-label">{item.projectEvidenceType}</div>
                 <div className="evidence">{item.projectEvidence}</div>
+                {item.unresolvedEvidence.length > 0 && <div className="micro state-copy">UNRESOLVED source span: {item.unresolvedEvidence.join(" | ")}</div>}
               </td>
               <td>
                 <p className="small interpretation">{item.interpretation}</p>
@@ -42,7 +45,7 @@ export function OpportunityList({ items }: { items: readonly Opportunity[] }) {
                 {item.state === "OPEN" && item.openWording && <p className="micro state-copy">{item.openWording}</p>}
               </td>
               <td className="table-action">
-                <Link className="button" href={`/app/opportunities/${item.id}`}>Inspect evidence</Link>
+                <Link className="button" href={`/app/opportunities/${encodeURIComponent(item.id)}`}>Inspect evidence</Link>
               </td>
             </tr>
           ))}
