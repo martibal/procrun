@@ -1,89 +1,83 @@
 import Link from "next/link";
+import { PublicPage } from "@/components/public-site";
+import { opportunities } from "@/lib/read-model";
+import styles from "./landing.module.css";
 
-const proof = [
-  ["4,305", "logical funded projects in the accepted production proof"],
-  ["177,160", "TED notices across the complete accepted Italy universe"],
-  ["116", "projects with evidence-bounded OPEN runway at the proof cutoff"],
-] as const;
+const example = opportunities[0];
 
 export default function HomePage() {
-  return (
-    <div className="public-shell">
-      <header className="public-nav">
-        <Link href="/" className="brand">ProcRun</Link>
-        <nav className="nav" aria-label="Primary navigation">
-          <Link href="/product">Product</Link>
-          <Link href="/methodology">Methodology</Link>
-          <Link href="/pricing">Pricing</Link>
-          <Link href="/login" className="nav-cta">Sign in</Link>
-        </nav>
-      </header>
+  return <PublicPage>
+    <div className={styles.page}>
+      <section className={styles.hero}>
+        <h1>See what a funded project says — and what ProcRun can safely conclude.</h1>
+        <p className={styles.intro}>ProcRun starts with exact wording from approved funded-project publications, identifies only components supported by that wording, checks the complete accepted TED search universe, and keeps source evidence separate from ProcRun interpretation.</p>
+        <p className={styles.audience}>For suppliers evaluating already-funded infrastructure projects before a conventional tender search answers the question.</p>
 
-      <main>
-        <section className="hero hero-grid">
-          <div>
-            <div className="eyebrow">Funded-project procurement evidence</div>
-            <h1>See what a funded project says — and what ProcRun can safely conclude.</h1>
-            <p className="lede">
-              ProcRun starts with exact wording from approved funded-project publications, identifies only components supported by that wording, checks the complete accepted TED search universe, and keeps source evidence separate from ProcRun interpretation.
-            </p>
-            <div className="actions">
-              <Link className="button" href="/product">See the product</Link>
-              <Link className="button secondary" href="/methodology">Read the evidence rules</Link>
+        <article className={styles.record} aria-label="ProcRun evidence example">
+          <header className={styles.opportunityHeader}>
+            <p className={styles.guideText}>Evidence example</p>
+            <h2>{example.component}</h2>
+            <p className={styles.opportunityMeta}><span>{example.geography}</span><span>{example.state}</span></p>
+            <p className={styles.originalTitle}>Project: <span>{example.projectTitle}</span></p>
+          </header>
+
+          <section className={styles.primaryFinding}>
+            <p className={styles.guideText}>Exact source wording · {example.projectEvidenceType}</p>
+            <p className={styles.resultValue}>{example.projectEvidence}</p>
+            <p className={styles.projectContext}>This wording is the source evidence. ProcRun does not rewrite it and present the rewrite as evidence.</p>
+          </section>
+
+          <section className={styles.procurementFinding}>
+            <p className={styles.guideText}>ProcRun interpretation</p>
+            <p className={styles.procurementHeadline}>{example.interpretation}</p>
+            <p className={styles.coverageNote}>{example.openWording ?? example.procurementEvidence ?? "Evidence remains insufficient for a safe OPEN/CLOSED conclusion."}</p>
+          </section>
+
+          <details className={styles.evidence}>
+            <summary>View the evidence boundary</summary>
+            <div className={styles.evidenceBody}>
+              <h3>Exact project text</h3>
+              <blockquote>“{example.projectEvidence}”</blockquote>
+              <h3>Derived state</h3>
+              <p>{example.state}. Coverage: {example.coverage}. Cutoff: {example.cutoffDate}.</p>
+              <h3>Production rule</h3>
+              <p>OPEN, CLOSED and UNRESOLVED are derived under frozen evidence rules. OPEN is bounded to TED and does not establish absence outside TED or under different wording, classification or procurement routes.</p>
+              <h3>Read model</h3>
+              <p><code>{example.sourceVersion}</code></p>
             </div>
-          </div>
-          <aside className="hero-panel" aria-label="ProcRun trust contract">
-            <div className="eyebrow">Evidence boundary</div>
-            <h2>Source wording is evidence. State is interpretation.</h2>
-            <p>
-              ProcRun never rewrites source wording into evidence. OPEN, CLOSED and UNRESOLVED are derived states with explicit rules and provenance. OPEN is bounded to TED and never means that procurement is absent everywhere.
-            </p>
-          </aside>
-        </section>
+          </details>
+        </article>
 
-        <section className="proof-strip" aria-label="Production acceptance evidence">
-          {proof.map(([value, label]) => (
-            <div key={value} className="proof-item">
-              <strong>{value}</strong>
-              <span>{label}</span>
-            </div>
-          ))}
-        </section>
+        <div className={styles.actions}>
+          <Link className={styles.primaryButton} href="/app">Open demo</Link>
+          <Link className={styles.secondaryButton} href="/methodology">Read methodology</Link>
+        </div>
+      </section>
 
-        <section className="public-section">
-          <div className="section-heading">
-            <div className="eyebrow">How the product works</div>
-            <h2>Four steps, with the evidence visible at each one.</h2>
-          </div>
-          <div className="step-grid">
-            <article className="step-card"><span>01</span><h3>Read approved project scope</h3><p>Only admitted project fields enter the intelligence pipeline. Exact source wording remains identifiable.</p></article>
-            <article className="step-card"><span>02</span><h3>Identify supported components</h3><p>A component exists in production only when frozen rules can anchor it to exact project wording.</p></article>
-            <article className="step-card"><span>03</span><h3>Check TED evidence</h3><p>Accepted procurement evidence may close a component. Plausible ambiguity blocks an OPEN conclusion.</p></article>
-            <article className="step-card"><span>04</span><h3>Show the bounded state</h3><p>The workspace presents source wording and ProcRun interpretation separately: OPEN, CLOSED or UNRESOLVED.</p></article>
-          </div>
-        </section>
+      <section className="proof-strip" aria-label="Production acceptance evidence">
+        <div><strong>4,305</strong><span>logical funded projects in the accepted production proof</span></div>
+        <div><strong>177,160</strong><span>TED notices across the complete accepted Italy universe</span></div>
+        <div><strong>717</strong><span>TED result pages processed in the accepted closure run</span></div>
+      </section>
 
-        <section className="public-section split-section">
-          <div>
-            <div className="eyebrow">Why it exists</div>
-            <h2>Not another tender portal.</h2>
-          </div>
-          <div className="body-copy">
-            <p>ProcRun is designed for suppliers who want to inspect already-funded projects before a conventional tender search answers the question.</p>
-            <p>It does not manufacture leads, score win probability, infer buyer-person intelligence, or hide uncertainty behind a confidence label.</p>
-          </div>
-        </section>
+      <section className={styles.explainer}>
+        <h2>Four steps, with the evidence visible at each one.</h2>
+        <div className={styles.explainerRows}>
+          <div><strong>Read approved project scope.</strong><p>Only admitted project fields enter the intelligence pipeline. Exact source wording remains identifiable.</p></div>
+          <div><strong>Identify supported components.</strong><p>A component exists in production only when frozen rules can anchor it to exact project wording.</p></div>
+          <div><strong>Check TED evidence.</strong><p>Accepted procurement evidence may close a component. Plausible ambiguity blocks an OPEN conclusion.</p></div>
+          <div><strong>Show the bounded state.</strong><p>The workspace presents source wording and ProcRun interpretation separately: OPEN, CLOSED or UNRESOLVED.</p></div>
+        </div>
+      </section>
 
-        <section className="scope-banner">
-          <div><div className="eyebrow">Launch coverage</div><h2>Italy source scope. TED procurement boundary.</h2></div>
-          <p>The accepted production proof covers 4,305 logical funded projects and the complete accepted Italy TED universe at the cutoff. Every OPEN conclusion remains explicitly limited to the frozen TED search rules and date shown to the customer.</p>
-        </section>
-      </main>
-
-      <footer className="public-footer">
-        <div><strong>ProcRun</strong><span>Evidence-bounded funded-project procurement intelligence.</span></div>
-        <nav><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/methodology">Methodology</Link></nav>
-      </footer>
+      <section className={styles.priceSection}>
+        <div>
+          <h2>ProcRun</h2>
+          <p className={styles.price}>€149 <span>/ month</span></p>
+          <p>Evidence-bounded funded-project runway, exact project wording, TED procurement evidence, supplier workspace, saved opportunities and customer-safe export surfaces. Checkout remains disabled until launch integrations are complete.</p>
+        </div>
+        <Link className={styles.primaryButton} href="/pricing">View pricing</Link>
+      </section>
     </div>
-  );
+  </PublicPage>;
 }

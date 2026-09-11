@@ -1,11 +1,17 @@
 import Link from "next/link";
+import { PublicPage } from "@/components/public-site";
 
 export default function LoginPage() {
-  return <div className="public-shell">
-    <div className="public-nav"><Link href="/" className="brand">ProcRun</Link><div className="nav"><Link href="/methodology">Methodology</Link><Link href="/pricing">Pricing</Link></div></div>
-    <div className="eyebrow">Authentication shell</div>
-    <h1 className="h1">Sign in to ProcRun.</h1>
-    <p className="lede">Authentication wiring is intentionally not activated in this build slice. Account identity belongs to the control plane and is never analytical input.</p>
-    <div className="card section" style={{maxWidth:540}}><p className="small">Development shell only. This page collects no credentials.</p><Link className="button" href="/app">Open fixture workspace</Link></div>
-  </div>;
+  return <PublicPage>
+    <section className="page-hero narrow-copy auth-wrap">
+      <p className="small">Customer account</p>
+      <h1 className="public-h1">Sign in to ProcRun.</h1>
+      <p className="lede-large">Account identity belongs to the customer control plane and is never used as analytical input.</p>
+      <div className="auth-card section">
+        <h2>Sign in is not configured.</h2>
+        <p className="small">Production access stays closed until the selected authentication control-plane integration is configured. For local inspection, use the fixture workspace.</p>
+        <div className="actions"><Link className="button" href="/app">Open demo workspace</Link><Link className="button secondary" href="/pricing">View pricing</Link></div>
+      </div>
+    </section>
+  </PublicPage>;
 }
