@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Measure direct CUP linkage from funded projects to Lombardia procurement records.
+"""Measure safe structured Lombardia signals against the frozen funded-project universe.
 
-This diagnostic requests only non-personal structured fields from Regione Lombardia Socrata
-procurement datasets. It never requests contracting-officer names, fiscal identifiers,
-awardee/participant identity, or procurement free text. The goal is to test whether direct CUP
-linkage provides materially more customer-useful procurement facts than text classification alone.
+The diagnostic requests only non-personal structured fields from Regione Lombardia Socrata datasets.
+It never requests beneficiary identity, fiscal identifiers, contracting-officer identity,
+awardee/participant identity, project descriptions, or procurement free text.
 """
 
 from __future__ import annotations
@@ -26,10 +25,18 @@ from procrun.production_delivery import ALL_COMPONENT_DOMAINS
 FROZEN_PROJECT_COUNT: Final = 4305
 FROZEN_SOURCE_SHA256: Final = "35dc073ec9e5e06201080bc949a9da19dfd3366deee3524417491e2b2fd21c6a"
 FROZEN_STRUCTURED_SIGNAL_PROJECTS: Final = 133
+PROJECT_DATASET_ID: Final = "q78n-g3m9"
 OUTCOMES_DATASET_ID: Final = "ktkp-f6ec"
 TENDERS_DATASET_ID: Final = "k6cb-4hbm"
 SOCRATA_RESOURCE_TEMPLATE: Final = "https://www.dati.lombardia.it/resource/{dataset_id}.json"
 SOCRATA_METADATA_TEMPLATE: Final = "https://www.dati.lombardia.it/api/views/{dataset_id}"
+PROJECT_SAFE_FIELDS: Final = (
+    "priorita",
+    "obiettivo_specifico",
+    "azione",
+    "codice_bando",
+    "cup",
+)
 OUTCOMES_SAFE_FIELDS: Final = (
     "numero_esito",
     "numero_bando",
@@ -72,7 +79,7 @@ def _normalize_cup(value: object) -> str | None:
 def _metadata_fields(client: httpx.Client, dataset_id: str) -> set[str]:
     response = client.get(
         SOCRATA_METADATA_TEMPLATE.format(dataset_id=dataset_id),
-        headers={"User-Agent": "ProcRun-structured-linkage-diagnostic/2.0"},
+        headers={"User-Agent": "ProcRun-structured-signal-diagnostic/3.0"},
     )
     response.raise_for_status()
     payload = response.json()
@@ -111,7 +118,7 @@ def _fetch_projection(
                 "$offset": str(offset),
                 "$order": "cup",
             },
-            headers={"User-Agent": "ProcRun-structured-linkage-diagnostic/2.0"},
+            headers={"User-Agent": "ProcRun-structured-signal-diagnostic/3.0"},
         )
         response.raise_for_status()
         payload = response.json()
@@ -133,7 +140,9 @@ def _fetch_projection(
     return rows
 
 
-def _summarize_rows(rows: list[dict[str, object]]) -> tuple[Counter[str], Counter[str], set[str]]:
+def _summarize_procurement(
+    rows: list[dict[str, object]],
+) -> tuple[Counter[str], Counter[str], set[str]]:
     rows_by_cup: Counter[str] = Counter()
     rows_with_cpv_by_cup: Counter[str] = Counter()
     statuses: set[str] = set()
@@ -151,12 +160,21 @@ def _summarize_rows(rows: list[dict[str, object]]) -> tuple[Counter[str], Counte
     return rows_by_cup, rows_with_cpv_by_cup, statuses
 
 
+def _safe_value(value: object) -> str | None:
+    if isinstance(value, str):
+        normalized = " ".join(value.split())
+        return normalized or None
+    if isinstance(value, (int, float)):
+        return str(value)
+    return None
+
+
 def main() -> int:
     print("[L1] Reproducing frozen OpenCoesione project universe...", flush=True)
     batch = collect_open_coesione_live()
     if batch.source_sha256 != FROZEN_SOURCE_SHA256:
         raise RuntimeError(
-            "linkage diagnostic requires the exact frozen Phase R source: "
+            "diagnostic requires the exact frozen Phase R source: "
             f"expected={FROZEN_SOURCE_SHA256}, actual={batch.source_sha256}"
         )
 
@@ -187,11 +205,22 @@ def main() -> int:
         )
     unresolved_local_ids = selected_local_ids - structured_local_ids
 
-    print("[L2] Inspecting schema metadata and fetching safe CUP projections...", flush=True)
+    print("[L2] Fetching only frozen non-personal Socrata projections...", flush=True)
     with httpx.Client(timeout=60.0, follow_redirects=True) as client:
+        project_metadata = _metadata_fields(client, PROJECT_DATASET_ID)
+        missing_project_fields = set(PROJECT_SAFE_FIELDS) - project_metadata
+        if missing_project_fields:
+            raise RuntimeError(
+                f"project structured-field schema drift: missing={sorted(missing_project_fields)!r}"
+            )
         tender_metadata = _metadata_fields(client, TENDERS_DATASET_ID)
         tender_fields = tuple(
             field for field in TENDERS_SAFE_CANDIDATES if field in tender_metadata
+        )
+        project_rows = _fetch_projection(
+            client,
+            dataset_id=PROJECT_DATASET_ID,
+            safe_fields=PROJECT_SAFE_FIELDS,
         )
         outcome_rows = _fetch_projection(
             client,
@@ -204,24 +233,47 @@ def main() -> int:
             safe_fields=tender_fields,
         )
 
-    outcome_by_cup, outcome_cpv_by_cup, outcome_statuses = _summarize_rows(outcome_rows)
-    tender_by_cup, tender_cpv_by_cup, tender_statuses = _summarize_rows(tender_rows)
+    project_rows_by_cup: Counter[str] = Counter()
+    action_by_cup: dict[str, set[str]] = {}
+    objective_by_cup: dict[str, set[str]] = {}
+    action_counts: Counter[str] = Counter()
+    for row in project_rows:
+        cup = _normalize_cup(row.get("cup"))
+        if not cup:
+            continue
+        project_rows_by_cup[cup] += 1
+        action = _safe_value(row.get("azione"))
+        if action:
+            action_by_cup.setdefault(cup, set()).add(action)
+            action_counts[action] += 1
+        objective = _safe_value(row.get("obiettivo_specifico"))
+        if objective:
+            objective_by_cup.setdefault(cup, set()).add(objective)
+
+    outcome_by_cup, outcome_cpv_by_cup, outcome_statuses = _summarize_procurement(outcome_rows)
+    tender_by_cup, tender_cpv_by_cup, tender_statuses = _summarize_procurement(tender_rows)
     combined_by_cup = outcome_by_cup + tender_by_cup
     combined_cpv_by_cup = outcome_cpv_by_cup + tender_cpv_by_cup
 
     funded_cups = set(cups_by_local_id.values())
-    linked_cups = funded_cups & set(combined_by_cup)
-    linked_local_ids = {
-        local_id for local_id, cup in cups_by_local_id.items() if cup in linked_cups
+    action_linked_cups = funded_cups & set(project_rows_by_cup)
+    funded_with_action = action_linked_cups & set(action_by_cup)
+    funded_with_objective = action_linked_cups & set(objective_by_cup)
+
+    procurement_linked_cups = funded_cups & set(combined_by_cup)
+    procurement_linked_local_ids = {
+        local_id for local_id, cup in cups_by_local_id.items() if cup in procurement_linked_cups
     }
-    unresolved_linked = unresolved_local_ids & linked_local_ids
-    structured_linked = structured_local_ids & linked_local_ids
-    linked_with_cpv = {cup for cup in linked_cups if combined_cpv_by_cup[cup] > 0}
+    unresolved_procurement_linked = unresolved_local_ids & procurement_linked_local_ids
+    structured_procurement_linked = structured_local_ids & procurement_linked_local_ids
+    procurement_linked_with_cpv = {
+        cup for cup in procurement_linked_cups if combined_cpv_by_cup[cup] > 0
+    }
     outcome_linked = funded_cups & set(outcome_by_cup)
     tender_linked = funded_cups & set(tender_by_cup)
 
     report = {
-        "schema_version": "lombardia-procurement-linkage-v2",
+        "schema_version": "lombardia-structured-signal-diagnostic-v3",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source_resource_sha256": batch.source_sha256,
         "frozen_projects": len(projects),
@@ -229,6 +281,19 @@ def main() -> int:
         "funded_projects_with_cup_pct": round(len(cups_by_local_id) / len(projects) * 100, 4),
         "baseline_structured_projects": len(structured_local_ids),
         "baseline_unresolved_projects": len(unresolved_local_ids),
+        "project_action_layer": {
+            "dataset_id": PROJECT_DATASET_ID,
+            "safe_projection": list(PROJECT_SAFE_FIELDS),
+            "projected_rows_with_cup": len(project_rows),
+            "distinct_project_cups": len(project_rows_by_cup),
+            "frozen_projects_joined": len(action_linked_cups),
+            "frozen_projects_joined_pct": round(len(action_linked_cups) / len(projects) * 100, 4),
+            "frozen_projects_with_action": len(funded_with_action),
+            "frozen_projects_with_action_pct": round(len(funded_with_action) / len(projects) * 100, 4),
+            "frozen_projects_with_objective": len(funded_with_objective),
+            "distinct_action_values": len(action_counts),
+            "action_counts": dict(sorted(action_counts.items(), key=lambda item: (-item[1], item[0]))),
+        },
         "outcomes": {
             "dataset_id": OUTCOMES_DATASET_ID,
             "safe_projection": list(OUTCOMES_SAFE_FIELDS),
@@ -246,25 +311,27 @@ def main() -> int:
             "funded_projects_linked": len(tender_linked),
             "status_values": sorted(tender_statuses),
         },
-        "combined": {
-            "funded_projects_linked": len(linked_local_ids),
-            "funded_projects_linked_pct": round(len(linked_local_ids) / len(projects) * 100, 4),
-            "unresolved_projects_linked": len(unresolved_linked),
-            "unresolved_linked_pct_of_unresolved": round(
-                len(unresolved_linked) / len(unresolved_local_ids) * 100, 4
+        "combined_procurement": {
+            "funded_projects_linked": len(procurement_linked_local_ids),
+            "funded_projects_linked_pct": round(
+                len(procurement_linked_local_ids) / len(projects) * 100, 4
             ),
-            "structured_projects_linked": len(structured_linked),
-            "linked_projects_with_cpv": len(linked_with_cpv),
+            "unresolved_projects_linked": len(unresolved_procurement_linked),
+            "unresolved_linked_pct_of_unresolved": round(
+                len(unresolved_procurement_linked) / len(unresolved_local_ids) * 100, 4
+            ),
+            "structured_projects_linked": len(structured_procurement_linked),
+            "linked_projects_with_cpv": len(procurement_linked_with_cpv),
             "linked_projects_with_cpv_pct": round(
-                len(linked_with_cpv) / len(linked_cups) * 100, 4
+                len(procurement_linked_with_cpv) / len(procurement_linked_cups) * 100, 4
             )
-            if linked_cups
+            if procurement_linked_cups
             else 0.0,
             "procurement_rows_for_linked_projects": sum(
-                combined_by_cup[cup] for cup in linked_cups
+                combined_by_cup[cup] for cup in procurement_linked_cups
             ),
             "max_rows_for_one_linked_project": max(
-                (combined_by_cup[cup] for cup in linked_cups), default=0
+                (combined_by_cup[cup] for cup in procurement_linked_cups), default=0
             ),
         },
     }
