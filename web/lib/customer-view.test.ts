@@ -38,16 +38,18 @@ function project(overrides: Partial<RunwayProject> = {}): RunwayProject {
 }
 
 describe("customer view", () => {
-  it("keeps component-free projects visible as UNRESOLVED rows", () => {
+  it("keeps component-free projects visible with customer-facing UNRESOLVED wording", () => {
     const rows = buildCustomerOpportunities([project()]);
     expect(rows).toHaveLength(1);
     expect(rows[0].projectId).toBe("op-1");
     expect(rows[0].state).toBe("UNRESOLVED");
     expect(rows[0].projectEvidence).toBe("Install pumps");
-    expect(rows[0].interpretation).toContain("No bounded purchase component");
+    expect(rows[0].interpretation).toContain("does not identify a purchasing need clearly enough");
+    expect(rows[0].interpretation).not.toContain("bounded");
+    expect(rows[0].interpretation).not.toContain("frozen");
   });
 
-  it("uses the frozen component explanation as ProcRun interpretation", () => {
+  it("translates OPEN state into customer-facing wording without internal rule jargon", () => {
     const rows = buildCustomerOpportunities([
       project({
         state: "OPEN",
@@ -69,6 +71,7 @@ describe("customer view", () => {
     ]);
     expect(rows).toHaveLength(1);
     expect(rows[0].componentId).toBe("cmp-1");
-    expect(rows[0].interpretation).toContain("frozen exact-evidence rules");
+    expect(rows[0].interpretation).toContain("no matching procurement notice in TED");
+    expect(rows[0].interpretation).not.toContain("frozen exact-evidence rules");
   });
 });

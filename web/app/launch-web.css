@@ -67,6 +67,84 @@
   max-width: none;
 }
 
+.status-guide {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 22px 0 24px;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.status-guide > div {
+  padding: 16px 18px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.status-guide strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+  color: var(--survey-blue);
+}
+
+.status-guide span {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.project-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(145px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin: 0 0 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--paper-raised);
+}
+
+.project-filters label {
+  display: grid;
+  gap: 6px;
+}
+
+.project-filters label > span {
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+
+.project-filters input,
+.project-filters select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.filter-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+}
+
+.result-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 10px;
+}
+
 .table-controls {
   display: flex;
   align-items: center;
@@ -74,7 +152,7 @@
   gap: 10px;
 }
 
-.table-controls-top { margin-top: 18px; }
+.table-controls-top { margin-top: 0; }
 .table-controls-bottom { margin-top: 20px; }
 
 .page-size-options {
@@ -108,11 +186,21 @@
   align-items: center;
 }
 
+@media (max-width: 1100px) {
+  .project-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filter-search { grid-column: 1 / -1; }
+}
+
 @media (max-width: 900px) {
   .evidence-chain { grid-template-columns: 1fr; }
   .chain-arrow { transform: rotate(90deg); justify-content: center; min-height: 18px; }
   .grid.two { grid-template-columns: 1fr; }
   .runway-section { width: 100%; }
+  .status-guide { grid-template-columns: 1fr; }
+  .project-filters { grid-template-columns: 1fr; }
+  .filter-search { grid-column: auto; }
+  .filter-actions { grid-column: auto; }
+  .result-summary { align-items: flex-start; flex-direction: column; }
   .table-footer-controls { align-items: stretch; flex-direction: column; }
   .table-controls { justify-content: flex-start; }
 }
