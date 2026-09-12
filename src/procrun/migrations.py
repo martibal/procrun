@@ -8,6 +8,7 @@ from procrun.evidence_provenance import apply_evidence_provenance_migration
 from procrun.ledger import apply_migrations as apply_ledger_migrations
 from procrun.readiness_hardening import apply_readiness_hardening
 from procrun.readiness_persistence import apply_readiness_migration
+from procrun.readiness_snapshot_provenance import apply_snapshot_provenance_migration
 
 
 def apply_all_migrations(conn: Connection[Any]) -> None:
@@ -16,4 +17,5 @@ def apply_all_migrations(conn: Connection[Any]) -> None:
     apply_ledger_migrations(conn)
     apply_evidence_provenance_migration(conn)
     apply_readiness_migration(conn)
+    apply_snapshot_provenance_migration(conn)
     apply_readiness_hardening(conn)
