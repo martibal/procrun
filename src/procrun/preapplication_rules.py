@@ -74,33 +74,50 @@ class ModuleEvaluation:
     disclaimer: str = DISCLAIMER
 
 
+def _numeric_input(value: object) -> float | None:
+    """Accept already-validated numeric user input; never coerce arbitrary text."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def _review_required(rule: RuleDefinition, reason: str) -> RuleEvaluation:
+    return RuleEvaluation(
+        rule_id=rule.rule_id,
+        outcome=RuleOutcome.REVIEW_REQUIRED,
+        customer_label=rule.customer_label,
+        reason=reason,
+        source_url=rule.public_source_url,
+        source_citation=rule.public_source_citation,
+    )
+
+
 def _evaluate_rule(rule: RuleDefinition, inputs: Mapping[str, object]) -> RuleEvaluation:
     if rule.input_key not in inputs or inputs[rule.input_key] is None:
-        return RuleEvaluation(
-            rule_id=rule.rule_id,
-            outcome=RuleOutcome.REVIEW_REQUIRED,
-            customer_label=rule.customer_label,
-            reason=f"Required input {rule.input_key!r} was not supplied.",
-            source_url=rule.public_source_url,
-            source_citation=rule.public_source_citation,
-        )
+        return _review_required(rule, f"Required input {rule.input_key!r} was not supplied.")
 
     value = inputs[rule.input_key]
     passed: bool
     if rule.kind is RuleKind.ALLOWED_VALUES:
         passed = str(value) in rule.allowed_values
-    elif rule.kind is RuleKind.MIN_NUMBER:
+    elif rule.kind in (RuleKind.MIN_NUMBER, RuleKind.MAX_NUMBER):
         if rule.threshold is None:
             raise ValueError(f"rule {rule.rule_id} lacks threshold")
-        passed = float(value) >= rule.threshold
-    elif rule.kind is RuleKind.MAX_NUMBER:
-        if rule.threshold is None:
-            raise ValueError(f"rule {rule.rule_id} lacks threshold")
-        passed = float(value) <= rule.threshold
+        numeric_value = _numeric_input(value)
+        if numeric_value is None:
+            return _review_required(rule, f"Input {rule.input_key!r} is not a valid number.")
+        if rule.kind is RuleKind.MIN_NUMBER:
+            passed = numeric_value >= rule.threshold
+        else:
+            passed = numeric_value <= rule.threshold
     elif rule.kind is RuleKind.BOOLEAN_REQUIRED:
         if rule.required_boolean is None:
             raise ValueError(f"rule {rule.rule_id} lacks required_boolean")
-        passed = bool(value) is rule.required_boolean
+        if not isinstance(value, bool):
+            return _review_required(rule, f"Input {rule.input_key!r} is not a valid boolean.")
+        passed = value is rule.required_boolean
     else:  # pragma: no cover - enum exhaustiveness guard
         raise ValueError(f"unsupported rule kind: {rule.kind}")
 
