@@ -1,12 +1,6 @@
 name: engine-v2-final-holdout-score
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'data/engine_v2/final_holdout_labels_v1.json'
-      - 'scripts/score_engine_v2_final_holdout.py'
-      - '.github/workflows/engine-v2-final-holdout-score.yml'
   workflow_dispatch:
 
 jobs:

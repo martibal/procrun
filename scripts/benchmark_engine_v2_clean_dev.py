@@ -20,7 +20,12 @@ def _canonical_sha(value: Any) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def _metrics(scores: dict[str, float], positives: set[str], negatives: set[str], threshold: float) -> dict[str, Any]:
+def _metrics(
+    scores: dict[str, float],
+    positives: set[str],
+    negatives: set[str],
+    threshold: float,
+) -> dict[str, Any]:
     predicted = {code for code, score in scores.items() if score >= threshold}
     tp = len(predicted & positives)
     fp = len(predicted & negatives)
@@ -95,7 +100,10 @@ def main() -> int:
                 candidate.validate_against(project.project_scope_text)
             except ValueError:
                 span_failures += 1
-        scores[project.operation_code] = max((item.rerank_score for item in candidates), default=float("-inf"))
+        scores[project.operation_code] = max(
+            (item.rerank_score for item in candidates),
+            default=float("-inf"),
+        )
 
     finite_scores = sorted({score for score in scores.values() if score != float("-inf")})
     thresholds = [float("inf"), *finite_scores]

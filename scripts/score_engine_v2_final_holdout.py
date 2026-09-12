@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from benchmark_engine_v2_relevance_gate import _noise_reject
 from sklearn.linear_model import LogisticRegression
 
-from benchmark_engine_v2_relevance_gate import _noise_reject
 from procrun.evidence_retrieval_v2 import LocalSentenceTransformersEmbedder
 
 RC1_CANDIDATE_ID = "engine-v2-rc1"
@@ -57,6 +57,10 @@ def _metrics(codes: list[str], y_true: np.ndarray, predicted: np.ndarray) -> dic
     }
 
 
+def _case_text(case: dict[str, Any]) -> str:
+    return f"{case.get('project_title') or ''}\n{case['project_scope_text']}".strip()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--development-sample", type=Path, required=True)
@@ -84,23 +88,47 @@ def main() -> int:
 
     development_positive = set(development_labels["positive_operation_codes"])
     development_ambiguous = set(development_labels["ambiguous_operation_codes"])
-    development_cases = [case for case in development["cases"] if case["operation_code"] not in development_ambiguous]
+    development_cases = [
+        case
+        for case in development["cases"]
+        if case["operation_code"] not in development_ambiguous
+    ]
     development_codes = [str(case["operation_code"]) for case in development_cases]
-    development_texts = [f"{case.get('project_title') or ''}\n{case['project_scope_text']}".strip() for case in development_cases]
-    y_train = np.asarray([1 if code in development_positive else 0 for code in development_codes], dtype=np.int64)
+    development_texts = [_case_text(case) for case in development_cases]
+    y_train = np.asarray(
+        [1 if code in development_positive else 0 for code in development_codes],
+        dtype=np.int64,
+    )
 
     holdout_positive = set(holdout_labels["positive_operation_codes"])
     holdout_ambiguous = set(holdout_labels["ambiguous_operation_codes"])
-    holdout_cases = [case for case in holdout["cases"] if case["operation_code"] not in holdout_ambiguous]
+    holdout_cases = [
+        case for case in holdout["cases"] if case["operation_code"] not in holdout_ambiguous
+    ]
     holdout_codes = [str(case["operation_code"]) for case in holdout_cases]
-    holdout_texts = [f"{case.get('project_title') or ''}\n{case['project_scope_text']}".strip() for case in holdout_cases]
-    y_test = np.asarray([1 if code in holdout_positive else 0 for code in holdout_codes], dtype=np.int64)
+    holdout_texts = [_case_text(case) for case in holdout_cases]
+    y_test = np.asarray(
+        [1 if code in holdout_positive else 0 for code in holdout_codes],
+        dtype=np.int64,
+    )
 
     embedder = LocalSentenceTransformersEmbedder(RC1_EMBEDDING_MODEL)
-    train_vectors = np.asarray(embedder.encode(development_texts, kind="passage"), dtype=np.float64)
-    test_vectors = np.asarray(embedder.encode(holdout_texts, kind="passage"), dtype=np.float64)
+    train_vectors = np.asarray(
+        embedder.encode(development_texts, kind="passage"),
+        dtype=np.float64,
+    )
+    test_vectors = np.asarray(
+        embedder.encode(holdout_texts, kind="passage"),
+        dtype=np.float64,
+    )
 
-    model = LogisticRegression(C=1.0, class_weight="balanced", max_iter=4000, solver="liblinear", random_state=RC1_RANDOM_STATE)
+    model = LogisticRegression(
+        C=1.0,
+        class_weight="balanced",
+        max_iter=4000,
+        solver="liblinear",
+        random_state=RC1_RANDOM_STATE,
+    )
     model.fit(train_vectors, y_train)
     probabilities = model.predict_proba(test_vectors)[:, 1]
 
@@ -108,25 +136,34 @@ def main() -> int:
     predicted = (probabilities >= RC1_THRESHOLD) & (~rejected)
 
     result = _metrics(holdout_codes, y_test, predicted)
-    result.update({
-        "schema_version": "engine-v2-rc1-final-holdout-result-v1",
-        "candidate_id": RC1_CANDIDATE_ID,
-        "threshold": RC1_THRESHOLD,
-        "embedding_model": embedder.model_name,
-        "development_sample_canonical_sha256": development_labels["sample_canonical_sha256"],
-        "holdout_canonical_sha256": holdout_labels["holdout_canonical_sha256"],
-        "holdout_positive_cases": int(np.sum(y_test == 1)),
-        "holdout_negative_cases": int(np.sum(y_test == 0)),
-        "holdout_ambiguous_cases_excluded": len(holdout_ambiguous),
-        "noise_gate_rejected_total": int(np.sum(rejected)),
-        "noise_gate_rejected_positives": int(np.sum(rejected & (y_test == 1))),
-        "noise_gate_rejected_negatives": int(np.sum(rejected & (y_test == 0))),
-        "pass_recall_0_95": float(result["recall"]) >= 0.95,
-        "pass_precision_0_95": float(result["precision"]) >= 0.95,
-        "final_gate_pass": float(result["recall"]) >= 0.95 and float(result["precision"]) >= 0.95,
-    })
+    result.update(
+        {
+            "schema_version": "engine-v2-rc1-final-holdout-result-v1",
+            "candidate_id": RC1_CANDIDATE_ID,
+            "threshold": RC1_THRESHOLD,
+            "embedding_model": embedder.model_name,
+            "development_sample_canonical_sha256": development_labels[
+                "sample_canonical_sha256"
+            ],
+            "holdout_canonical_sha256": holdout_labels["holdout_canonical_sha256"],
+            "holdout_positive_cases": int(np.sum(y_test == 1)),
+            "holdout_negative_cases": int(np.sum(y_test == 0)),
+            "holdout_ambiguous_cases_excluded": len(holdout_ambiguous),
+            "noise_gate_rejected_total": int(np.sum(rejected)),
+            "noise_gate_rejected_positives": int(np.sum(rejected & (y_test == 1))),
+            "noise_gate_rejected_negatives": int(np.sum(rejected & (y_test == 0))),
+            "pass_recall_0_95": float(result["recall"]) >= 0.95,
+            "pass_precision_0_95": float(result["precision"]) >= 0.95,
+            "final_gate_pass": (
+                float(result["recall"]) >= 0.95 and float(result["precision"]) >= 0.95
+            ),
+        }
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    args.output.write_text(
+        json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     print(f"ENGINE_V2_FINAL_RECALL={result['recall']}")
     print(f"ENGINE_V2_FINAL_PRECISION={result['precision']}")
