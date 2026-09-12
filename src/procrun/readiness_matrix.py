@@ -1,4 +1,4 @@
-"""Source-linked readiness matrix with no eligibility verdicts."""
+"""Source-linked readiness matrix with no qualification verdicts."""
 
 from __future__ import annotations
 
@@ -26,7 +26,6 @@ class MechanicalResultCode(StrEnum):
 class AdvisorConfirmation:
     requirement_id: str
     state: AdvisorState
-    note: str | None = None
 
 
 def _field_for(kind: RequirementKind) -> str | None:
@@ -104,9 +103,7 @@ def build_readiness_matrix(
             },
             "mechanical_comparison": _mechanical_result(requirement, project_inputs),
             "advisor_confirmation": (
-                None
-                if confirmation is None
-                else {"state": confirmation.state.value, "note": confirmation.note}
+                None if confirmation is None else {"state": confirmation.state.value}
             ),
         }
         rows.append(row)
