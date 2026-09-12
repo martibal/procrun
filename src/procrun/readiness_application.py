@@ -18,6 +18,7 @@ from procrun.readiness_persistence import (
     load_latest_source_package,
 )
 from procrun.readiness_service import PreviewRequest, PreviewResponse, create_paid_dossier, preview
+from procrun.readiness_snapshot_provenance import load_snapshot_source_binding
 from procrun.readiness_source import SourcePackageState, package_manifest, package_sha256
 
 
@@ -50,6 +51,19 @@ def preview_by_bando(
     )
 
 
+def _snapshot_context(
+    conn: Connection[Any], snapshot_id: str
+) -> tuple[str, str, dict[str, object]]:
+    snapshot = load_benchmark_snapshot_metadata(conn, snapshot_id)
+    if snapshot is None:
+        raise ReadinessNotFoundError(f"unknown benchmark snapshot {snapshot_id}")
+    source_binding = load_snapshot_source_binding(conn, snapshot_id)
+    if source_binding is None:
+        raise DossierBlockedError("benchmark snapshot source provenance is missing")
+    data_through, snapshot_sha256 = snapshot
+    return data_through, snapshot_sha256, source_binding
+
+
 def unlock_paid_analysis(
     conn: Connection[Any],
     *,
@@ -67,10 +81,9 @@ def unlock_paid_analysis(
     state = package.state_at(as_of, invalidated_at=invalidated_at)
     if state is not SourcePackageState.FRESH:
         raise DossierBlockedError(f"paid analysis unavailable: source package state is {state.value}")
-    snapshot = load_benchmark_snapshot_metadata(conn, benchmark_snapshot_id)
-    if snapshot is None:
-        raise ReadinessNotFoundError(f"unknown benchmark snapshot {benchmark_snapshot_id}")
-    data_through, snapshot_sha256 = snapshot
+    data_through, snapshot_sha256, source_binding = _snapshot_context(
+        conn, benchmark_snapshot_id
+    )
     observations = load_benchmark_observations(
         conn,
         snapshot_id=benchmark_snapshot_id,
@@ -99,6 +112,7 @@ def unlock_paid_analysis(
             "snapshot_id": benchmark_snapshot_id,
             "data_through": data_through,
             "snapshot_sha256": snapshot_sha256,
+            "source_binding": source_binding,
             "analysis": compute_historical_dimensioning(
                 observations,
                 proposed_funding_eur=proposed_funding_eur,
@@ -124,10 +138,9 @@ def create_and_persist_dossier(
     package = load_latest_source_package(conn, bando_code)
     if package is None:
         raise ReadinessNotFoundError(f"no source package for bando {bando_code}")
-    snapshot = load_benchmark_snapshot_metadata(conn, benchmark_snapshot_id)
-    if snapshot is None:
-        raise ReadinessNotFoundError(f"unknown benchmark snapshot {benchmark_snapshot_id}")
-    data_through, snapshot_sha256 = snapshot
+    data_through, snapshot_sha256, source_binding = _snapshot_context(
+        conn, benchmark_snapshot_id
+    )
     observations = load_benchmark_observations(
         conn,
         snapshot_id=benchmark_snapshot_id,
@@ -142,6 +155,7 @@ def create_and_persist_dossier(
         benchmark_snapshot_id=benchmark_snapshot_id,
         benchmark_data_through=data_through,
         benchmark_snapshot_sha256=snapshot_sha256,
+        benchmark_source_binding=source_binding,
         observations=observations,
         proposed_funding_eur=proposed_funding_eur,
         proposed_duration_months=proposed_duration_months,
