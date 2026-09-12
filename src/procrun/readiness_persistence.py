@@ -18,7 +18,6 @@ from procrun.readiness_source import (
     SourcePackage,
 )
 
-
 MIGRATION_SQL = r"""
 CREATE SCHEMA IF NOT EXISTS procrun_readiness;
 
