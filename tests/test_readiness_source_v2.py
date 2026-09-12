@@ -33,6 +33,7 @@ def _package(*, complete: bool = True) -> SourcePackage:
     return SourcePackage(
         source_package_id="pkg-1",
         bando_code="BANDO-X",
+        benchmark_cohort_id="SAME_BANDO:BANDO-X",
         version=1,
         verified_at=observed,
         documents=(document,),
@@ -60,5 +61,7 @@ def test_invalidation_overrides_ttl_and_incomplete_fails_closed() -> None:
     assert _package(complete=False).state_at(package.verified_at) is SourcePackageState.INCOMPLETE
 
 
-def test_package_hash_is_deterministic() -> None:
-    assert package_sha256(_package()) == package_sha256(_package())
+def test_package_hash_is_deterministic_and_binds_cohort() -> None:
+    package = _package()
+    assert package_sha256(package) == package_sha256(_package())
+    assert package.benchmark_cohort_id == "SAME_BANDO:BANDO-X"
