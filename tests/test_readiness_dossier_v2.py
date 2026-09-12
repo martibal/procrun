@@ -1,11 +1,22 @@
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
 from procrun.readiness_benchmark import BenchmarkObservation
-from procrun.readiness_dossier import DossierBlockedError, DossierBuildInput, build_dossier, verify_dossier
+from procrun.readiness_dossier import (
+    DossierBlockedError,
+    DossierBuildInput,
+    build_dossier,
+    verify_dossier,
+)
 from procrun.readiness_matrix import AdvisorConfirmation, AdvisorState
-from procrun.readiness_source import PublishedRequirement, RequirementKind, SourceDocument, SourcePackage
+from procrun.readiness_source import (
+    PublishedRequirement,
+    RequirementKind,
+    SourceDocument,
+    SourcePackage,
+)
 
 
 def _package() -> SourcePackage:
@@ -59,6 +70,13 @@ def _input(created_at: datetime) -> DossierBuildInput:
         benchmark_snapshot_id="snapshot-1",
         benchmark_data_through="2026-09-10",
         benchmark_snapshot_sha256="d" * 64,
+        benchmark_source_binding={
+            "funding_source_id": "opencoesione-2021-2027",
+            "funding_source_sha256": "a" * 64,
+            "cohort_source_id": "lombardia-structured",
+            "cohort_source_sha256": "b" * 64,
+            "cohort_membership_semantics": "Exact structured membership only.",
+        },
         observations=observations,
         proposed_funding_eur=250_000,
         proposed_duration_months=12,
@@ -76,8 +94,13 @@ def test_dossier_binds_source_snapshot_and_is_byte_verifiable() -> None:
     created = _package().verified_at + timedelta(days=1)
     payload, canonical, digest = build_dossier(_input(created))
     assert payload["source_package"]["source_package_id"] == "pkg-1"
-    assert payload["source_package"]["manifest"]["benchmark_cohort_id"] == "SAME_BANDO:BANDO-X"
-    assert payload["historical_dimensioning"]["snapshot_id"] == "snapshot-1"
+    assert (
+        payload["source_package"]["manifest"]["benchmark_cohort_id"]
+        == "SAME_BANDO:BANDO-X"
+    )
+    historical = payload["historical_dimensioning"]
+    assert historical["snapshot_id"] == "snapshot-1"
+    assert historical["source_binding"]["cohort_source_id"] == "lombardia-structured"
     assert len(digest) == 64
     verify_dossier(payload, canonical, digest)
 
@@ -88,15 +111,23 @@ def test_stale_or_invalidated_source_package_blocks_paid_dossier() -> None:
         build_dossier(_input(stale))
 
     current = _package().verified_at + timedelta(days=1)
-    value = _input(current)
-    invalidated = DossierBuildInput(**{**value.__dict__, "invalidated_at": current - timedelta(minutes=1)})
+    invalidated = replace(
+        _input(current),
+        invalidated_at=current - timedelta(minutes=1),
+    )
     with pytest.raises(DossierBlockedError, match="INVALIDATED"):
         build_dossier(invalidated)
 
 
 def test_paid_dossier_requires_trusted_purchase_reference() -> None:
     current = _package().verified_at + timedelta(days=1)
-    value = _input(current)
-    unpaid = DossierBuildInput(**{**value.__dict__, "purchase_reference": ""})
+    unpaid = replace(_input(current), purchase_reference="")
     with pytest.raises(DossierBlockedError, match="purchase reference"):
         build_dossier(unpaid)
+
+
+def test_missing_benchmark_source_binding_blocks_dossier() -> None:
+    current = _package().verified_at + timedelta(days=1)
+    missing = replace(_input(current), benchmark_source_binding={})
+    with pytest.raises(DossierBlockedError, match="source binding is incomplete"):
+        build_dossier(missing)
