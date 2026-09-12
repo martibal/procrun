@@ -1,4 +1,7 @@
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+
+import pytest
 
 from procrun.readiness_source import (
     PublishedRequirement,
@@ -6,20 +9,33 @@ from procrun.readiness_source import (
     SourceDocument,
     SourcePackage,
     SourcePackageState,
+    SourceReuseMode,
+    package_manifest,
     package_sha256,
 )
 
 
-def _package(*, complete: bool = True) -> SourcePackage:
+def _document(
+    *,
+    reuse_mode: SourceReuseMode = SourceReuseMode.COMMERCIAL_REUSE_CONFIRMED,
+) -> SourceDocument:
     observed = datetime(2026, 9, 1, 8, tzinfo=UTC)
-    document = SourceDocument(
+    return SourceDocument(
         document_id="bando",
         document_type="BANDO",
         title="Official bando",
         public_url="https://example.invalid/bando",
         sha256="a" * 64,
         observed_at=observed,
+        reuse_mode=reuse_mode,
+        reuse_basis_url="https://example.invalid/public-reuse-policy",
+        reuse_basis_note="Public test fixture basis for the declared reuse mode.",
     )
+
+
+def _package(*, complete: bool = True) -> SourcePackage:
+    observed = datetime(2026, 9, 1, 8, tzinfo=UTC)
+    document = _document()
     requirement = PublishedRequirement(
         requirement_id="min-funding",
         kind=RequirementKind.MINIMUM_EUR,
@@ -61,7 +77,37 @@ def test_invalidation_overrides_ttl_and_incomplete_fails_closed() -> None:
     assert _package(complete=False).state_at(package.verified_at) is SourcePackageState.INCOMPLETE
 
 
-def test_package_hash_is_deterministic_and_binds_cohort() -> None:
+def test_package_hash_is_deterministic_and_binds_cohort_and_reuse_basis() -> None:
     package = _package()
     assert package_sha256(package) == package_sha256(_package())
     assert package.benchmark_cohort_id == "SAME_BANDO:BANDO-X"
+    document = package_manifest(package)["documents"][0]
+    assert document["reuse_mode"] == "COMMERCIAL_REUSE_CONFIRMED"
+    assert document["reuse_basis_url"] == "https://example.invalid/public-reuse-policy"
+
+
+def test_source_document_requires_public_reuse_basis() -> None:
+    with pytest.raises(ValueError, match="public basis URL and note"):
+        replace(_document(), reuse_basis_url="")
+    with pytest.raises(ValueError, match="public basis URL and note"):
+        replace(_document(), reuse_basis_note="")
+
+
+def test_blocked_document_cannot_enter_source_package() -> None:
+    package = _package()
+    blocked = replace(_document(), reuse_mode=SourceReuseMode.BLOCKED)
+    with pytest.raises(ValueError, match="blocked source documents"):
+        replace(package, documents=(blocked,))
+
+
+def test_fact_extraction_only_cannot_republish_source_wording() -> None:
+    package = _package()
+    fact_only = replace(_document(), reuse_mode=SourceReuseMode.FACT_EXTRACTION_ONLY)
+    with pytest.raises(ValueError, match="cannot carry source_text"):
+        replace(package, documents=(fact_only,))
+
+    fact_requirement = replace(package.requirements[0], source_text="")
+    allowed = replace(package, documents=(fact_only,), requirements=(fact_requirement,))
+    manifest = package_manifest(allowed)
+    assert manifest["documents"][0]["reuse_mode"] == "FACT_EXTRACTION_ONLY"
+    assert manifest["requirements"][0]["source_text"] == ""

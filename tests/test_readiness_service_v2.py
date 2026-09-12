@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from procrun.readiness_benchmark import BenchmarkObservation
 from procrun.readiness_service import PreviewRequest, preview
-from procrun.readiness_source import SourceDocument, SourcePackage
+from procrun.readiness_source import SourceDocument, SourcePackage, SourceReuseMode
 
 
 def _package() -> SourcePackage:
@@ -21,6 +21,9 @@ def _package() -> SourcePackage:
                 public_url="https://example.invalid/bando",
                 sha256="e" * 64,
                 observed_at=verified,
+                reuse_mode=SourceReuseMode.COMMERCIAL_REUSE_CONFIRMED,
+                reuse_basis_url="https://example.invalid/public-reuse-policy",
+                reuse_basis_note="Public test fixture licence permits commercial reuse.",
             ),
         ),
         requirements=(),

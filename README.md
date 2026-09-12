@@ -13,6 +13,22 @@ telefon, intervju, betalt konsulent-/juristvurdering rettet mot en kildeeier, el
 menneske må svare før arbeidet kan fortsette. Hvis en fremtidig kildevurdering lander på at kontakt er
 neste vei til godkjenning, er konklusjonen **avvis kilden**, ikke **send en henvendelse**.
 
+## Permanent public-source reuse rule
+
+**Offentlig tilgjengelig er ikke i seg selv tilstrekkelig. Den konkrete kommersielle bruken ProcRun gjør
+av en produksjonskilde skal alltid kunne begrunnes utelukkende fra offentlig, uavhengig inspiserbart
+regelverk, lisens-/vilkårssider eller offisiell kildemetadata. Individuell tillatelse, ekstern juridisk
+godkjenning eller annen menneskelig vurdering er aldri en produksjonsavhengighet eller fallback.**
+
+Hvis kommersiell republisering ikke kan dokumenteres offentlig, skal ProcRun enten begrense bruken til
+strukturerte fakta/metadata, kildehenvisning og offisiell lenke uten å republisere beskyttet uttrykksform,
+eller avvise kilden. Stillhet og uklarhet er aldri tillatelse.
+
+Canonical governance: `docs/SOURCE_REUSE_GOVERNANCE.md`.
+Readiness source packages enforce this through `COMMERCIAL_REUSE_CONFIRMED`,
+`FACT_EXTRACTION_ONLY` and `BLOCKED`; reuse state and public basis are hash-bound into each immutable
+source-package manifest.
+
 # ProcRun
 
 ProcRun is an evidence-first infrastructure procurement product for suppliers.

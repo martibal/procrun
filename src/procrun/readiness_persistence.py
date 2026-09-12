@@ -16,6 +16,7 @@ from procrun.readiness_source import (
     RequirementKind,
     SourceDocument,
     SourcePackage,
+    SourceReuseMode,
 )
 
 MIGRATION_SQL = r"""
@@ -275,6 +276,9 @@ def _source_package_from_manifest(manifest: dict[str, Any]) -> SourcePackage:
             public_url=str(item["public_url"]),
             sha256=str(item["sha256"]),
             observed_at=datetime.fromisoformat(str(item["observed_at"])),
+            reuse_mode=SourceReuseMode(str(item["reuse_mode"])),
+            reuse_basis_url=str(item["reuse_basis_url"]),
+            reuse_basis_note=str(item["reuse_basis_note"]),
         )
         for item in raw_documents
         if isinstance(item, dict)

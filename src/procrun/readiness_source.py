@@ -19,6 +19,12 @@ class SourcePackageState(StrEnum):
     INCOMPLETE = "INCOMPLETE"
 
 
+class SourceReuseMode(StrEnum):
+    COMMERCIAL_REUSE_CONFIRMED = "COMMERCIAL_REUSE_CONFIRMED"
+    FACT_EXTRACTION_ONLY = "FACT_EXTRACTION_ONLY"
+    BLOCKED = "BLOCKED"
+
+
 class RequirementKind(StrEnum):
     REFERENCE = "REFERENCE"
     MINIMUM_EUR = "MINIMUM_EUR"
@@ -37,6 +43,9 @@ class SourceDocument:
     public_url: str
     sha256: str
     observed_at: datetime
+    reuse_mode: SourceReuseMode
+    reuse_basis_url: str
+    reuse_basis_note: str
 
     def __post_init__(self) -> None:
         if self.observed_at.tzinfo is None:
@@ -44,6 +53,8 @@ class SourceDocument:
         if len(self.sha256) != 64:
             raise ValueError("document sha256 must be 64 hex characters")
         int(self.sha256, 16)
+        if not self.reuse_basis_url.strip() or not self.reuse_basis_note.strip():
+            raise ValueError("source reuse requires a public basis URL and note")
 
 
 @dataclass(frozen=True)
@@ -97,6 +108,27 @@ class SourcePackage:
         if any(item.source_document_id not in document_ids for item in self.requirements):
             raise ValueError("every requirement must reference a document in the package")
 
+        documents_by_id = {item.document_id: item for item in self.documents}
+        blocked = [
+            item.document_id
+            for item in self.documents
+            if item.reuse_mode is SourceReuseMode.BLOCKED
+        ]
+        if blocked:
+            raise ValueError(
+                "blocked source documents cannot enter a production source package: "
+                + ", ".join(sorted(blocked))
+            )
+        for requirement in self.requirements:
+            document = documents_by_id[requirement.source_document_id]
+            if (
+                document.reuse_mode is SourceReuseMode.FACT_EXTRACTION_ONLY
+                and requirement.source_text.strip()
+            ):
+                raise ValueError(
+                    "FACT_EXTRACTION_ONLY documents cannot carry source_text into a paid package"
+                )
+
     @property
     def refresh_due_at(self) -> datetime:
         return self.verified_at.astimezone(UTC) + timedelta(days=SOURCE_PACKAGE_TTL_DAYS)
@@ -131,6 +163,9 @@ def package_manifest(package: SourcePackage) -> dict[str, object]:
                 "public_url": item.public_url,
                 "sha256": item.sha256,
                 "observed_at": item.observed_at.astimezone(UTC).isoformat(),
+                "reuse_mode": item.reuse_mode.value,
+                "reuse_basis_url": item.reuse_basis_url,
+                "reuse_basis_note": item.reuse_basis_note,
             }
             for item in package.documents
         ],
