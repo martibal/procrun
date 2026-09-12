@@ -1,6 +1,5 @@
 import procrun.eu_objective_mapping as eu_objective_mapping
 
-
 OBSERVED_COUNTS = {
     "010": 277,
     "012": 65,
