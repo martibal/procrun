@@ -6,12 +6,11 @@ one report payload. This layer contains no source retrieval and no predictive lo
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict
-from typing import Mapping
 
 from procrun.funding_benchmark import BenchmarkObservation, compute_benchmark
 from procrun.preapplication_rules import DISCLAIMER, RuleSet, evaluate_ruleset
-
 
 REPORT_SCHEMA_VERSION = "preapplication-assessment-v1"
 
@@ -56,7 +55,6 @@ def build_assessment_payload(
         proposed_duration_months=proposed_duration_months,
     )
 
-    # Percentiles are exposed as basis points in the canonical report (e.g. 8424 = 84.24%).
     results = benchmark["results"]
     assert isinstance(results, dict)
     for variable in ("funding", "duration"):
@@ -68,9 +66,11 @@ def build_assessment_payload(
             else:
                 raise TypeError("unexpected percentile type")
 
-    rule_modules = []
+    rule_modules: list[object] = []
     if ruleset is not None:
-        rule_modules = [asdict(module) for module in evaluate_ruleset(ruleset, self_reported_inputs)]
+        rule_modules = [
+            asdict(module) for module in evaluate_ruleset(ruleset, self_reported_inputs)
+        ]
 
     payload: dict[str, object] = {
         "schema_version": REPORT_SCHEMA_VERSION,
@@ -85,4 +85,7 @@ def build_assessment_payload(
         "historical_dimensioning": benchmark,
         "disclaimer": DISCLAIMER,
     }
-    return _canonical_safe(payload)  # type: ignore[return-value]
+    safe_payload = _canonical_safe(payload)
+    if not isinstance(safe_payload, dict):
+        raise TypeError("assessment payload must remain a JSON object")
+    return safe_payload
