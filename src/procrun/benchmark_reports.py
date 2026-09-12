@@ -7,7 +7,7 @@ from hashlib import sha256
 from typing import Any, Final
 from uuid import UUID, uuid4
 
-import rfc8785  # type: ignore[import-untyped]
+import rfc8785
 from psycopg import Connection
 from psycopg.types.json import Jsonb
 
