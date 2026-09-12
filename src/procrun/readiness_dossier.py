@@ -92,6 +92,23 @@ def _assert_generated_language(texts: list[str]) -> None:
             raise ValueError(f"forbidden ProcRun-generated phrase detected: {phrase}")
 
 
+def _generated_matrix_texts(matrix: dict[str, object]) -> list[str]:
+    completion = matrix.get("completion")
+    rows = matrix.get("rows")
+    if not isinstance(completion, dict) or not isinstance(rows, list):
+        raise TypeError("readiness matrix has an invalid structure")
+    texts = [str(completion.get("language", ""))]
+    for row in rows:
+        if not isinstance(row, dict):
+            raise TypeError("readiness matrix row must be an object")
+        mechanical = row.get("mechanical_comparison")
+        if isinstance(mechanical, dict):
+            statement = mechanical.get("statement")
+            if isinstance(statement, str):
+                texts.append(statement)
+    return texts
+
+
 def build_dossier(input_data: DossierBuildInput) -> tuple[dict[str, object], bytes, str]:
     if input_data.created_at.tzinfo is None:
         raise ValueError("created_at must be timezone-aware")
@@ -150,11 +167,7 @@ def build_dossier(input_data: DossierBuildInput) -> tuple[dict[str, object], byt
         ),
     }
 
-    generated_texts = [str(matrix["completion"]["language"])]
-    for row in matrix["rows"]:
-        mechanical = row.get("mechanical_comparison")
-        if isinstance(mechanical, dict) and isinstance(mechanical.get("statement"), str):
-            generated_texts.append(mechanical["statement"])
+    generated_texts = _generated_matrix_texts(matrix)
     generated_texts.append(str(benchmark["language_contract"]))
     generated_texts.extend(epistemic_contract.values())
     _assert_generated_language(generated_texts)
