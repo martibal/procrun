@@ -66,13 +66,16 @@ def _count(http: httpx.Client, item: CountQuery) -> int:
         "query": item.query,
         "fields": list(FIELD_PROJECTION),
         "limit": 1,
-        "page": 1,
         "scope": "ALL",
-        "checkQuerySyntax": True,
-        "paginationMode": "PAGE_NUMBER",
+        "checkQuerySyntax": False,
+        "paginationMode": "ITERATION",
     }
     response = http.post(TED_SEARCH_URL, json=payload)
-    response.raise_for_status()
+    if response.status_code >= 400:
+        error_text = response.text.replace("\n", " ")[:500]
+        raise RuntimeError(
+            f"TED {item.key} count query failed: HTTP {response.status_code}: {error_text}"
+        )
     body = response.json()
     if not isinstance(body, dict):
         raise RuntimeError(f"TED {item.key} response is not an object")
