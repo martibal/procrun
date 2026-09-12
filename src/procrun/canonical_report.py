@@ -11,7 +11,6 @@ from __future__ import annotations
 import hashlib
 import json
 
-
 CANONICALIZATION_VERSION = "rfc8785-restricted-v1"
 
 
