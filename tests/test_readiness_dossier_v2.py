@@ -21,6 +21,7 @@ def _package() -> SourcePackage:
     return SourcePackage(
         source_package_id="pkg-1",
         bando_code="BANDO-X",
+        benchmark_cohort_id="SAME_BANDO:BANDO-X",
         version=1,
         verified_at=verified,
         documents=(document,),
@@ -75,6 +76,7 @@ def test_dossier_binds_source_snapshot_and_is_byte_verifiable() -> None:
     created = _package().verified_at + timedelta(days=1)
     payload, canonical, digest = build_dossier(_input(created))
     assert payload["source_package"]["source_package_id"] == "pkg-1"
+    assert payload["source_package"]["manifest"]["benchmark_cohort_id"] == "SAME_BANDO:BANDO-X"
     assert payload["historical_dimensioning"]["snapshot_id"] == "snapshot-1"
     assert len(digest) == 64
     verify_dossier(payload, canonical, digest)
