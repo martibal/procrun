@@ -25,7 +25,10 @@ function statusCopy(item: ProductionProjectComponent): string {
   if (item.state === "OPEN") {
     return `No relevant procurement found in TED as of ${item.cutoffDate}.`;
   }
-  return `Relevant procurement evidence was found in TED as of ${item.cutoffDate}.`;
+  if (item.state === "CLOSED") {
+    return `Relevant procurement evidence was found in TED as of ${item.cutoffDate}.`;
+  }
+  return "Evidence remains insufficient for a safe OPEN/CLOSED conclusion.";
 }
 
 function NeedRow({ item }: { item: ProductionProjectComponent }) {
@@ -75,7 +78,8 @@ export default async function ProjectPage({
 
   const openComponents = project.components.filter((item) => item.state === "OPEN");
   const closedComponents = project.components.filter((item) => item.state === "CLOSED");
-  const withheldCount = project.components.filter((item) => item.state === "UNRESOLVED").length;
+  const unresolvedComponents = project.components.filter((item) => item.state === "UNRESOLVED");
+  const withheldCount = unresolvedComponents.length;
   const remainingReported = project.approvedFundingEur !== null && project.executedFundingEur !== null
     ? project.approvedFundingEur - project.executedFundingEur
     : null;
@@ -161,12 +165,38 @@ export default async function ProjectPage({
 
     {withheldCount > 0 ? (
       <section className={styles.coverageSection}>
-        <p className={styles.sectionLabel}>ProcRun verification status</p>
+        <p className={styles.sectionLabel}>Withheld candidate needs</p>
+        <h2>Why these rows remain UNRESOLVED</h2>
         <p>
-          ProcRun is withholding {withheldCount} additional candidate purchasing need{withheldCount === 1 ? "" : "s"} from customer results because the current evidence is not sufficient to classify them safely as OPEN or CLOSED.
+          ProcRun is withholding {withheldCount} candidate purchasing need{withheldCount === 1 ? "" : "s"} from the standard opportunity feed because the procurement evidence is not sufficient to classify them safely as OPEN or CLOSED.
         </p>
         <p className={styles.coverageClarification}>
-          These are not presented as opportunities and do not require customer investigation. They will appear only if ProcRun resolves them.
+          The project-source text below is shown verbatim from the admitted evidence used to identify each candidate need. It is not a generated explanation or a reason code.
+        </p>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Candidate need</th>
+              <th>State</th>
+              <th>Why unresolved</th>
+              <th>Project source text</th>
+              <th>Assessment cutoff</th>
+            </tr>
+          </thead>
+          <tbody>
+            {unresolvedComponents.map((item) => (
+              <tr key={item.componentId}>
+                <td>{item.description}</td>
+                <td><span className="pill unresolved">UNRESOLVED</span></td>
+                <td>Evidence is insufficient for a safe OPEN/CLOSED conclusion.</td>
+                <td><span className="evidence">{item.scopeEvidence}</span></td>
+                <td>{item.cutoffDate}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className={styles.coverageClarification}>
+          These rows are visible for transparency only. They are not presented as active opportunities and do not require customer investigation.
         </p>
       </section>
     ) : null}
