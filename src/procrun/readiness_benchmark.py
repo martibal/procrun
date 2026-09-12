@@ -170,11 +170,11 @@ def compute_historical_dimensioning(
         _, _, user_duration_bps = _ecdf(duration_tuple, proposed_duration_months)
         for item in prepared:
             funding = item["approved_funding_eur"]
-            duration = item["duration_months"]
-            if not isinstance(funding, int) or not isinstance(duration, int):
+            item_duration = item["duration_months"]
+            if not isinstance(funding, int) or not isinstance(item_duration, int):
                 continue
             _, _, f_bps = _ecdf(funding_tuple, funding)
-            _, _, d_bps = _ecdf(duration_tuple, duration)
+            _, _, d_bps = _ecdf(duration_tuple, item_duration)
             weighted_distance = (
                 7 * abs(f_bps - user_funding_bps)
                 + 3 * abs(d_bps - user_duration_bps)
@@ -183,7 +183,7 @@ def compute_historical_dimensioning(
                 (
                     weighted_distance,
                     abs(funding - proposed_funding_eur),
-                    abs(duration - proposed_duration_months),
+                    abs(item_duration - proposed_duration_months),
                     str(item["operation_code"]),
                     item,
                 )
