@@ -34,11 +34,24 @@ _MEDIA_NOISE = re.compile(
     r"\b(opera audiovisiva|archivio|campagna di comunicazione)\b",
     re.IGNORECASE,
 )
+_GENERIC_STRATEGY_NOISE = re.compile(
+    r"\b(sviluppo competitivo|progetto di innovazione tecnologica e ambientale|"
+    r"strategie? di crescita|posizionamento|innovativo hotel|"
+    r"competenze digitali e sostenibilit(?:à)? per l'innovazione)\b",
+    re.IGNORECASE,
+)
+_RND_STUDY_NOISE = re.compile(
+    r"\b(studio e sviluppo|innovazioni? per l.incremento|"
+    r"dispositivo(?:,| di| per)|procedimento|sistema di interconnessione|"
+    r"nuovi sistemi di illuminazione|attrezzatura per la somministrazione)\b",
+    re.IGNORECASE,
+)
 _POSITIVE_ANCHOR = re.compile(
     r"\b(fornitura|acquisto|installazione|posa|sostituzione|riqualificazione|ristrutturazione|"
     r"efficientamento|automazione|digitalizzazione|assistenza tecnica|climatizzazione|"
     r"fotovoltaic|compressore|impianto|piattaforma cloud|sistema mes|integrazione dati|"
-    r"progetto esecutivo|case mobili|infrastruttura tecnologica|risparmio energetico)\b",
+    r"progetto esecutivo|case mobili|infrastruttura tecnologica|risparmio energetico|"
+    r"ai generativa|intelligenza artificiale|trasformazione aziendale)\b",
     re.IGNORECASE,
 )
 
@@ -57,6 +70,8 @@ def _noise_reject(text: str) -> bool:
     if _FAIR_NOISE.search(normalized) or _PROMO_NOISE.search(normalized):
         return True
     if _RND_PRODUCT_NOISE.search(normalized) or _MEDIA_NOISE.search(normalized):
+        return True
+    if _GENERIC_STRATEGY_NOISE.search(normalized) or _RND_STUDY_NOISE.search(normalized):
         return True
     if normalized.casefold() in {"nuova domanda", "000000"}:
         return True
@@ -178,7 +193,7 @@ def main() -> int:
     gated[rejected] = -1.0
 
     report = {
-        "schema_version": "engine-v2-relevance-gate-oof-v2",
+        "schema_version": "engine-v2-relevance-gate-oof-v3",
         "evaluation": "5-fold stratified OOF; ambiguous excluded; deterministic noise gate post-score",
         "sample_canonical_sha256": labels["sample_canonical_sha256"],
         "embedding_model": embedder.model_name,
