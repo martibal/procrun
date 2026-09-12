@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-import hashlib
-import json
 
 SOURCE_PACKAGE_TTL_DAYS = 7
 SOURCE_PACKAGE_SCHEMA_VERSION = "readiness-source-package-v2"
@@ -74,6 +74,7 @@ class PublishedRequirement:
 class SourcePackage:
     source_package_id: str
     bando_code: str
+    benchmark_cohort_id: str
     version: int
     verified_at: datetime
     documents: tuple[SourceDocument, ...]
@@ -85,6 +86,8 @@ class SourcePackage:
             raise ValueError("verified_at must be timezone-aware")
         if self.version < 1:
             raise ValueError("version must be >= 1")
+        if not self.benchmark_cohort_id.strip():
+            raise ValueError("benchmark_cohort_id is required")
         document_ids = {item.document_id for item in self.documents}
         if len(document_ids) != len(self.documents):
             raise ValueError("duplicate source document ids")
@@ -115,6 +118,7 @@ def package_manifest(package: SourcePackage) -> dict[str, object]:
         "schema_version": SOURCE_PACKAGE_SCHEMA_VERSION,
         "source_package_id": package.source_package_id,
         "bando_code": package.bando_code,
+        "benchmark_cohort_id": package.benchmark_cohort_id,
         "version": package.version,
         "verified_at": package.verified_at.astimezone(UTC).isoformat(),
         "refresh_due_at": package.refresh_due_at.isoformat(),
