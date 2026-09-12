@@ -70,7 +70,12 @@ def main() -> int:
         else:
             safe_row_by_cup[cup] = rows[0]
 
+    candidate_project_ids: dict[str, set[str]] = {name: set() for name in CANDIDATE_RULES}
     candidate_cups: dict[str, set[str]] = {name: set() for name in CANDIDATE_RULES}
+    candidate_projects_by_cup: dict[str, dict[str, set[str]]] = {
+        name: defaultdict(set) for name in CANDIDATE_RULES
+    }
+
     for project in projects:
         cup = cup_by_operation_id.get(project.operation_code)
         if cup is None or cup in conflicting_cups:
@@ -82,13 +87,16 @@ def main() -> int:
         action = _action(row.get("azione"))
         for name, rule in CANDIDATE_RULES.items():
             if code == rule["intervention_code"] and action == rule["azione"]:
+                candidate_project_ids[name].add(project.operation_code)
                 candidate_cups[name].add(cup)
+                candidate_projects_by_cup[name][cup].add(project.operation_code)
 
     for name, rule in CANDIDATE_RULES.items():
         expected = int(rule["expected_projects"])
-        if len(candidate_cups[name]) != expected:
+        actual = len(candidate_project_ids[name])
+        if actual != expected:
             raise RuntimeError(
-                f"candidate CUP cohort drift for {name}: expected={expected}, actual={len(candidate_cups[name])}"
+                f"candidate project cohort drift for {name}: expected={expected}, actual={actual}"
             )
 
     ted = collect_complete_ted_italy(FROZEN_TED_CUTOFF)
@@ -99,6 +107,9 @@ def main() -> int:
     notice_hits_by_rule: Counter[str] = Counter()
     exact_reference_notices_by_domain: Counter[str] = Counter()
     exact_reference_candidate_cups: dict[str, set[str]] = {
+        name: set() for name in CANDIDATE_RULES
+    }
+    exact_reference_candidate_projects: dict[str, set[str]] = {
         name: set() for name in CANDIDATE_RULES
     }
 
@@ -119,32 +130,52 @@ def main() -> int:
             if reference is not None and reference in candidate_cups[domain]:
                 exact_reference_notices_by_domain[domain] += 1
                 exact_reference_candidate_cups[domain].add(reference)
+                exact_reference_candidate_projects[domain].update(
+                    candidate_projects_by_cup[domain][reference]
+                )
 
     report = {
-        "schema_version": "phase-r-candidate-cpv-ted-validation-v1",
+        "schema_version": "phase-r-candidate-cpv-ted-validation-v2",
         "ted_cutoff": FROZEN_TED_CUTOFF.isoformat(),
         "ted_complete": ted.complete,
         "ted_stop_reason": ted.stop_reason,
         "ted_notice_count": len(ted.records),
         "ted_pages_fetched": ted.pages_fetched,
         "candidate_project_count_by_domain": {
+            name: len(ids) for name, ids in sorted(candidate_project_ids.items())
+        },
+        "candidate_unique_cup_count_by_domain": {
             name: len(cups) for name, cups in sorted(candidate_cups.items())
+        },
+        "candidate_duplicate_project_cup_count_by_domain": {
+            name: len(candidate_project_ids[name]) - len(candidate_cups[name])
+            for name in sorted(candidate_project_ids)
         },
         "ted_notice_hits_by_domain": dict(sorted(notice_hits_by_domain.items())),
         "ted_notice_hits_by_rule": dict(sorted(notice_hits_by_rule.items())),
         "exact_cup_reference_notices_by_domain": dict(
             sorted(exact_reference_notices_by_domain.items())
         ),
-        "candidate_projects_with_exact_cup_reference_hit_by_domain": {
+        "candidate_unique_cups_with_exact_reference_hit_by_domain": {
             name: len(cups) for name, cups in sorted(exact_reference_candidate_cups.items())
         },
+        "candidate_projects_with_exact_cup_reference_hit_by_domain": {
+            name: len(ids)
+            for name, ids in sorted(exact_reference_candidate_projects.items())
+        },
         "candidate_project_exact_reference_hit_pct_by_domain": {
-            name: round(len(exact_reference_candidate_cups[name]) / len(candidate_cups[name]) * 100, 4)
-            for name in sorted(candidate_cups)
+            name: round(
+                len(exact_reference_candidate_projects[name])
+                / len(candidate_project_ids[name])
+                * 100,
+                4,
+            )
+            for name in sorted(candidate_project_ids)
         },
         "interpretation": {
             "universe_cpv_hits_are_not_project_matches": True,
             "exact_cup_reference_hits_are_a_strict_lower_bound": True,
+            "shared_cup_can_represent_multiple_frozen_projects": True,
             "production_open_closed_changed": False,
         },
         "boundary": {
