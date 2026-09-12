@@ -8,8 +8,14 @@ import {
   type RunwayProject,
 } from "./published-data";
 
+export type TedMatchStatus =
+  | "Matched tender identified"
+  | "No matching tender identified"
+  | "Match uncertain";
+
 export type CustomerOpportunity = Opportunity & {
   interpretation: string;
+  tedStatus: TedMatchStatus;
   projectState: RunwayProject["state"];
   projectStart: string | null;
   projectEnd: string | null;
@@ -51,6 +57,12 @@ function customerInterpretation(project: RunwayProject, item: Opportunity, match
   return "A possible purchasing need was identified, but the available published evidence is not clear enough to mark it Open or Closed. Review the source wording and any linked procurement evidence.";
 }
 
+export function tedMatchStatus(item: Opportunity, matchCount: number): TedMatchStatus {
+  if (matchCount > 0) return "Matched tender identified";
+  if (item.state === "OPEN") return "No matching tender identified";
+  return "Match uncertain";
+}
+
 export function buildCustomerOpportunities(projects: readonly RunwayProject[]): CustomerOpportunity[] {
   const byProject = new Map(projects.map((project) => [project.operation_code, project]));
   const items = toOpportunities(projects);
@@ -67,6 +79,7 @@ export function buildCustomerOpportunities(projects: readonly RunwayProject[]): 
     return {
       ...item,
       interpretation: customerInterpretation(project, item, procurementMatches.length),
+      tedStatus: tedMatchStatus(item, procurementMatches.length),
       projectState: project.state,
       projectStart: project.project_start,
       projectEnd: project.project_end,

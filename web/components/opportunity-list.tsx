@@ -33,6 +33,21 @@ function sourceTextCell(item: CustomerOpportunity) {
   );
 }
 
+function tedFacts(item: CustomerOpportunity) {
+  const matches = item.procurementMatches;
+  return (
+    <>
+      <div className="small"><strong>{item.tedStatus}</strong></div>
+      {matches.map((match) => (
+        <div className="micro" key={match.evidence_id}>
+          Notice {match.notice_id} · published {match.publication_date}
+        </div>
+      ))}
+      <div className="micro">Checked against TED through {item.cutoffDate}</div>
+    </>
+  );
+}
+
 export function OpportunityList({ items }: { items: readonly CustomerOpportunity[] }) {
   return (
     <div className="opportunity-table-wrap">
@@ -41,8 +56,8 @@ export function OpportunityList({ items }: { items: readonly CustomerOpportunity
           <tr>
             <th>Project / purchasing need</th>
             <th>Published source text</th>
-            <th>What ProcRun found</th>
-            <th>Status</th>
+            <th>TED status</th>
+            <th>ProcRun interpretation — helper, not a definitive answer</th>
             <th aria-label="Open details" />
           </tr>
         </thead>
@@ -57,12 +72,9 @@ export function OpportunityList({ items }: { items: readonly CustomerOpportunity
                 {item.valueEur != null && <div className="micro">Approved funding: €{item.valueEur.toLocaleString("en-US")}</div>}
               </td>
               <td>{sourceTextCell(item)}</td>
+              <td>{tedFacts(item)}</td>
               <td>
                 <p className="small interpretation">{item.interpretation}</p>
-                {item.procurementEvidence && <p className="micro">Matching TED text: {item.procurementEvidence}</p>}
-                <p className="micro">Checked against TED through {item.cutoffDate}</p>
-              </td>
-              <td>
                 <span className={`pill ${stateClass(item.state)}`}>{item.state}</span>
               </td>
               <td className="table-action">

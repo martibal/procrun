@@ -43,13 +43,14 @@ describe("customer view", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].projectId).toBe("op-1");
     expect(rows[0].state).toBe("UNRESOLVED");
+    expect(rows[0].tedStatus).toBe("Match uncertain");
     expect(rows[0].projectEvidence).toBe("Install pumps");
     expect(rows[0].interpretation).toContain("does not identify a purchasing need clearly enough");
     expect(rows[0].interpretation).not.toContain("bounded");
     expect(rows[0].interpretation).not.toContain("frozen");
   });
 
-  it("translates OPEN state into customer-facing wording without internal rule jargon", () => {
+  it("separates OPEN interpretation from observable no-match TED status", () => {
     const rows = buildCustomerOpportunities([
       project({
         state: "OPEN",
@@ -71,7 +72,52 @@ describe("customer view", () => {
     ]);
     expect(rows).toHaveLength(1);
     expect(rows[0].componentId).toBe("cmp-1");
+    expect(rows[0].tedStatus).toBe("No matching tender identified");
     expect(rows[0].interpretation).toContain("no matching procurement notice in TED");
     expect(rows[0].interpretation).not.toContain("frozen exact-evidence rules");
+  });
+
+  it("derives matched TED status only from a structured procurement match", () => {
+    const rows = buildCustomerOpportunities([
+      project({
+        state: "CLOSED",
+        unresolved_source_evidence: [],
+        components: [
+          {
+            component_id: "cmp-1",
+            category: "water:pumps",
+            label: "Pumping systems",
+            state: "CLOSED",
+            cutoff_date: "2026-09-11",
+            project_evidence: { source_field: "project_scope_text", text: "Install pumps", start: 0, end: 13 },
+            procurement_matches: [
+              {
+                evidence_id: "ev-1",
+                notice_id: "123456-2026",
+                publication_date: "2026-08-20",
+                title: "Pump procurement",
+                source_url: "https://ted.europa.eu/example",
+                cpv_codes: ["42122000"],
+                estimated_value_eur: 250000,
+                nuts_code: "ITC4",
+                project_reference: "op-1",
+                evidence: {
+                  source_field: "title-proc",
+                  text: "Pump procurement",
+                  start: 0,
+                  end: 16,
+                },
+              },
+            ],
+            coverage_note: "Complete TED coverage",
+            state_explanation: "Matching procurement evidence found.",
+          },
+        ],
+      }),
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].tedStatus).toBe("Matched tender identified");
+    expect(rows[0].procurementMatches[0].notice_id).toBe("123456-2026");
+    expect(rows[0].procurementMatches[0].publication_date).toBe("2026-08-20");
   });
 });
