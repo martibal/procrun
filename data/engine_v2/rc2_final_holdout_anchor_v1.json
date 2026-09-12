@@ -1,0 +1,19 @@
+{
+  "schema_version": "engine-v2-rc2-final-holdout-anchor-v1",
+  "candidate_id": "engine-v2-rc2",
+  "freeze_run_id": 34691615876,
+  "artifact_id": 10296894623,
+  "artifact_digest": "sha256:f7ad0fc7c41315eb39fc5536a53bb5e4fa8a740fd9d2620fa8450fc2b4c400f0",
+  "holdout_canonical_sha256": "c1f8bfdee38f0f0b4b9f78da2bc196ad16db8af8f614b5f3fef5e558c58de758",
+  "case_count": 800,
+  "consumed_case_count": 1400,
+  "consumed_overlap_count": 0,
+  "engine_output_present": false,
+  "blind_adjudication_expected": {
+    "positive_count": 191,
+    "negative_count": 255,
+    "ambiguous_count": 354,
+    "evaluated_clear_cases": 446
+  },
+  "rule": "Final labels are derived only from source text under the frozen source-only adjudication rubric; ambiguous cases are excluded; no Engine V2 output may be used before labels are produced."
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": "engine-v2-rc2-candidate-v1",
+  "candidate_id": "engine-v2-rc2",
+  "frozen_date": "2026-09-12",
+  "source_pool_case_count": 4305,
+  "source_pool_sha256": "bddfc9698cb90c0c0c5b927819cbe8f3ab38ea467b812d834bc94703d26a6ac3",
+  "rc2_development_sample_canonical_sha256": "c1c58a1b873c3a6bf635fa3a9ded80dd2d758b53de036a265e4e4abc4724dca4",
+  "nested_benchmark_run_id": 34691114030,
+  "nested_benchmark_artifact_id": 10296719456,
+  "nested_benchmark_artifact_digest": "sha256:3beb1540ba2520ae3ffe468f0bbca0e099f8009438636e94d44b6c9fdc43c78b",
+  "nested_outer_metric": {
+    "recall": 0.958159,
+    "precision": 0.958159,
+    "f1": 0.958159,
+    "tp": 229,
+    "fp": 10,
+    "fn": 10,
+    "tn": 309
+  },
+  "model": {
+    "family": "hybrid",
+    "embedding_model": "intfloat/multilingual-e5-small",
+    "char_tfidf": {
+      "analyzer": "char_wb",
+      "ngram_range": [3, 5],
+      "min_df": 2,
+      "max_features": 20000,
+      "sublinear_tf": true,
+      "lowercase": true
+    },
+    "logistic_regression": {
+      "C": 1.0,
+      "class_weight": "balanced",
+      "max_iter": 5000,
+      "solver": "liblinear",
+      "random_state": 20260912
+    },
+    "embedding_weight": 1.0,
+    "decision_threshold": 0.569344
+  },
+  "final_gate": {
+    "minimum_recall": 0.95,
+    "minimum_precision": 0.95,
+    "both_required": true
+  },
+  "freeze_rule": "No model family, feature, label, threshold or preprocessing change is permitted after final holdout contents are opened."
+}
