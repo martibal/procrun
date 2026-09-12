@@ -1,6 +1,6 @@
 # Phase R — Regione Lombardia Socrata structured-classification gate
 
-Status: **STAGE 1 PASS — STAGE 2 PROJECTION CONTROL AUTHORIZED**
+Status: **STAGE 2 PASS — AGGREGATE CUP/COVERAGE MEASUREMENT AUTHORIZED**
 
 Reviewed: 2026-09-12
 
@@ -14,11 +14,13 @@ This gate asks one narrow question:
 
 > Can ProcRun use the Socrata API to request only a frozen safe classification allowlist, server-side, before receipt?
 
-## Public evidence already established
+## Public evidence established
 
 The official Regione Lombardia dataset page identifies dataset `q78n-g3m9`. The Socrata SODA/SoQL documentation explicitly documents server-side `SELECT` / `$select`, including selecting only a specified subset of columns. Every Socrata dataset exposes a SODA API endpoint.
 
 These facts make this route structurally different from the blocked OpenCoesione API route: a documented pre-receipt output projection mechanism exists in the platform contract.
+
+A prior A21a Lombardia/Socrata probe remains valid and blocked use of the uncontrolled project-description field `descrizione_operazione`. This Phase R route does not reopen that field. It admits only the structured allowlist below.
 
 ## Permanent constraints
 
@@ -53,9 +55,9 @@ The metadata confirmed the deterministic join key and all initially frozen safe 
 - `codice_tipologia_intervento` — `CODICE_TIPOLOGIA_INTERVENTO`;
 - `descrizione_tipologia` — `DESCRIZIONE_TIPOLOGIA_INTERVENTO`.
 
-These are source-defined intervention taxonomy fields rather than project narrative. They are therefore admitted into the Stage 2 safe allowlist before the first row-level request.
+These are source-defined intervention taxonomy fields rather than project narrative and were admitted before the first row-level request.
 
-The same metadata explicitly confirmed the presence of forbidden source fields including:
+The same metadata explicitly confirmed forbidden source fields including:
 
 - `nome_del_beneficiario`;
 - `codice_del_beneficiario`;
@@ -64,9 +66,9 @@ The same metadata explicitly confirmed the presence of forbidden source fields i
 
 Their presence is why server-side projection is mandatory.
 
-## Frozen Stage 2 safe row allowlist
+## Frozen safe row allowlist
 
-The one permitted Stage 2 control request may select only:
+The only admitted Socrata row fields are:
 
 - `cup`;
 - `priorita`;
@@ -77,28 +79,49 @@ The one permitted Stage 2 control request may select only:
 - `codice_tipologia_intervento`;
 - `descrizione_tipologia`.
 
-No other source field is permitted in the response.
+No other source field is permitted in any response.
 
-## Stage 2 control contract
+## Stage 2 result — one-row projection control
 
-Stage 2 may make exactly one bounded SODA request against dataset `q78n-g3m9` using server-side `$select` and `$limit=1`.
+Workflow `lombardia-socrata-projection`, run `34694396394`, made one bounded SODA request with server-side `$select` and `$limit=1`.
 
-The request must fail closed unless all of the following hold:
+Artifact: `lombardia-socrata-projection`  
+Artifact ID: `10297808890`  
+Artifact digest: `sha256:6aada698ef9071210f6973fffedfcc12e0ce39a4be3fd64645656b18f8f927de`
 
-1. HTTP access succeeds anonymously;
-2. at most one row is returned;
-3. every response key belongs to the frozen safe allowlist;
-4. no forbidden or unexpected key is received;
-5. the response contains `cup` and at least one structured classification field;
-6. the artifact stores only the already-approved safe projected values plus contract diagnostics.
+Observed result:
 
-A failure must not trigger a broader request, `SELECT *`, export, OData fallback or schema discovery through row data.
+- HTTP 200;
+- exactly 1 row received;
+- `server_side_select_used = true`;
+- `select_star_used = false`;
+- no beneficiary, project narrative or address fields requested;
+- response keys were exactly the eight-field safe allowlist;
+- `unexpected_keys = []`;
+- `stage2_result = PASS_PROJECTION`.
+
+The projected source row included `codice_tipologia_intervento = 21` and the controlled taxonomy label `Sviluppo dell'attività delle PMI e internazionalizzazione, compresi gli investimenti produttivi`, demonstrating that the structured intervention-type field is populated in real data without receiving any forbidden field.
+
+## Stage 3 — aggregate CUP overlap and coverage measurement
+
+Stage 2 authorizes one diagnostic over the frozen Phase R corpus. Stage 3 may:
+
+1. reproduce the exact frozen OpenCoesione source SHA-256 `35dc073ec9e5e06201080bc949a9da19dfd3366deee3524417491e2b2fd21c6a` and 4,305 logical projects;
+2. receive Regione Lombardia rows only through the same eight-field server-side `$select` allowlist;
+3. join only on exact normalized CUP;
+4. emit aggregate counts only — no row-level customer/project artifact;
+5. report CUP overlap, intervention-code coverage, conflicts/duplicates and incremental structured-signal ceiling versus the existing 133/4,305 baseline.
+
+If one CUP maps to conflicting structured classifications in the Lombardia source, that CUP must be counted as ambiguous and excluded from safe uplift rather than resolved heuristically.
+
+Stage 3 is measurement only. It must not change `INTERVENTION_FIELD_MAP`, production classification, customer output or source contracts.
 
 ## Decision rule
 
 1. Stage 1 is **PASS**.
-2. A Stage 2 pass authorizes only the next aggregate overlap/coverage diagnostic against the frozen 4,305-project corpus; it does not by itself authorize production classification changes.
-3. Any projection drift, extra field, access requirement or schema ambiguity closes the route fail-closed.
-4. If Stage 2 passes, measure deterministic CUP overlap and incremental structured coverage before changing production semantics.
+2. Stage 2 is **PASS**.
+3. Stage 3 determines whether the route can materially expand safe structured coverage on the frozen corpus.
+4. No production semantics may change until the measured intervention taxonomy has a deterministic mapping review and its isolated uplift is documented.
+5. Any projection drift, extra field, source-hash drift or CUP ambiguity fails closed.
 
 The Phase R 40% target remains unchanged and must not weaken the privacy or evidence contract.
