@@ -5,12 +5,9 @@ They support design-time coverage and specificity checks only. Importing this mo
 production extraction, matching, OPEN/CLOSED classification, read models, or customer output.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
-
 
 CANDIDATE_RULE_VERSION: Final = "phase-r-candidate-cpv-v1"
 
