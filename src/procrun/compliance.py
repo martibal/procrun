@@ -167,6 +167,17 @@ RUNTIME_DEPENDENCIES = {
         _REVIEW_DUE_ON,
         "Preserve applicable MIT notice if software is distributed.",
     ),
+    "rfc8785": DependencyLicense(
+        "rfc8785",
+        "0.1.4",
+        "Apache-2.0",
+        "https://github.com/trailofbits/rfc8785.py/blob/master/LICENSE",
+        "RFC 8785 JSON Canonicalization Scheme for immutable benchmark report hashes.",
+        True,
+        _REVIEWED_ON,
+        _REVIEW_DUE_ON,
+        "Preserve the Apache-2.0 licence and applicable notices if software is distributed.",
+    ),
     "typing-extensions": DependencyLicense(
         "typing-extensions",
         "4.16.0",
