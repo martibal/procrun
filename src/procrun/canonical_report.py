@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import object as _object  # type: ignore[attr-defined]
 
 
 CANONICALIZATION_VERSION = "rfc8785-restricted-v1"
