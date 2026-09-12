@@ -1,4 +1,4 @@
-name: engine-v2-blind-development-sample
+name: engine-v2-clean-development-benchmark
 
 on:
   pull_request:
@@ -6,13 +6,15 @@ on:
     paths:
       - 'src/procrun/evidence_retrieval_v2.py'
       - 'scripts/build_engine_v2_blind_sample.py'
+      - 'scripts/benchmark_engine_v2_clean_dev.py'
+      - 'data/engine_v2/clean_dev_labels_v1.json'
       - '.github/workflows/engine-v2-blind-development-sample.yml'
   workflow_dispatch:
 
 jobs:
-  build-blind-sample:
+  clean-dev-benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -21,18 +23,20 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - name: Install Python
-        run: python -m pip install -c requirements-runtime.lock -e '.[dev]'
+      - name: Install Python and local retrieval runtime
+        run: python -m pip install -c requirements-runtime.lock -e '.[dev,retrieval]'
       - name: Build sanctioned sanitized source pool
         run: python scripts/build_a21a_sanitized_source_pool.py --output artifacts/a21a-sanitized-source-pool.json
       - name: Validate source pool
         run: python scripts/validate_a21a_sanitized_source_pool.py --input artifacts/a21a-sanitized-source-pool.json --output artifacts/a21a-sanitized-source-ingress-report.json
-      - name: Build blind engine-v2 development sample
+      - name: Rebuild frozen blind development sample
         run: python scripts/build_engine_v2_blind_sample.py --input artifacts/a21a-sanitized-source-pool.json --output artifacts/engine-v2-blind-development-sample.json --size 200
+      - name: Run Engine V2 clean development benchmark
+        run: python scripts/benchmark_engine_v2_clean_dev.py --sample artifacts/engine-v2-blind-development-sample.json --labels data/engine_v2/clean_dev_labels_v1.json --output artifacts/engine-v2-clean-dev-benchmark.json
       - uses: actions/upload-artifact@v4
         with:
-          name: engine-v2-blind-development-sample
+          name: engine-v2-clean-development-benchmark
           path: |
-            artifacts/engine-v2-blind-development-sample.json
             artifacts/a21a-sanitized-source-ingress-report.json
+            artifacts/engine-v2-clean-dev-benchmark.json
           retention-days: 30
