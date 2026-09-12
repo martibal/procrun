@@ -20,8 +20,10 @@ Customer-facing ProcRun-generated output must not:
 - claim that ProcRun has approved, assessed or certified DNSH, PMI consolidation, ATECO interpretation or another discretionary/professional requirement;
 - provide an approval probability, funding recommendation or proof of formal cost congruity.
 
-Verbatim public-source text is evidence and is not rewritten merely because an official document uses
-one of these terms. Source quotation and ProcRun conclusion must remain visibly separate.
+Verbatim public-source text may be reproduced only when the source document is explicitly classified
+`COMMERCIAL_REUSE_CONFIRMED` under the public-source reuse governance. Official wording that may not
+be commercially republished remains at the official source; ProcRun exposes only the permitted
+structured fact, citation and link.
 
 ## Invariants
 
@@ -50,7 +52,13 @@ inside the window.
 
 Each package contains the official bando source set used for the matrix: relevant bando, allegati,
 known rectifications and relevant official FAQs as applicable. Every published requirement references
-an exact document and citation and preserves the source wording needed to audit the extraction.
+an exact document and citation.
+
+Source wording is preserved in the paid source package only when that document is
+`COMMERCIAL_REUSE_CONFIRMED`. For a `FACT_EXTRACTION_ONLY` document, the paid source package stores
+structured facts, the exact citation and official URL but `source_text` must be empty. The document
+hash may still bind which public document was inspected without commercially republishing its
+protected expression.
 
 ### RD-5 — Mechanical checks are narrow factual comparisons
 
@@ -119,6 +127,31 @@ A paid dossier binds:
 Dossiers, source packages, invalidation events, benchmark snapshots and cohort memberships are
 append-only.
 
+### RD-12 — Publicly documented commercial-use basis is mandatory
+
+No production source may depend on an individual permission, source-owner response, external legal
+opinion, registration approval, negotiated licence or any other human/external approval. The intended
+commercial use must be supportable solely from publicly inspectable legislation, regulation, official
+licence/terms, official source metadata or equivalent public documentation.
+
+Every document in a paid source package declares exactly one reuse mode:
+
+- `COMMERCIAL_REUSE_CONFIRMED`: public material supports the intended commercial reuse; the package
+  records the public basis URL and a concise basis note.
+- `FACT_EXTRACTION_ONLY`: public material does not support commercial republication of the wording,
+  but ProcRun may use structured facts/metadata, citations and official links without republishing the
+  protected expression. `source_text` must be empty.
+- `BLOCKED`: the intended use would require individual permission, human contact, registration or
+  approval, a non-public legal determination or another external approval. Such a document cannot
+  enter a production source package.
+
+Public accessibility alone is not commercial-use permission. Silence or ambiguity fails closed to
+`FACT_EXTRACTION_ONLY` or `BLOCKED`; it never becomes `COMMERCIAL_REUSE_CONFIRMED` by assumption.
+Reuse mode, public basis URL and basis note are part of the immutable source manifest and package hash.
+A changed licence/terms/statutory basis requires a new source-package version.
+
+Canonical repo-wide policy: `docs/SOURCE_REUSE_GOVERNANCE.md`.
+
 ## Paywall contract
 
 The free preview says only whether historical analysis is available, limited-reference only, or blocked
@@ -133,9 +166,10 @@ this zero-PII readiness boundary and provide only the opaque purchase assertion.
 
 **GO:** deterministic benchmark; source-linked matrix; exact mechanical boundary comparisons; adviser
 self-attestation; professional-verification list; immutable source/version provenance; seven-day
-fail-closed TTL; leak-free preview; immutable paid dossier.
+fail-closed TTL; leak-free preview; immutable paid dossier; sources whose intended commercial use is
+supported by public law/licence/terms within the declared reuse mode.
 
 **NO-GO:** automatic eligibility verdict; generic risk engine; inferred rejection reasons; automated
 technical/strategic judgment; fuzzy cohort assignment; external person/company lookup; arbitrary
 customer free text; claims of complete preliminary verification, compliance certification or approval
-prediction.
+prediction; source use requiring individual permission, external legal approval or human contact.
