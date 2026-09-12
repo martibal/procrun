@@ -36,14 +36,16 @@ class CohortSelection(StrictApiModel):
     intervention_code: str | None = None
 
     @model_validator(mode="after")
-    def require_tier_keys(self) -> "CohortSelection":
+    def require_tier_keys(self) -> CohortSelection:
         if self.tier is CohortTier.SAME_BANDO and not self.bando_code:
             raise ValueError("SAME_BANDO requires bando_code")
-        if self.tier is CohortTier.SAME_ACTION_INTERVENTION:
-            if not self.action_code or not self.intervention_code:
-                raise ValueError(
-                    "SAME_ACTION_INTERVENTION requires action_code and intervention_code"
-                )
+        if (
+            self.tier is CohortTier.SAME_ACTION_INTERVENTION
+            and (not self.action_code or not self.intervention_code)
+        ):
+            raise ValueError(
+                "SAME_ACTION_INTERVENTION requires action_code and intervention_code"
+            )
         if self.tier is CohortTier.SAME_ACTION and not self.action_code:
             raise ValueError("SAME_ACTION requires action_code")
         return self
