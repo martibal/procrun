@@ -18,6 +18,7 @@ from procrun.a21_identity import a21_projects_by_local_operation_id
 from procrun.collectors.opencoesione import to_funding_projects
 from procrun.collectors.opencoesione_live import collect_open_coesione_live
 from procrun.component_engine import structured_component_suggestions
+from procrun.eu_objective_mapping import INTERVENTION_FIELD_MAP
 from procrun.production_delivery import ALL_COMPONENT_DOMAINS
 
 DATASET_ID = "q78n-g3m9"
@@ -49,6 +50,15 @@ def _normalize_cup(value: object) -> str | None:
         return None
     normalized = value.strip().upper()
     return normalized or None
+
+
+def _normalize_intervention_code(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    if not stripped or not stripped.isdigit() or len(stripped) > 3:
+        return None
+    return stripped.zfill(3)
 
 
 def _classification_signature(row: dict[str, object]) -> tuple[str, ...]:
@@ -155,6 +165,10 @@ def main() -> int:
     already_structured_overlap_projects = 0
     ambiguous_overlap_projects = 0
     missing_intervention_code_projects = 0
+    existing_map_projects = 0
+    existing_map_incremental_projects = 0
+    existing_map_by_domain: Counter[str] = Counter()
+    existing_map_by_code: Counter[str] = Counter()
     intervention_codes: Counter[str] = Counter()
     intervention_descriptions: Counter[str] = Counter()
     objectives: Counter[str] = Counter()
@@ -173,8 +187,9 @@ def main() -> int:
             continue
 
         overlap_projects += 1
-        intervention_code = str(source_row.get("codice_tipologia_intervento", "")).strip()
-        if not intervention_code:
+        raw_intervention_code = source_row.get("codice_tipologia_intervento")
+        intervention_code = _normalize_intervention_code(raw_intervention_code)
+        if intervention_code is None:
             missing_intervention_code_projects += 1
             continue
 
@@ -190,14 +205,23 @@ def main() -> int:
         if action:
             actions[action] += 1
 
+        existing_mapping = INTERVENTION_FIELD_MAP.get(intervention_code)
+        if existing_mapping is not None:
+            existing_map_projects += 1
+            existing_map_by_code[intervention_code] += 1
+            existing_map_by_domain[existing_mapping.domain] += 1
+            if project.operation_code not in current_structured_ids:
+                existing_map_incremental_projects += 1
+
         if project.operation_code in current_structured_ids:
             already_structured_overlap_projects += 1
         else:
             incremental_projects += 1
 
     combined_ceiling = FROZEN_STRUCTURED_SIGNAL_PROJECTS + incremental_projects
+    existing_map_combined = FROZEN_STRUCTURED_SIGNAL_PROJECTS + existing_map_incremental_projects
     report = {
-        "schema_version": "lombardia-socrata-structured-coverage-v1",
+        "schema_version": "lombardia-socrata-structured-coverage-v2",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "frozen_source_sha256": batch.source_sha256,
         "frozen_project_count": FROZEN_PROJECT_COUNT,
@@ -225,10 +249,16 @@ def main() -> int:
         ),
         "combined_structured_ceiling_projects": combined_ceiling,
         "combined_structured_ceiling_pct": round(combined_ceiling / FROZEN_PROJECT_COUNT * 100, 4),
+        "existing_frozen_intervention_map": {
+            "mapped_overlap_projects": existing_map_projects,
+            "incremental_projects": existing_map_incremental_projects,
+            "combined_projects": existing_map_combined,
+            "combined_pct": round(existing_map_combined / FROZEN_PROJECT_COUNT * 100, 4),
+            "projects_by_code": dict(sorted(existing_map_by_code.items())),
+            "projects_by_domain": dict(sorted(existing_map_by_domain.items())),
+        },
         "intervention_code_distribution": dict(sorted(intervention_codes.items())),
-        "intervention_description_distribution": dict(
-            intervention_descriptions.most_common()
-        ),
+        "intervention_description_distribution": dict(intervention_descriptions.most_common()),
         "specific_objective_distribution": dict(sorted(objectives.items())),
         "action_distribution": dict(sorted(actions.items())),
         "boundary": {
@@ -238,6 +268,7 @@ def main() -> int:
             "project_narrative_requested": False,
             "row_level_artifact_emitted": False,
             "join_key": "exact_normalized_cup",
+            "production_mapping_changed": False,
         },
     }
 
