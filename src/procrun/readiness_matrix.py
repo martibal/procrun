@@ -22,6 +22,12 @@ class MechanicalResultCode(StrEnum):
     INPUT_NOT_SUPPLIED = "INPUT_NOT_SUPPLIED"
 
 
+ADVISOR_KINDS = {
+    RequirementKind.ADVISOR_CONFIRMATION,
+    RequirementKind.PROFESSIONAL_VERIFICATION,
+}
+
+
 @dataclass(frozen=True)
 class AdvisorConfirmation:
     requirement_id: str
@@ -82,15 +88,28 @@ def build_readiness_matrix(
     confirmation_by_id = {item.requirement_id: item for item in confirmations}
     if len(confirmation_by_id) != len(confirmations):
         raise ValueError("duplicate advisor confirmations")
-    known = {item.requirement_id for item in package.requirements}
-    unknown = set(confirmation_by_id) - known
+    requirement_by_id = {item.requirement_id: item for item in package.requirements}
+    unknown = set(confirmation_by_id) - set(requirement_by_id)
     if unknown:
         raise ValueError(f"unknown requirement confirmations: {sorted(unknown)}")
+    invalid_confirmation_targets = sorted(
+        requirement_id
+        for requirement_id in confirmation_by_id
+        if requirement_by_id[requirement_id].kind not in ADVISOR_KINDS
+    )
+    if invalid_confirmation_targets:
+        raise ValueError(
+            "advisor confirmations are not allowed for mechanical/reference rows: "
+            f"{invalid_confirmation_targets}"
+        )
 
     rows: list[dict[str, object]] = []
     professional_points: list[dict[str, object]] = []
+    advisor_check_ids: list[str] = []
     for requirement in package.requirements:
         confirmation = confirmation_by_id.get(requirement.requirement_id)
+        if requirement.kind in ADVISOR_KINDS:
+            advisor_check_ids.append(requirement.requirement_id)
         row: dict[str, object] = {
             "requirement_id": requirement.requirement_id,
             "label": requirement.label,
@@ -121,18 +140,19 @@ def build_readiness_matrix(
 
     addressed = sum(
         1
-        for row in rows
-        if isinstance(row["advisor_confirmation"], dict)
-        and row["advisor_confirmation"]["state"] == AdvisorState.CONFIRMED_BY_ADVISOR.value
+        for requirement_id in advisor_check_ids
+        if requirement_id in confirmation_by_id
+        and confirmation_by_id[requirement_id].state is AdvisorState.CONFIRMED_BY_ADVISOR
     )
+    total = len(advisor_check_ids)
     return {
         "rows": rows,
         "points_requiring_professional_verification": professional_points,
         "completion": {
-            "listed_checks": len(rows),
+            "listed_advisor_checks": total,
             "checks_confirmed_by_advisor": addressed,
             "language": (
-                f"{addressed} of {len(rows)} listed checks have been confirmed by the advisor. "
+                f"{addressed} of {total} listed advisor checks have been confirmed. "
                 "Completion is not a qualification or readiness verdict."
             ),
         },
