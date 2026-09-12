@@ -38,13 +38,14 @@ function project(overrides: Partial<RunwayProject> = {}): RunwayProject {
 }
 
 describe("customer view", () => {
-  it("keeps component-free projects visible with customer-facing UNRESOLVED wording", () => {
+  it("keeps component-free projects visible with customer-facing UNRESOLVED wording and exact review text", () => {
     const rows = buildCustomerOpportunities([project()]);
     expect(rows).toHaveLength(1);
     expect(rows[0].projectId).toBe("op-1");
     expect(rows[0].state).toBe("UNRESOLVED");
     expect(rows[0].tedStatus).toBe("Match uncertain");
     expect(rows[0].projectEvidence).toBe("Install pumps");
+    expect(rows[0].unresolvedEvidence).toEqual(["Install pumps"]);
     expect(rows[0].interpretation).toContain("does not identify a purchasing need clearly enough");
     expect(rows[0].interpretation).not.toContain("bounded");
     expect(rows[0].interpretation).not.toContain("frozen");
@@ -73,6 +74,7 @@ describe("customer view", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].componentId).toBe("cmp-1");
     expect(rows[0].tedStatus).toBe("No matching tender identified");
+    expect(rows[0].unresolvedEvidence).toEqual([]);
     expect(rows[0].interpretation).toContain("no matching procurement notice in TED");
     expect(rows[0].interpretation).not.toContain("frozen exact-evidence rules");
   });
@@ -117,6 +119,7 @@ describe("customer view", () => {
     ]);
     expect(rows).toHaveLength(1);
     expect(rows[0].tedStatus).toBe("Matched tender identified");
+    expect(rows[0].unresolvedEvidence).toEqual([]);
     expect(rows[0].procurementMatches[0].notice_id).toBe("123456-2026");
     expect(rows[0].procurementMatches[0].publication_date).toBe("2026-08-20");
   });
