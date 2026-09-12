@@ -23,6 +23,11 @@ def _observations(n: int) -> tuple[BenchmarkObservation, ...]:
     )
 
 
+def _end_after_completed_months(months: int) -> date:
+    absolute_month = months
+    return date(2025 + absolute_month // 12, 1 + absolute_month % 12, 1)
+
+
 def test_sample_governance_boundaries_are_frozen() -> None:
     assert sample_tier(14) is SampleTier.REFERENCE_ONLY
     assert sample_tier(15) is SampleTier.DESCRIPTIVE_ONLY
@@ -73,3 +78,30 @@ def test_ties_use_right_ecdf_and_output_is_deterministic() -> None:
     )
     assert result_a == result_b
     assert result_a["funding"]["user_position"]["basis_points"] == 7500
+
+
+def test_joint_comparable_ranking_locks_frozen_70_30_position_distance() -> None:
+    """A 50/50 rewrite would reverse OP-008 and OP-009; the frozen 70/30 rule must not."""
+    duration_rank_by_funding_rank = {8: 10, 10: 8, 9: 12, 12: 9}
+    observations = tuple(
+        BenchmarkObservation(
+            operation_code=f"OP-{rank:03d}",
+            approved_funding_eur=rank * 100_000,
+            project_start=date(2025, 1, 1),
+            project_end=_end_after_completed_months(
+                duration_rank_by_funding_rank.get(rank, rank)
+            ),
+        )
+        for rank in range(1, 21)
+    )
+
+    result = compute_historical_dimensioning(
+        observations,
+        proposed_funding_eur=1_000_000,
+        proposed_duration_months=10,
+        comparable_limit=20,
+    )
+    joint = result["comparables"]["closest_joint"]
+    operation_codes = [row["operation_code"] for row in joint]
+
+    assert operation_codes.index("OP-009") < operation_codes.index("OP-008")
