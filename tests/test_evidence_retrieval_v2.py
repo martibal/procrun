@@ -15,9 +15,14 @@ class FakeEmbedder:
         for text in texts:
             normalized = text.casefold()
             procurement = float(
-                any(token in normalized for token in ("pompe", "fornitura", "acquisto", "gara", "installazione"))
+                any(
+                    token in normalized
+                    for token in ("pompe", "fornitura", "acquisto", "gara", "installazione")
+                )
             )
-            unrelated = float(any(token in normalized for token in ("festival", "turismo", "marketing")))
+            unrelated = float(
+                any(token in normalized for token in ("festival", "turismo", "marketing"))
+            )
             vectors.append((procurement, unrelated, 1.0))
         return tuple(vectors)
 
@@ -26,10 +31,7 @@ class FakeReranker:
     model_name = "fake-reranker"
 
     def score(self, query: str, passages: Sequence[str]) -> tuple[float, ...]:
-        return tuple(
-            10.0 if "pompe" in passage.casefold() else 1.0
-            for passage in passages
-        )
+        return tuple(10.0 if "pompe" in passage.casefold() else 1.0 for passage in passages)
 
 
 def project(text: str) -> FundingProject:
@@ -57,7 +59,12 @@ def test_semantic_recall_finds_paraphrased_procurement_sentence_and_preserves_sp
         "Sono inoltre previste attività informative per i cittadini."
     )
     engine = SemanticRecallEngine(FakeEmbedder(), FakeReranker())
-    candidates = engine.retrieve(project(source), candidate_limit=8, return_limit=3, minimum_semantic_score=0.1)
+    candidates = engine.retrieve(
+        project(source),
+        candidate_limit=8,
+        return_limit=3,
+        minimum_semantic_score=0.1,
+    )
 
     assert candidates
     assert candidates[0].original_text == "È prevista la fornitura di nuove pompe ad alta efficienza."
@@ -75,6 +82,16 @@ def test_semantic_recall_can_return_no_candidate_for_unrelated_text() -> None:
 def test_semantic_recall_is_deterministic() -> None:
     source = "Fornitura di pompe. Installazione di sistemi di monitoraggio."
     engine = SemanticRecallEngine(FakeEmbedder(), FakeReranker())
-    first = engine.retrieve(project(source), candidate_limit=6, return_limit=2, minimum_semantic_score=0.1)
-    second = engine.retrieve(project(source), candidate_limit=6, return_limit=2, minimum_semantic_score=0.1)
+    first = engine.retrieve(
+        project(source),
+        candidate_limit=6,
+        return_limit=2,
+        minimum_semantic_score=0.1,
+    )
+    second = engine.retrieve(
+        project(source),
+        candidate_limit=6,
+        return_limit=2,
+        minimum_semantic_score=0.1,
+    )
     assert first == second

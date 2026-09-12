@@ -107,7 +107,7 @@ class LocalSentenceTransformersEmbedder:
 
     def __init__(self, model_name: str = DEFAULT_EMBEDDING_MODEL) -> None:
         module = importlib.import_module("sentence_transformers")
-        sentence_transformer = getattr(module, "SentenceTransformer")
+        sentence_transformer = module.SentenceTransformer
         self.model_name = model_name
         self._model: Any = sentence_transformer(model_name)
 
@@ -126,7 +126,7 @@ class LocalSentenceTransformersReranker:
 
     def __init__(self, model_name: str = DEFAULT_RERANKER_MODEL) -> None:
         module = importlib.import_module("sentence_transformers")
-        cross_encoder = getattr(module, "CrossEncoder")
+        cross_encoder = module.CrossEncoder
         self.model_name = model_name
         self._model: Any = cross_encoder(model_name)
 
@@ -164,7 +164,10 @@ def sentence_spans(source_text: str) -> tuple[SentenceSpan, ...]:
 
 
 def semantic_queries() -> tuple[SemanticQuery, ...]:
-    queries = [SemanticQuery(query_id=query_id, text=text) for query_id, text in _PROCUREMENT_INTENT_QUERIES]
+    queries = [
+        SemanticQuery(query_id=query_id, text=text)
+        for query_id, text in _PROCUREMENT_INTENT_QUERIES
+    ]
     for rule in RULES:
         examples = ", ".join(rule.phrases[:6])
         category = f"{rule.domain.value}:{rule.category}"
@@ -173,7 +176,7 @@ def semantic_queries() -> tuple[SemanticQuery, ...]:
                 query_id=f"component:{category}",
                 category=category,
                 text=(
-                    f"progetto che richiede acquisto, fornitura, installazione, lavori o servizi per "
+                    "progetto che richiede acquisto, fornitura, installazione, lavori o servizi per "
                     f"{rule.label}. Esempi terminologici: {examples}"
                 ),
             )
