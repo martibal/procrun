@@ -31,10 +31,14 @@ class CountQuery:
     query: str
 
 
+def _ted_date(value: date) -> str:
+    return value.strftime("%Y%m%d")
+
+
 def _date_clause() -> str:
     return (
-        f"buyer-country = ITA AND publication-date >= {START_DATE.isoformat()} "
-        f"AND publication-date <= {CUTOFF_DATE.isoformat()}"
+        f"buyer-country = ITA AND publication-date >= {_ted_date(START_DATE)} "
+        f"AND publication-date <= {_ted_date(CUTOFF_DATE)}"
     )
 
 
