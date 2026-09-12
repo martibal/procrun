@@ -9,8 +9,8 @@ from typing import Any
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 
+from benchmark_engine_v2_relevance_gate import _noise_reject
 from procrun.evidence_retrieval_v2 import LocalSentenceTransformersEmbedder
-from scripts.benchmark_engine_v2_relevance_gate import _noise_reject
 
 RC1_CANDIDATE_ID = "engine-v2-rc1"
 RC1_THRESHOLD = 0.48335432
