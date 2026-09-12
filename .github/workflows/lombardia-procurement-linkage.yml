@@ -1,11 +1,6 @@
 name: lombardia-procurement-linkage
 
 on:
-  pull_request:
-    paths:
-      - "scripts/measure_lombardia_procurement_linkage.py"
-      - ".github/workflows/lombardia-procurement-linkage.yml"
-      - "docs/PHASE_R_LOMBARDIA_PROCUREMENT_LINKAGE.md"
   workflow_dispatch:
 
 permissions:

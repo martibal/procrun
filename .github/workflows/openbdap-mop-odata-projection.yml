@@ -1,10 +1,6 @@
 name: openbdap-mop-odata-projection
 
 on:
-  pull_request:
-    paths:
-      - "scripts/probe_openbdap_mop_odata_projection.py"
-      - ".github/workflows/openbdap-mop-odata-projection.yml"
   workflow_dispatch:
 
 permissions:

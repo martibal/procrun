@@ -1,10 +1,6 @@
 name: openbdap-mop-odata-schema
 
 on:
-  pull_request:
-    paths:
-      - "scripts/probe_openbdap_mop_odata_schema.py"
-      - ".github/workflows/openbdap-mop-odata-schema.yml"
   workflow_dispatch:
 
 permissions:

@@ -1,10 +1,6 @@
 name: opencoesione-api-options-metadata
 
 on:
-  pull_request:
-    paths:
-      - "scripts/probe_opencoesione_api_options_metadata.ps1"
-      - ".github/workflows/opencoesione-api-options-metadata.yml"
   workflow_dispatch:
 
 permissions:

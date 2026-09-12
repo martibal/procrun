@@ -1,10 +1,6 @@
 name: lombardia-frozen-action-distribution
 
 on:
-  pull_request:
-    paths:
-      - "scripts/measure_frozen_action_distribution.py"
-      - ".github/workflows/lombardia-frozen-action-distribution.yml"
   workflow_dispatch:
 
 permissions:

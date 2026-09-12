@@ -2,11 +2,11 @@
 """Measure safe OpenBDAP MOP national counts, lifecycle runway and Lombardia overlap.
 
 The diagnostic uses only server-side projected OData requests. National scale and
-lifecycle cohorts are counted by probing existence at $skip offsets with $top=1 and
-CUP-only projection; this needs O(log n) requests and never receives unrestricted
-rows. Lifecycle fields are referenced only inside server-side filters, so their row
-values are not returned or persisted by the count probes. The Lombardia overlap
-requests only CUP, project status, intervention sector and effective works cost for CUPs already in the frozen corpus. Raw MOP rows are never persisted.
+lifecycle cohorts use OData inline counts with CUP-only projection and at most one
+returned row. Lifecycle fields appear only in server-side filters; their row values
+are never returned or persisted. The Lombardia overlap requests only CUP, project
+status, intervention sector and effective works cost for CUPs already in the frozen
+corpus. Raw MOP rows are never persisted.
 """
 from __future__ import annotations
 
@@ -28,7 +28,9 @@ from procrun.component_engine import structured_component_suggestions
 from procrun.production_delivery import ALL_COMPONENT_DOMAINS
 
 FROZEN_PROJECT_COUNT: Final = 4305
-FROZEN_SOURCE_SHA256: Final = "35dc073ec9e5e06201080bc949a9da19dfd3366deee3524417491e2b2fd21c6a"
+FROZEN_SOURCE_SHA256: Final = (
+    "35dc073ec9e5e06201080bc949a9da19dfd3366deee3524417491e2b2fd21c6a"
+)
 FROZEN_STRUCTURED_PROJECTS: Final = 133
 RESOURCE_ID: Final = "bda1676b-62ab-44b7-8f9a-ca93b8534488@rgs"
 BASE_URL: Final = (
@@ -50,7 +52,6 @@ BATCH_SIZE: Final = 60
 MAX_ROWS_PER_BATCH: Final = 300
 MAX_RESPONSE_BYTES: Final = 2_000_000
 MAX_ATTEMPTS: Final = 3
-MAX_COUNT_PROBE_OFFSET: Final = 2_000_000
 REPORT_PATH = Path("artifacts/openbdap-mop-safe-coverage.json")
 
 LIFECYCLE_OBSERVED_DATE: Final = "2026-08-31"
@@ -74,7 +75,8 @@ def _extract_rows(payload: Any) -> list[dict[str, Any]]:
 
 
 def _data_keys(row: dict[str, Any]) -> set[str]:
-    return {key for key in row if key not in {"__metadata", "@odata.id", "@odata.etag"}}
+    metadata_keys = {"__metadata", "@odata.id", "@odata.etag"}
+    return {key for key in row if key not in metadata_keys}
 
 
 def _norm(value: object) -> str | None:
@@ -105,75 +107,60 @@ def _batches(values: list[str], size: int) -> Iterable[list[str]]:
         yield values[start : start + size]
 
 
-def _row_exists_at_skip(
-    client: httpx.Client,
-    skip: int,
-    filter_expr: str | None = None,
-) -> bool:
-    params = {"$select": CUP, "$skip": str(skip), "$top": "1", "$format": "json"}
-    if filter_expr:
-        params["$filter"] = filter_expr
-    response = client.get(BASE_URL, params=params)
-    if response.is_redirect:
-        raise RuntimeError("OpenBDAP national count request redirected")
-    response.raise_for_status()
-    if len(response.content) > MAX_RESPONSE_BYTES:
-        raise RuntimeError("OpenBDAP national count response exceeded safety bound")
-    rows = _extract_rows(response.json())
-    if len(rows) > 1:
-        raise RuntimeError("OpenBDAP top=1 count probe returned more than one row")
-    if not rows:
-        return False
-    unexpected = _data_keys(rows[0]) - COUNT_ALLOWED_RETURNED_KEYS
-    if unexpected:
-        raise RuntimeError(
-            "OpenBDAP CUP-only count projection escaped allowlist: "
-            + ", ".join(sorted(unexpected))
-        )
-    if not _norm(rows[0].get(CUP)):
-        raise RuntimeError("OpenBDAP CUP-only count probe returned no CUP")
-    return True
-
-
 def _count_rows(
     client: httpx.Client,
     filter_expr: str | None = None,
-    *,
-    known_upper_bound: int | None = None,
 ) -> tuple[int, int]:
-    """Count rows exactly, reusing a known population ceiling when possible."""
-    requests = 1
-    if not _row_exists_at_skip(client, 0, filter_expr):
-        return 0, requests
+    """Count exactly with one OData inline-count request and CUP-only projection."""
+    params = {
+        "$select": CUP,
+        "$top": "1",
+        "$inlinecount": "allpages",
+        "$format": "json",
+    }
+    if filter_expr:
+        params["$filter"] = filter_expr
 
-    if known_upper_bound is not None:
-        if known_upper_bound <= 0:
-            raise ValueError("known_upper_bound must be positive")
-        low = 0
-        high = known_upper_bound
-        requests += 1
-        if _row_exists_at_skip(client, high - 1, filter_expr):
-            return high, requests
-    else:
-        low = 0
-        high = 1
-        while high < MAX_COUNT_PROBE_OFFSET:
-            requests += 1
-            if not _row_exists_at_skip(client, high, filter_expr):
-                break
-            low = high
-            high *= 2
-        else:
-            raise RuntimeError("OpenBDAP count exceeded frozen probe offset ceiling")
+    response = client.get(BASE_URL, params=params)
+    if response.is_redirect:
+        raise RuntimeError("OpenBDAP inline-count request redirected")
+    response.raise_for_status()
+    if len(response.content) > MAX_RESPONSE_BYTES:
+        raise RuntimeError("OpenBDAP inline-count response exceeded safety bound")
 
-    while low + 1 < high:
-        middle = (low + high) // 2
-        requests += 1
-        if _row_exists_at_skip(client, middle, filter_expr):
-            low = middle
-        else:
-            high = middle
-    return high, requests
+    payload = response.json()
+    rows = _extract_rows(payload)
+    if len(rows) > 1:
+        raise RuntimeError("OpenBDAP top=1 inline-count returned more than one row")
+    for row in rows:
+        unexpected = _data_keys(row) - COUNT_ALLOWED_RETURNED_KEYS
+        if unexpected:
+            raise RuntimeError(
+                "OpenBDAP CUP-only count projection escaped allowlist: "
+                + ", ".join(sorted(unexpected))
+            )
+        if not _norm(row.get(CUP)):
+            raise RuntimeError("OpenBDAP CUP-only inline-count returned no CUP")
+
+    data = payload.get("d")
+    if not isinstance(data, dict):
+        raise RuntimeError("OpenBDAP inline-count response has no d object")
+    raw_count = data.get("__count")
+    if raw_count is None:
+        raw_count = data.get("@odata.count")
+    if raw_count is None:
+        raise RuntimeError("OpenBDAP did not return an inline row count")
+    try:
+        count = int(str(raw_count))
+    except ValueError as exc:
+        raise RuntimeError("OpenBDAP returned a non-integer inline count") from exc
+    if count < 0:
+        raise RuntimeError("OpenBDAP returned a negative inline count")
+    if count == 0 and rows:
+        raise RuntimeError("OpenBDAP zero inline count returned a row")
+    if count > 0 and len(rows) != 1:
+        raise RuntimeError("OpenBDAP positive inline count returned no CUP row")
+    return count, 1
 
 
 def _active_filter(extra: str | None = None) -> str:
@@ -186,39 +173,53 @@ def _missing_or_sentinel(field: str) -> str:
 
 
 def _valid_date(field: str) -> str:
-    return f"({field} ge '{VALID_DATE_FLOOR}' and {field} le '{VALID_DATE_CEILING}')"
+    return (
+        f"({field} ge '{VALID_DATE_FLOOR}' and "
+        f"{field} le '{VALID_DATE_CEILING}')"
+    )
 
 
 def _between(field: str, start: str, end: str) -> str:
     return f"({field} ge '{start}' and {field} le '{end}')"
 
 
-def _lifecycle_counts(
-    client: httpx.Client,
-    active_rows: int,
-) -> tuple[dict[str, int], dict[str, int]]:
+def _lifecycle_counts(client: httpx.Client) -> tuple[dict[str, int], dict[str, int]]:
+    missing_actual = _missing_or_sentinel(ACTUAL_EXECUTION_START)
+    valid_planned = _valid_date(PLANNED_EXECUTION_START)
+    next_12m = _between(
+        PLANNED_EXECUTION_START,
+        LIFECYCLE_OBSERVED_DATE,
+        LIFECYCLE_12M_END,
+    )
+    next_24m = _between(
+        PLANNED_EXECUTION_START,
+        LIFECYCLE_OBSERVED_DATE,
+        LIFECYCLE_24M_END,
+    )
     filters = {
-        "actual_execution_start_blank": _active_filter(f"{ACTUAL_EXECUTION_START} eq ''"),
+        "actual_execution_start_blank": _active_filter(
+            f"{ACTUAL_EXECUTION_START} eq ''"
+        ),
         "actual_execution_start_sentinel": _active_filter(
             f"{ACTUAL_EXECUTION_START} eq '{SENTINEL_DATE}'"
         ),
-        "actual_execution_start_valid": _active_filter(_valid_date(ACTUAL_EXECUTION_START)),
+        "actual_execution_start_valid": _active_filter(
+            _valid_date(ACTUAL_EXECUTION_START)
+        ),
         "no_actual_start_with_valid_planned_start": _active_filter(
-            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and {_valid_date(PLANNED_EXECUTION_START)}"
+            f"{missing_actual} and {valid_planned}"
         ),
         "no_actual_start_planned_next_12m": _active_filter(
-            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and {_between(PLANNED_EXECUTION_START, LIFECYCLE_OBSERVED_DATE, LIFECYCLE_12M_END)}"
+            f"{missing_actual} and {next_12m}"
         ),
         "no_actual_start_planned_next_24m": _active_filter(
-            f"{_missing_or_sentinel(ACTUAL_EXECUTION_START)} and {_between(PLANNED_EXECUTION_START, LIFECYCLE_OBSERVED_DATE, LIFECYCLE_24M_END)}"
+            f"{missing_actual} and {next_24m}"
         ),
     }
     counts: dict[str, int] = {}
     requests: dict[str, int] = {}
     for name, filter_expr in filters.items():
-        count, request_count = _count_rows(
-            client, filter_expr, known_upper_bound=active_rows
-        )
+        count, request_count = _count_rows(client, filter_expr)
         counts[name] = count
         requests[name] = request_count
     return counts, requests
@@ -249,11 +250,14 @@ def _fetch_batch(client: httpx.Client, cups: list[str]) -> list[dict[str, Any]]:
                 unexpected = _data_keys(row) - ALLOWED_RETURNED_KEYS
                 if unexpected:
                     raise RuntimeError(
-                        "safe projection escaped allowlist: " + ", ".join(sorted(unexpected))
+                        "safe projection escaped allowlist: "
+                        + ", ".join(sorted(unexpected))
                     )
                 returned_cup = _norm(row.get(CUP))
                 if not returned_cup or returned_cup not in requested:
-                    raise RuntimeError("OpenBDAP returned a CUP outside the requested batch")
+                    raise RuntimeError(
+                        "OpenBDAP returned a CUP outside the requested batch"
+                    )
             return rows
         except (httpx.TimeoutException, httpx.TransportError) as exc:
             last_error = exc
@@ -269,32 +273,42 @@ def main() -> int:
         raise RuntimeError("OpenBDAP endpoint left the frozen origin")
 
     headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/5.1",
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/6.0",
         "Accept": "application/json",
     }
     timeout = httpx.Timeout(30.0, connect=15.0)
     with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
         national_total_rows, total_count_requests = _count_rows(client)
-        national_active_rows, active_count_requests = _count_rows(client, _active_filter())
-        lifecycle_counts, lifecycle_request_counts = _lifecycle_counts(
-            client, national_active_rows
+        national_active_rows, active_count_requests = _count_rows(
+            client,
+            _active_filter(),
         )
+        lifecycle_counts, lifecycle_request_counts = _lifecycle_counts(client)
 
     if national_total_rows <= 0:
         raise RuntimeError("OpenBDAP national MOP count is unexpectedly empty")
-    if not 0 <= national_active_rows <= national_total_rows:
+    if not 0 < national_active_rows <= national_total_rows:
         raise RuntimeError("OpenBDAP national active count is inconsistent")
     if any(not 0 <= count <= national_active_rows for count in lifecycle_counts.values()):
         raise RuntimeError("OpenBDAP lifecycle count exceeds active national population")
-    if lifecycle_counts["no_actual_start_planned_next_12m"] > lifecycle_counts["no_actual_start_planned_next_24m"]:
+    if (
+        lifecycle_counts["no_actual_start_planned_next_12m"]
+        > lifecycle_counts["no_actual_start_planned_next_24m"]
+    ):
         raise RuntimeError("OpenBDAP 12m lifecycle cohort exceeds 24m cohort")
-    if lifecycle_counts["no_actual_start_planned_next_24m"] > lifecycle_counts["no_actual_start_with_valid_planned_start"]:
+    if (
+        lifecycle_counts["no_actual_start_planned_next_24m"]
+        > lifecycle_counts["no_actual_start_with_valid_planned_start"]
+    ):
         raise RuntimeError("OpenBDAP future cohort exceeds valid-planned-start cohort")
 
     batch = collect_open_coesione_live()
     if batch.source_sha256 != FROZEN_SOURCE_SHA256:
         raise RuntimeError("frozen OpenCoesione source hash drift")
-    projects = a21_projects_by_local_operation_id(batch.operations, to_funding_projects(batch))
+    projects = a21_projects_by_local_operation_id(
+        batch.operations,
+        to_funding_projects(batch),
+    )
     if len(projects) != FROZEN_PROJECT_COUNT:
         raise RuntimeError("frozen OpenCoesione project count drift")
 
@@ -351,19 +365,32 @@ def main() -> int:
                     cups_with_cost.add(cup)
                     total_effective_cost += amount
 
-    matched_local_ids = {local_id for local_id, cup in cups_by_local_id.items() if cup in matched_cups}
+    matched_local_ids = {
+        local_id
+        for local_id, cup in cups_by_local_id.items()
+        if cup in matched_cups
+    }
     unresolved_matched = matched_local_ids & unresolved_local_ids
     structured_matched = matched_local_ids & structured_local_ids
 
     lifecycle_report = dict(lifecycle_counts)
     lifecycle_report["no_actual_start_with_valid_planned_start_pct_of_active"] = round(
-        lifecycle_counts["no_actual_start_with_valid_planned_start"] * 100 / national_active_rows, 4
+        lifecycle_counts["no_actual_start_with_valid_planned_start"]
+        * 100
+        / national_active_rows,
+        4,
     )
     lifecycle_report["no_actual_start_planned_next_12m_pct_of_active"] = round(
-        lifecycle_counts["no_actual_start_planned_next_12m"] * 100 / national_active_rows, 4
+        lifecycle_counts["no_actual_start_planned_next_12m"]
+        * 100
+        / national_active_rows,
+        4,
     )
     lifecycle_report["no_actual_start_planned_next_24m_pct_of_active"] = round(
-        lifecycle_counts["no_actual_start_planned_next_24m"] * 100 / national_active_rows, 4
+        lifecycle_counts["no_actual_start_planned_next_24m"]
+        * 100
+        / national_active_rows,
+        4,
     )
     lifecycle_report["active_unclassified_actual_start_residual"] = (
         national_active_rows
@@ -373,17 +400,24 @@ def main() -> int:
     )
 
     report = {
-        "measurement_contract": "openbdap-mop-safe-coverage-v5",
+        "measurement_contract": "openbdap-mop-safe-coverage-v6",
         "resource_id": RESOURCE_ID,
-        "national_count_method": "OData $skip binary search with $top=1 and CUP-only projection; lifecycle cohorts reuse active-row upper bound",
+        "national_count_method": (
+            "OData inlinecount=allpages with top=1 and CUP-only projection"
+        ),
         "national_count_probe_values_persisted": False,
         "national_total_count_probe_requests": total_count_requests,
         "national_active_count_probe_requests": active_count_requests,
         "national_lifecycle_count_probe_requests": lifecycle_request_counts,
-        "national_lifecycle_count_probe_requests_total": sum(lifecycle_request_counts.values()),
+        "national_lifecycle_count_probe_requests_total": sum(
+            lifecycle_request_counts.values()
+        ),
         "national_total_mop_rows": national_total_rows,
         "national_active_mop_rows": national_active_rows,
-        "national_active_pct": round(national_active_rows * 100 / national_total_rows, 4),
+        "national_active_pct": round(
+            national_active_rows * 100 / national_total_rows,
+            4,
+        ),
         "lifecycle_observed_date": LIFECYCLE_OBSERVED_DATE,
         "lifecycle_12m_end": LIFECYCLE_12M_END,
         "lifecycle_24m_end": LIFECYCLE_24M_END,
@@ -401,23 +435,43 @@ def main() -> int:
         "request_batches": batch_count,
         "returned_mop_rows": returned_rows,
         "matched_unique_cups": len(matched_cups),
-        "matched_cup_pct": round(len(matched_cups) * 100 / len(unique_funded_cups), 4),
+        "matched_cup_pct": round(
+            len(matched_cups) * 100 / len(unique_funded_cups),
+            4,
+        ),
         "matched_frozen_projects": len(matched_local_ids),
-        "matched_frozen_project_pct": round(len(matched_local_ids) * 100 / len(projects), 4),
+        "matched_frozen_project_pct": round(
+            len(matched_local_ids) * 100 / len(projects),
+            4,
+        ),
         "matched_baseline_unresolved_projects": len(unresolved_matched),
-        "matched_unresolved_pct": round(len(unresolved_matched) * 100 / len(unresolved_local_ids), 4),
+        "matched_unresolved_pct": round(
+            len(unresolved_matched) * 100 / len(unresolved_local_ids),
+            4,
+        ),
         "matched_baseline_structured_projects": len(structured_matched),
         "matched_cups_with_sector": len(cups_with_sector),
-        "sector_coverage_pct_of_matched": round(len(cups_with_sector) * 100 / len(matched_cups), 4) if matched_cups else 0.0,
+        "sector_coverage_pct_of_matched": (
+            round(len(cups_with_sector) * 100 / len(matched_cups), 4)
+            if matched_cups
+            else 0.0
+        ),
         "matched_cups_with_effective_cost": len(cups_with_cost),
-        "cost_coverage_pct_of_matched": round(len(cups_with_cost) * 100 / len(matched_cups), 4) if matched_cups else 0.0,
+        "cost_coverage_pct_of_matched": (
+            round(len(cups_with_cost) * 100 / len(matched_cups), 4)
+            if matched_cups
+            else 0.0
+        ),
         "effective_cost_total_eur": str(total_effective_cost),
         "status_codes": dict(status_codes.most_common()),
         "status_labels": dict(status_labels.most_common()),
         "top_sectors": dict(sectors.most_common(25)),
     }
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    REPORT_PATH.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    REPORT_PATH.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), flush=True)
     return 0
 

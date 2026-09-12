@@ -1,10 +1,6 @@
 name: opencoesione-fesr-extended-metadata
 
 on:
-  pull_request:
-    paths:
-      - "scripts/probe_opencoesione_fesr_extended_metadata.py"
-      - ".github/workflows/opencoesione-fesr-extended-metadata.yml"
   workflow_dispatch:
 
 permissions:
