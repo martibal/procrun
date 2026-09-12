@@ -100,6 +100,18 @@ def _fetch_safe_rows() -> list[dict[str, object]]:
     return rows
 
 
+def _nested_counter_report(
+    counters: dict[str, Counter[str]],
+) -> dict[str, dict[str, object]]:
+    return {
+        code: {
+            "distinct_values": len(counter),
+            "projects_by_value": dict(counter.most_common()),
+        }
+        for code, counter in sorted(counters.items())
+    }
+
+
 def main() -> int:
     batch = collect_open_coesione_live()
     if batch.source_sha256 != FROZEN_SOURCE_SHA256:
@@ -173,6 +185,8 @@ def main() -> int:
     intervention_descriptions: Counter[str] = Counter()
     objectives: Counter[str] = Counter()
     actions: Counter[str] = Counter()
+    actions_by_intervention: dict[str, Counter[str]] = defaultdict(Counter)
+    bandi_by_intervention: dict[str, Counter[str]] = defaultdict(Counter)
 
     for project in projects:
         cup = cup_by_operation_id.get(project.operation_code)
@@ -204,6 +218,10 @@ def main() -> int:
         action = str(source_row.get("azione", "")).strip()
         if action:
             actions[action] += 1
+            actions_by_intervention[intervention_code][action] += 1
+        bando = str(source_row.get("codice_bando", "")).strip()
+        if bando:
+            bandi_by_intervention[intervention_code][bando] += 1
 
         existing_mapping = INTERVENTION_FIELD_MAP.get(intervention_code)
         if existing_mapping is not None:
@@ -221,7 +239,7 @@ def main() -> int:
     combined_ceiling = FROZEN_STRUCTURED_SIGNAL_PROJECTS + incremental_projects
     existing_map_combined = FROZEN_STRUCTURED_SIGNAL_PROJECTS + existing_map_incremental_projects
     report = {
-        "schema_version": "lombardia-socrata-structured-coverage-v2",
+        "schema_version": "lombardia-socrata-structured-coverage-v3",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "frozen_source_sha256": batch.source_sha256,
         "frozen_project_count": FROZEN_PROJECT_COUNT,
@@ -261,6 +279,10 @@ def main() -> int:
         "intervention_description_distribution": dict(intervention_descriptions.most_common()),
         "specific_objective_distribution": dict(sorted(objectives.items())),
         "action_distribution": dict(sorted(actions.items())),
+        "structured_refinement": {
+            "actions_by_intervention_code": _nested_counter_report(actions_by_intervention),
+            "bandi_by_intervention_code": _nested_counter_report(bandi_by_intervention),
+        },
         "boundary": {
             "server_side_select_used": True,
             "select_star_used": False,
