@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
 from enum import StrEnum
-from statistics import median
 
 ENGINE_VERSION = "readiness-benchmark-v2"
 
@@ -66,7 +64,15 @@ def _nearest_rank(values: tuple[int, ...], numerator: int, denominator: int) -> 
 
 
 def _median_string(values: tuple[int, ...]) -> str:
-    return str(Decimal(str(median(values))))
+    """Return an exact decimal median without creating a binary floating-point value."""
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return str(ordered[middle])
+    total = ordered[middle - 1] + ordered[middle]
+    if total % 2 == 0:
+        return str(total // 2)
+    return f"{total // 2}.5"
 
 
 def _ecdf(values: tuple[int, ...], value: int) -> tuple[int, int, int]:
@@ -127,8 +133,12 @@ def compute_historical_dimensioning(
                 "operation_code": observation.operation_code,
                 "approved_funding_eur": observation.approved_funding_eur,
                 "duration_months": duration,
-                "funding_exclusion_reason": None if funding_reason is None else funding_reason.value,
-                "duration_exclusion_reason": None if duration_reason is None else duration_reason.value,
+                "funding_exclusion_reason": (
+                    None if funding_reason is None else funding_reason.value
+                ),
+                "duration_exclusion_reason": (
+                    None if duration_reason is None else duration_reason.value
+                ),
                 "project_title": observation.project_title,
                 "source_url": observation.source_url,
             }
@@ -165,8 +175,10 @@ def compute_historical_dimensioning(
                 continue
             _, _, f_bps = _ecdf(funding_tuple, funding)
             _, _, d_bps = _ecdf(duration_tuple, duration)
-            # Frozen v1 comparable contract: 70% funding-position distance, 30% duration-position distance.
-            weighted_distance = 7 * abs(f_bps - user_funding_bps) + 3 * abs(d_bps - user_duration_bps)
+            weighted_distance = (
+                7 * abs(f_bps - user_funding_bps)
+                + 3 * abs(d_bps - user_duration_bps)
+            )
             closest_joint.append(
                 (
                     weighted_distance,
@@ -193,14 +205,23 @@ def compute_historical_dimensioning(
         and item["approved_funding_eur"] >= proposed_funding_eur
     ]
 
+    empty = {"n": 0, "tier": SampleTier.REFERENCE_ONLY.value}
     return {
         "engine_version": ENGINE_VERSION,
         "governance": {
-            "funding": {"n": len(funding_tuple), "tier": sample_tier(len(funding_tuple)).value},
-            "duration": {"n": len(duration_tuple), "tier": sample_tier(len(duration_tuple)).value},
+            "funding": {
+                "n": len(funding_tuple),
+                "tier": sample_tier(len(funding_tuple)).value,
+            },
+            "duration": {
+                "n": len(duration_tuple),
+                "tier": sample_tier(len(duration_tuple)).value,
+            },
         },
-        "funding": _summary(funding_tuple, proposed_funding_eur) if funding_tuple else {"n": 0, "tier": SampleTier.REFERENCE_ONLY.value},
-        "duration": _summary(duration_tuple, proposed_duration_months) if duration_tuple else {"n": 0, "tier": SampleTier.REFERENCE_ONLY.value},
+        "funding": _summary(funding_tuple, proposed_funding_eur) if funding_tuple else empty,
+        "duration": (
+            _summary(duration_tuple, proposed_duration_months) if duration_tuple else empty
+        ),
         "comparables": {
             "closest_by_funding": [row[3] for row in closest_funding[:comparable_limit]],
             "closest_joint": [row[4] for row in closest_joint[:comparable_limit]],
