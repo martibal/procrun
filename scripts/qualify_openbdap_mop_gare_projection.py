@@ -22,9 +22,9 @@ MAX_METADATA_BYTES: Final = 4_000_000
 MAX_ROW_BYTES: Final = 500_000
 
 SAFE_PATTERNS: Final = {
-    "cup": (r"codice.*cup", r"^cup$"),
-    "cig": (r"codice.*cig", r"^cig$"),
-    "publication_date": (r"data.*pubblicazione.*gara",),
+    "cup": (r"codice.*cup", r"cup.*codice", r"cup"),
+    "cig": (r"codice.*cig", r"cig.*codice", r"cig"),
+    "publication_date": (r"data.*pubblicazione.*gara", r"pubblicazione.*gara"),
 }
 FORBIDDEN_TERMS: Final = (
     "codice fiscale",
@@ -62,6 +62,7 @@ LABEL_KEYS: Final = {
     "caption",
     "nome",
 }
+ODATA_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def _normalise(value: str) -> str:
@@ -83,6 +84,20 @@ def _iter_dicts(value: Any) -> Iterable[dict[str, Any]]:
     elif isinstance(value, list):
         for child in value:
             yield from _iter_dicts(child)
+
+
+def _iter_strings(value: Any) -> Iterable[str]:
+    if isinstance(value, str):
+        if value.strip():
+            yield value.strip()
+    elif isinstance(value, dict):
+        for key, child in value.items():
+            if isinstance(key, str) and key.strip():
+                yield key.strip()
+            yield from _iter_strings(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _iter_strings(child)
 
 
 def _candidate_fields(metadata: Any) -> list[tuple[str, str]]:
@@ -113,22 +128,45 @@ def _candidate_fields(metadata: Any) -> list[tuple[str, str]]:
     return out
 
 
-def _select_fields(candidates: list[tuple[str, str]]) -> dict[str, str]:
+def _matches_for_concept(concept: str, values: Iterable[str]) -> list[str]:
+    patterns = SAFE_PATTERNS[concept]
+    matches: set[str] = set()
+    for value in values:
+        if not ODATA_IDENTIFIER.fullmatch(value):
+            continue
+        normalized = _normalise(value)
+        if any(term in normalized for term in FORBIDDEN_TERMS):
+            continue
+        if any(re.search(pattern, normalized) for pattern in patterns):
+            matches.add(value)
+    return sorted(matches)
+
+
+def _select_fields(metadata: Any) -> dict[str, str]:
+    candidates = _candidate_fields(metadata)
     selected: dict[str, str] = {}
+
     for concept, patterns in SAFE_PATTERNS.items():
-        matches: list[str] = []
+        structured_matches: list[str] = []
         for wire, label in candidates:
             combined = _normalise(f"{wire} {label}")
             if any(term in combined for term in FORBIDDEN_TERMS):
                 continue
             if any(re.search(pattern, combined) for pattern in patterns):
-                matches.append(wire)
-        unique = sorted(set(matches))
-        if len(unique) != 1:
+                structured_matches.append(wire)
+        unique = sorted(set(structured_matches))
+        if len(unique) == 1:
+            selected[concept] = unique[0]
+            continue
+
+        fallback = _matches_for_concept(concept, _iter_strings(metadata))
+        if len(fallback) != 1:
             raise RuntimeError(
-                f"OpenBDAP metadata did not identify exactly one safe {concept} field: {unique!r}"
+                "OpenBDAP metadata did not identify exactly one safe field; "
+                f"concept={concept}, structured={unique!r}, metadata_identifiers={fallback!r}"
             )
-        selected[concept] = unique[0]
+        selected[concept] = fallback[0]
+
     return selected
 
 
@@ -182,7 +220,7 @@ def _data_keys(row: dict[str, Any]) -> set[str]:
 def main() -> int:
     _check_url(DOWNLOAD_PAGE)
     headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Gare-Projection/1.0",
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Gare-Projection/1.1",
         "Accept": "application/json,text/html;q=0.9,*/*;q=0.8",
     }
     request_count = 0
@@ -213,7 +251,7 @@ def main() -> int:
         if len(metadata_response.content) > MAX_METADATA_BYTES:
             raise RuntimeError("OpenBDAP MOP_GAR metadata exceeded safety bound")
         metadata = metadata_response.json()
-        selected = _select_fields(_candidate_fields(metadata))
+        selected = _select_fields(metadata)
 
         select_fields = [selected["cup"], selected["cig"], selected["publication_date"]]
         projection = client.get(
