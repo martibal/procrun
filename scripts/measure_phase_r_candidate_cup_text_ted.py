@@ -26,6 +26,7 @@ from scripts.measure_phase_r_candidate_domains import CANDIDATE_RULES
 
 REPORT_PATH = Path("artifacts/phase-r-candidate-cup-text-ted-validation.json")
 FROZEN_TED_CUTOFF = date(2026, 9, 12)
+ALPHANUMERIC_TOKEN_RE = re.compile(r"[A-Z0-9]+")
 
 
 def _action(value: object) -> str:
@@ -36,10 +37,10 @@ def _normalized_cpv(value: object) -> str:
     return "".join(ch for ch in str(value or "") if ch.isdigit())[:8]
 
 
-def _contains_exact_cup(text: object, cup: str) -> bool:
+def _alphanumeric_tokens(text: object) -> set[str]:
     if not isinstance(text, str) or not text:
-        return False
-    return re.search(rf"(?<![A-Z0-9]){re.escape(cup)}(?![A-Z0-9])", text.upper()) is not None
+        return set()
+    return set(ALPHANUMERIC_TOKEN_RE.findall(text.upper()))
 
 
 def main() -> int:
@@ -98,6 +99,15 @@ def main() -> int:
                 f"candidate project cohort drift for {name}: expected={expected}, actual={actual}"
             )
 
+    cups_to_projects: dict[str, dict[str, set[str]]] = {}
+    candidate_cup_sets: dict[str, set[str]] = {}
+    for domain, project_map in candidate_projects_by_domain.items():
+        index: dict[str, set[str]] = defaultdict(set)
+        for operation_code, cup in project_map.items():
+            index[cup].add(operation_code)
+        cups_to_projects[domain] = index
+        candidate_cup_sets[domain] = set(index)
+
     ted = collect_complete_ted_italy(FROZEN_TED_CUTOFF)
     if not ted.complete:
         raise RuntimeError("TED universe is incomplete")
@@ -108,46 +118,34 @@ def main() -> int:
     title_hit_projects_by_domain: dict[str, set[str]] = {name: set() for name in CANDIDATE_RULES}
     scope_hit_projects_by_domain: dict[str, set[str]] = {name: set() for name in CANDIDATE_RULES}
 
-    cups_to_projects: dict[str, dict[str, set[str]]] = {}
-    for domain, project_map in candidate_projects_by_domain.items():
-        index: dict[str, set[str]] = defaultdict(set)
-        for operation_code, cup in project_map.items():
-            index[cup].add(operation_code)
-        cups_to_projects[domain] = index
-
     for record in ted.records:
         cpv_codes = tuple(_normalized_cpv(code) for code in record.get("cpv_codes", ()))
         cpv_codes = tuple(code for code in cpv_codes if code)
-        title = record.get("title")
-        scope = record.get("scope_description")
+        title_tokens = _alphanumeric_tokens(record.get("title"))
+        scope_tokens = _alphanumeric_tokens(record.get("scope_description"))
 
         for domain in CANDIDATE_RULES:
             if not any(candidate_cpv_match(domain, code) for code in cpv_codes):
                 continue
-            notice_hit = False
-            for cup, operation_codes in cups_to_projects[domain].items():
-                in_title = _contains_exact_cup(title, cup)
-                in_scope = _contains_exact_cup(scope, cup)
-                if not in_title and not in_scope:
-                    continue
-                notice_hit = True
-                hit_projects_by_domain[domain].update(operation_codes)
-                if in_title:
-                    title_hit_projects_by_domain[domain].update(operation_codes)
-                if in_scope:
-                    scope_hit_projects_by_domain[domain].update(operation_codes)
-            if notice_hit:
-                hit_notices_by_domain[domain] += 1
-                if any(
-                    _contains_exact_cup(title, cup)
-                    for cup in cups_to_projects[domain]
-                ):
-                    hit_notices_by_field[f"{domain}:title"] += 1
-                if any(
-                    _contains_exact_cup(scope, cup)
-                    for cup in cups_to_projects[domain]
-                ):
-                    hit_notices_by_field[f"{domain}:scope_description"] += 1
+
+            title_cups = title_tokens.intersection(candidate_cup_sets[domain])
+            scope_cups = scope_tokens.intersection(candidate_cup_sets[domain])
+            matched_cups = title_cups.union(scope_cups)
+            if not matched_cups:
+                continue
+
+            hit_notices_by_domain[domain] += 1
+            if title_cups:
+                hit_notices_by_field[f"{domain}:title"] += 1
+            if scope_cups:
+                hit_notices_by_field[f"{domain}:scope_description"] += 1
+
+            for cup in matched_cups:
+                hit_projects_by_domain[domain].update(cups_to_projects[domain][cup])
+            for cup in title_cups:
+                title_hit_projects_by_domain[domain].update(cups_to_projects[domain][cup])
+            for cup in scope_cups:
+                scope_hit_projects_by_domain[domain].update(cups_to_projects[domain][cup])
 
     report = {
         "schema_version": "phase-r-candidate-cup-text-ted-validation-v1",
