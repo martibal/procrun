@@ -1,4 +1,4 @@
-from procrun.eu_objective_mapping import INTERVENTION_FIELD_MAP
+import procrun.eu_objective_mapping as eu_objective_mapping
 
 
 OBSERVED_COUNTS = {
@@ -40,7 +40,9 @@ def test_review_covers_every_observed_intervention_code() -> None:
 
 
 def test_review_admits_no_new_codes_beyond_existing_frozen_map() -> None:
-    mapped_observed = set(OBSERVED_COUNTS).intersection(INTERVENTION_FIELD_MAP)
+    mapped_observed = set(OBSERVED_COUNTS).intersection(
+        eu_objective_mapping.INTERVENTION_FIELD_MAP
+    )
     assert mapped_observed == REVIEWED_ADMITTED_CODES
     assert sum(OBSERVED_COUNTS[code] for code in mapped_observed) == 142
 
@@ -53,4 +55,4 @@ def test_safe_mapped_coverage_remains_below_phase_r_target() -> None:
 
 def test_high_volume_non_domain_codes_remain_unmapped() -> None:
     for code in ("021", "013", "023", "010", "067"):
-        assert code not in INTERVENTION_FIELD_MAP
+        assert code not in eu_objective_mapping.INTERVENTION_FIELD_MAP
