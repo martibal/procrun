@@ -1,14 +1,14 @@
 # Phase R — Kohesio / EU Knowledge Graph structured-classification gate
 
-Status: **QUALIFICATION IN PROGRESS — METADATA ONLY**
+Status: **BLOCKED — AUTOMATED PROPERTY-METADATA ACCESS NOT AVAILABLE FROM QUALIFICATION RUNNER**
 
 Reviewed: 2026-09-12
 
 ## Purpose
 
-The frozen Phase R coverage diagnostic established that the currently admitted OpenCoesione fields cannot materially close the structured-signal gap. The next candidate is Kohesio / EU Knowledge Graph, but only for controlled structured classification metadata such as category/field of intervention, sector or equivalent project classification.
+The frozen Phase R coverage diagnostic established that the currently admitted OpenCoesione fields cannot materially close the structured-signal gap. Kohesio / EU Knowledge Graph was therefore evaluated as the next candidate, limited strictly to controlled structured classification metadata such as category/field of intervention, sector or equivalent project classification.
 
-This is distinct from the previously blocked use of Kohesio free-text summary data. No summary, project row, beneficiary value or item entity is approved by this gate.
+This is distinct from the previously blocked use of Kohesio free-text summary data. No summary, project row, beneficiary value or item entity was requested by this gate.
 
 ## Permanent constraints
 
@@ -16,9 +16,9 @@ No human or source-owner contact is permitted. Download-then-filter processing i
 
 ## Stage 1 — property metadata only
 
-The first qualification action is restricted to the public Wikibase property API and `wbsearchentities` with `type=property`.
+The qualification action was restricted to the public Wikibase property API and `wbsearchentities` with `type=property`.
 
-Allowed search concepts are frozen to:
+Frozen search concepts:
 
 - category of intervention;
 - intervention category;
@@ -29,21 +29,33 @@ Allowed search concepts are frozen to:
 - project sector;
 - project subsector.
 
-The probe must not request:
+The probe prohibited Q/item entities, project rows, SPARQL result rows, beneficiary or organisation values, project summaries and other free text.
 
-- Q/item entities;
-- project rows;
-- SPARQL result rows;
-- beneficiary or organisation values;
-- project summaries or other free text.
+## Observed access result
 
-The emitted artifact may contain property IDs, labels and descriptions only.
+Two bounded attempts were made from GitHub-hosted qualification runners.
 
-## Decision rule
+1. Initial property-only GET request returned HTTP 403 before any property payload was received.
+2. A second run retried the same read-only Wikibase action as form-encoded POST, using the same frozen `type=property` parameters. Both GET and POST returned HTTP 403 before any property payload was received.
 
-1. If no explicit structured classification property is found, close Kohesio for this Phase R route and move to the next candidate.
-2. If a plausible explicit property is found, do **not** approve production ingestion yet. First verify RIGHTS and anonymous machine ACCESS from already-public documentation.
-3. Only after those gates pass may a second, separately preregistered control projection be considered. That projection must request an exact project identifier plus the single approved structured property and must exclude beneficiary, organisation, contact and free-text properties before receipt.
-4. Any inability to prove server-side projection or output safety closes the route. No broad item/property walk is permitted as fallback.
+No project/item query, SPARQL query, broad property walk or row-level fallback was attempted.
 
-The Phase R 40% coverage target remains unchanged; source qualification must not weaken the evidence or privacy contract to reach it.
+The diagnostic workflow now records this condition as `BLOCKED_AUTOMATED_METADATA_ACCESS` while preserving the zero-row safety boundary.
+
+## Gate assessment
+
+| Gate | Result | Reason |
+|---|---|---|
+| Candidate semantic relevance | PLAUSIBLE | Kohesio's structured project model is relevant to intervention/category classification. |
+| Automated metadata ACCESS | **FAIL / NOT AVAILABLE ON QUALIFICATION ROUTE** | Public Wikibase property requests returned HTTP 403 for both GET and POST from the automated qualification runner. |
+| Exact structured property | NOT ESTABLISHED | No property payload was received, so ProcRun will not guess a property ID. |
+| DATA SAFETY | PASS FOR QUALIFICATION ONLY | No project, beneficiary, organisation, contact or free-text row data was received. |
+| Production row ingest | **NOT APPROVED** | RIGHTS, ACCESS and exact pre-receipt projection are not all proven. |
+
+## Decision
+
+`KOHESIO_STRUCTURED_CLASSIFICATION = BLOCKED_AUTOMATED_METADATA_ACCESS`
+
+ProcRun will not attempt project-row access or use a broad item/property walk to work around the access failure. It will not contact the source owner. The route may be reconsidered only if already-public machine access changes sufficiently to allow the frozen metadata-only qualification to succeed without weakening the safety boundary.
+
+Phase R therefore moves to the next different already-public structured-source candidate. The 40% coverage target remains unchanged and must not be reached by relaxing evidence or privacy constraints.
