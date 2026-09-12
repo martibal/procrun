@@ -37,4 +37,5 @@ def test_combined_payload_is_canonicalizable_and_descriptive_only() -> None:
     funding = results["funding"]
     assert isinstance(funding, dict)
     assert isinstance(funding["user_percentile_bps"], int)
-    assert "approval" not in str(payload).lower()
+    assert "approval_probability" not in str(payload).lower()
+    assert "recommended_funding" not in str(payload).lower()
