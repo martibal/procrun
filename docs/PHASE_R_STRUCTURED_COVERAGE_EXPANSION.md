@@ -51,3 +51,8 @@ The next implementation is selected from measured evidence, not intuition:
 
 The 40% Phase R target remains unchanged and is a minimum gate, not a desired final uncertainty
 rate.
+
+## Active measurement
+
+The frozen structured-coverage diagnostic is the active Phase R gate. Its aggregate artifact must be
+reviewed against the decision rule above before any production mapping or source scope is widened.
