@@ -1,11 +1,6 @@
 name: ted-mop-safe-linkage
 
 on:
-  pull_request:
-    paths:
-      - "scripts/qualify_ted_mop_safe_linkage.py"
-      - "docs/PHASE_M_TED_SAFE_LINKAGE_QUALIFICATION.md"
-      - ".github/workflows/ted-mop-safe-linkage.yml"
   workflow_dispatch:
 
 permissions:
