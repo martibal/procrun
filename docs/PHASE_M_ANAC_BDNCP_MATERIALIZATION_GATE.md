@@ -26,7 +26,7 @@ ProcRun therefore does not permit:
 - receiving full PVL search-result or detail payloads and deleting unsafe fields afterwards;
 - scraping rendered notices as an intelligence-ingest mechanism;
 - receiving RUP/contact/person/party fields and discarding them after receipt;
-- requesting a bespoke extraction or clarification from ANAC;
+- prohibited: bespoke extraction or clarification via ANAC;
 - treating public availability as equivalent to a pre-receipt safety contract.
 
 ## Public evidence established
@@ -63,7 +63,7 @@ ProcRun's existing metadata-only probe targets `https://dati.anticorruzione.it/o
 | Server-side CUP filter | NOT SUFFICIENTLY PROVEN | PVL documents human-facing CUP search, not a frozen machine API request contract. |
 | Server-side field projection | FAIL / NOT PROVEN | No authoritative public `fields`, `$select`, projection or equivalent output-boundary contract was found for the CUP route. |
 | Zero-PII before receipt | **FAIL** | Without a proven output projection, ProcRun cannot guarantee that only safe fields are received. |
-| Human-contact-free closure | PASS | The route is rejected rather than escalated to ANAC for clarification/extraction. |
+| Human-contact-free closure | PASS | The route is blocked; no human-dependent escalation is permitted. |
 
 ## Decision
 
