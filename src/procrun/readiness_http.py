@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -24,6 +25,11 @@ from procrun.readiness_application import (
 )
 from procrun.readiness_dossier import DossierBlockedError
 from procrun.readiness_matrix import AdvisorConfirmation, AdvisorState
+from procrun.readiness_purchase import (
+    PurchaseCapabilityError,
+    PurchaseScope,
+    verify_purchase_capability,
+)
 
 
 def _database_url() -> str:
@@ -37,6 +43,13 @@ def _api_token() -> str:
     value = os.environ.get("PROCRUN_READINESS_API_TOKEN", "").strip()
     if not value:
         raise RuntimeError("PROCRUN_READINESS_API_TOKEN is required")
+    return value
+
+
+def _purchase_secret() -> str:
+    value = os.environ.get("PROCRUN_PURCHASE_CAPABILITY_SECRET", "").strip()
+    if len(value) < 32:
+        raise RuntimeError("PROCRUN_PURCHASE_CAPABILITY_SECRET must be at least 32 characters")
     return value
 
 
@@ -114,19 +127,35 @@ class ReadinessHandler(BaseHTTPRequestHandler):
                 )
                 for item in body.get("confirmations", [])
             )
-            proposed_duration = body.get("proposed_duration_months")
+            proposed_duration_raw = body.get("proposed_duration_months")
+            proposed_duration = (
+                None if proposed_duration_raw is None else int(proposed_duration_raw)
+            )
+            scope = PurchaseScope(
+                tenant_key=str(body["tenant_key"]),
+                purchase_reference=str(body["purchase_reference"]),
+                bando_code=str(body["bando_code"]),
+                benchmark_snapshot_id=str(body["benchmark_snapshot_id"]),
+                proposed_funding_eur=int(body["proposed_funding_eur"]),
+                proposed_duration_months=proposed_duration,
+                expires_unix=int(body["purchase_expires_unix"]),
+            )
+            verify_purchase_capability(
+                scope,
+                str(body["purchase_authorization"]),
+                _purchase_secret(),
+                now_unix=int(time.time()),
+            )
             with psycopg.connect(_database_url()) as conn:
                 payload, digest = create_and_persist_dossier(
                     conn,
                     dossier_id=str(uuid4()),
-                    tenant_key=str(body["tenant_key"]),
-                    purchase_reference=str(body["purchase_reference"]),
-                    bando_code=str(body["bando_code"]),
-                    benchmark_snapshot_id=str(body["benchmark_snapshot_id"]),
-                    proposed_funding_eur=int(body["proposed_funding_eur"]),
-                    proposed_duration_months=(
-                        None if proposed_duration is None else int(proposed_duration)
-                    ),
+                    tenant_key=scope.tenant_key,
+                    purchase_reference=scope.purchase_reference,
+                    bando_code=scope.bando_code,
+                    benchmark_snapshot_id=scope.benchmark_snapshot_id,
+                    proposed_funding_eur=scope.proposed_funding_eur,
+                    proposed_duration_months=scope.proposed_duration_months,
                     confirmations=confirmations,
                     created_at=datetime.now(UTC),
                 )
@@ -138,6 +167,8 @@ class ReadinessHandler(BaseHTTPRequestHandler):
                     "payload": payload,
                 },
             )
+        except PurchaseCapabilityError as exc:
+            self._json(HTTPStatus.PAYMENT_REQUIRED, {"error": str(exc)})
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
         except ReadinessNotFoundError as exc:
