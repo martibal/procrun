@@ -25,7 +25,7 @@ jobs:
       - name: Install Python
         run: python -m pip install -c requirements-runtime.lock -e ".[dev]"
       - name: Measure candidate domains
-        run: python scripts/measure_phase_r_candidate_domains.py
+        run: PYTHONPATH=. python scripts/measure_phase_r_candidate_domains.py
       - name: Upload aggregate diagnostic
         uses: actions/upload-artifact@v4
         with:
