@@ -15,7 +15,10 @@ import urllib.request
 
 ENDPOINT = "https://linkedopendata.eu/w/api.php"
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 Chrome/151 Safari/537.36"
+    ),
     "Accept": "application/json,text/plain,*/*",
     "Referer": "https://linkedopendata.eu/wiki/Main_Page",
 }
@@ -44,7 +47,13 @@ def request_json(params: dict[str, str]) -> tuple[dict[str, object] | None, dict
         with urllib.request.urlopen(get_request, timeout=30) as response:
             return json.load(response), {"transport": "GET", "status": response.status}
     except (urllib.error.HTTPError, urllib.error.URLError) as error:
-        attempts.append({"transport": "GET", "status": http_status(error), "error": type(error).__name__})
+        attempts.append(
+            {
+                "transport": "GET",
+                "status": http_status(error),
+                "error": type(error).__name__,
+            }
+        )
 
     post_request = urllib.request.Request(
         ENDPOINT,
@@ -56,7 +65,13 @@ def request_json(params: dict[str, str]) -> tuple[dict[str, object] | None, dict
         with urllib.request.urlopen(post_request, timeout=30) as response:
             return json.load(response), {"transport": "POST", "status": response.status}
     except (urllib.error.HTTPError, urllib.error.URLError) as error:
-        attempts.append({"transport": "POST", "status": http_status(error), "error": type(error).__name__})
+        attempts.append(
+            {
+                "transport": "POST",
+                "status": http_status(error),
+                "error": type(error).__name__,
+            }
+        )
         return None, {"attempts": attempts}
 
 
@@ -102,8 +117,12 @@ def main() -> int:
             rows.append(
                 {
                     "id": entity_id,
-                    "label": item.get("label") if isinstance(item.get("label"), str) else None,
-                    "description": item.get("description") if isinstance(item.get("description"), str) else None,
+                    "label": item.get("label")
+                    if isinstance(item.get("label"), str)
+                    else None,
+                    "description": item.get("description")
+                    if isinstance(item.get("description"), str)
+                    else None,
                 }
             )
         searches[term] = rows
@@ -117,7 +136,9 @@ def main() -> int:
     report = {
         "probe_contract": "kohesio-structured-classification-property-metadata-only-v1",
         "endpoint": ENDPOINT,
-        "qualification_result": "METADATA_ACCESS_OK" if access_ok else "BLOCKED_AUTOMATED_METADATA_ACCESS",
+        "qualification_result": (
+            "METADATA_ACCESS_OK" if access_ok else "BLOCKED_AUTOMATED_METADATA_ACCESS"
+        ),
         "access_ok": access_ok,
         "transports_used": sorted(transports),
         "access_failures": access_failures,
