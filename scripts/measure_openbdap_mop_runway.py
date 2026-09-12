@@ -85,14 +85,14 @@ def main() -> int:
         raise RuntimeError("OpenBDAP endpoint left the frozen origin")
 
     headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Runway/1.0",
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Runway/1.1",
         "Accept": "application/json",
     }
     timeout = httpx.Timeout(30.0, connect=15.0)
-    seen_cups: set[str] = set()
-    valid_planned_rows = 0
-    next_12m = 0
-    next_24m = 0
+    earliest_planned_by_cup: dict[str, date] = {}
+    latest_planned_by_cup: dict[str, date] = {}
+    rows_received = 0
+    duplicate_rows = 0
     request_count = 0
 
     with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
@@ -128,27 +128,48 @@ def main() -> int:
                 if not isinstance(cup, str) or not cup.strip():
                     raise RuntimeError("OpenBDAP runway row has no CUP")
                 cup = cup.strip().upper()
-                if cup in seen_cups:
-                    raise RuntimeError("OpenBDAP runway pagination returned duplicate CUP")
-                seen_cups.add(cup)
-
                 planned = _parse_date(row.get(PLANNED_EXECUTION_START))
-                valid_planned_rows += 1
-                if OBSERVED_DATE <= planned <= END_24M:
-                    next_24m += 1
-                    if planned <= END_12M:
-                        next_12m += 1
+                rows_received += 1
+
+                if cup in earliest_planned_by_cup:
+                    duplicate_rows += 1
+                    if planned < earliest_planned_by_cup[cup]:
+                        earliest_planned_by_cup[cup] = planned
+                    if planned > latest_planned_by_cup[cup]:
+                        latest_planned_by_cup[cup] = planned
+                else:
+                    earliest_planned_by_cup[cup] = planned
+                    latest_planned_by_cup[cup] = planned
 
             if len(rows) < PAGE_SIZE:
                 break
         else:
             raise RuntimeError("OpenBDAP runway scan hit frozen page ceiling")
 
-    if not 0 <= next_12m <= next_24m <= valid_planned_rows:
+    unique_cups = len(earliest_planned_by_cup)
+    conflicting_date_cups = sum(
+        1
+        for cup, earliest in earliest_planned_by_cup.items()
+        if latest_planned_by_cup[cup] != earliest
+    )
+    next_12m = sum(
+        1
+        for planned in earliest_planned_by_cup.values()
+        if OBSERVED_DATE <= planned <= END_12M
+    )
+    next_24m = sum(
+        1
+        for planned in earliest_planned_by_cup.values()
+        if OBSERVED_DATE <= planned <= END_24M
+    )
+
+    if not 0 <= next_12m <= next_24m <= unique_cups:
         raise RuntimeError("OpenBDAP runway cohort counts are inconsistent")
+    if rows_received < unique_cups:
+        raise RuntimeError("OpenBDAP runway row accounting is inconsistent")
 
     report = {
-        "measurement_contract": "openbdap-mop-runway-v1",
+        "measurement_contract": "openbdap-mop-runway-v1.1",
         "resource_id": RESOURCE_ID,
         "observed_date": OBSERVED_DATE.isoformat(),
         "end_12m": END_12M.isoformat(),
@@ -162,11 +183,17 @@ def main() -> int:
         "page_size": PAGE_SIZE,
         "frozen_national_total_rows": FROZEN_NATIONAL_TOTAL_ROWS,
         "frozen_national_active_rows": FROZEN_NATIONAL_ACTIVE_ROWS,
-        "no_actual_start_with_valid_planned_start": valid_planned_rows,
+        "deduplication_key": "CUP",
+        "canonical_planned_start_rule": "earliest valid planned execution start per CUP",
+        "filtered_rows_received": rows_received,
+        "duplicate_rows_after_first_cup_occurrence": duplicate_rows,
+        "unique_cups": unique_cups,
+        "cups_with_conflicting_planned_start_dates": conflicting_date_cups,
+        "no_actual_start_with_valid_planned_start": unique_cups,
         "no_actual_start_planned_next_12m": next_12m,
         "no_actual_start_planned_next_24m": next_24m,
         "valid_planned_pct_of_active": round(
-            valid_planned_rows * 100 / FROZEN_NATIONAL_ACTIVE_ROWS, 4
+            unique_cups * 100 / FROZEN_NATIONAL_ACTIVE_ROWS, 4
         ),
         "next_12m_pct_of_active": round(next_12m * 100 / FROZEN_NATIONAL_ACTIVE_ROWS, 4),
         "next_24m_pct_of_active": round(next_24m * 100 / FROZEN_NATIONAL_ACTIVE_ROWS, 4),
