@@ -20,11 +20,7 @@ import httpx
 from procrun.a21_identity import a21_projects_by_local_operation_id
 from procrun.collectors.opencoesione import to_funding_projects
 from procrun.collectors.opencoesione_live import collect_open_coesione_live
-from procrun.collectors.ted import (
-    TED_SEARCH_URL,
-    TED_SOURCE_ID,
-    _post_with_throttle_retry,
-)
+from procrun.collectors.ted import TED_SOURCE_ID, _post_with_throttle_retry
 from procrun.domain import FundingProject
 from procrun.source_contracts import require_live_source
 from scripts.measure_lombardia_socrata_structured_coverage import (
