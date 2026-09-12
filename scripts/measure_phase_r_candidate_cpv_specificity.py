@@ -2,8 +2,9 @@
 """Measure Phase R candidate CPV specificity using count-only TED Search API queries.
 
 The diagnostic requests only ``publication-number`` and records aggregate ``totalNoticeCount``
-values. It does not persist notice rows, titles, descriptions, buyers, contacts, locations, values,
-links, or other row-level data.
+values. TED injects ``links`` into returned notice stubs even when it is not requested; those stubs
+are validated in memory and never persisted. No title, description, buyer, contact, location, value,
+or other row-level field is admitted.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ START_DATE: Final = date(2021, 1, 1)
 CUTOFF_DATE: Final = date(2026, 9, 12)
 REPORT_PATH: Final = Path("artifacts/phase-r-candidate-cpv-specificity.json")
 FIELD_PROJECTION: Final = ("publication-number",)
+ALLOWED_RETURNED_NOTICE_FIELDS: Final = frozenset({"publication-number", "links"})
 
 
 @dataclass(frozen=True)
@@ -104,10 +106,10 @@ def _count(http: httpx.Client, item: CountQuery) -> int:
     for notice in notices:
         if not isinstance(notice, dict):
             raise RuntimeError(f"TED {item.key} notice is not an object")
-        unexpected_fields = set(notice) - set(FIELD_PROJECTION)
+        unexpected_fields = set(notice) - ALLOWED_RETURNED_NOTICE_FIELDS
         if unexpected_fields:
             raise RuntimeError(
-                f"TED {item.key} returned non-projected fields: {sorted(unexpected_fields)}"
+                f"TED {item.key} returned non-admitted fields: {sorted(unexpected_fields)}"
             )
     return total
 
@@ -146,6 +148,8 @@ def main() -> int:
         "boundary": {
             "server_side_projection_required": True,
             "requested_fields": list(FIELD_PROJECTION),
+            "server_injected_links_observed": True,
+            "links_persisted": False,
             "rows_persisted": False,
             "titles_requested": False,
             "descriptions_requested": False,
