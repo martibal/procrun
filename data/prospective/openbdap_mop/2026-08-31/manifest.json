@@ -1,0 +1,28 @@
+{
+  "cohort_count": 1356,
+  "cohort_file": "cohort.jsonl",
+  "cohort_sha256": "daea98e853ba49ed8b69e0221a2d844c00462fdddce14f7f93a97b8c3a1608e2",
+  "conflicting_date_cups_in_parent_population": 339,
+  "free_text_received": false,
+  "identity_fields_received": false,
+  "measurement_contract": "openbdap-mop-prospective-freeze-v1",
+  "protocol": {
+    "canonical_planned_start_rule": "earliest valid planned execution start per CUP",
+    "cohort_end": "2027-08-31",
+    "cohort_start": "2026-08-31",
+    "deduplication_key": "CUP",
+    "eligibility": "status A + no actual execution start + valid planned execution start",
+    "outcome_definition": "future TED-observed procurement materialization; absence is not proof of no procurement",
+    "projection_fields": [
+      "Cccodice_cup_1267962549",
+      "Ccinizio_esecuz2103627579"
+    ],
+    "source_observed_date": "2026-08-31"
+  },
+  "protocol_sha256": "86edef7cbfde2793715e0aa21d6466e0461a793d2bb131a6255a87940dda4294",
+  "raw_rows_persisted": false,
+  "request_count": 18,
+  "resource_id": "bda1676b-62ab-44b7-8f9a-ca93b8534488@rgs",
+  "source_filtered_rows": 35852,
+  "source_unique_cups": 34988
+}

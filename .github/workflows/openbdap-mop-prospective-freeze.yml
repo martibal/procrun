@@ -1,11 +1,6 @@
 name: openbdap-mop-prospective-freeze
 
 on:
-  pull_request:
-    paths:
-      - "scripts/freeze_openbdap_mop_prospective_cohort.py"
-      - ".github/workflows/openbdap-mop-prospective-freeze.yml"
-      - "docs/PHASE_M_MOP_PROSPECTIVE_VALIDATION.md"
   workflow_dispatch:
 
 permissions:

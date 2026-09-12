@@ -1,10 +1,6 @@
 name: openbdap-mop-safe-coverage
 
 on:
-  pull_request:
-    paths:
-      - "scripts/measure_openbdap_mop_runway.py"
-      - ".github/workflows/openbdap-mop-safe-coverage.yml"
   workflow_dispatch:
 
 permissions:

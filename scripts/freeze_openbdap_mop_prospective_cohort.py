@@ -176,7 +176,10 @@ def main() -> int:
         "cohort_start": OBSERVED_DATE.isoformat(),
         "deduplication_key": "CUP",
         "eligibility": "status A + no actual execution start + valid planned execution start",
-        "outcome_definition": "future TED-observed procurement materialization; absence is not proof of no procurement",
+        "outcome_definition": (
+            "future TED-observed procurement materialization; "
+            "absence is not proof of no procurement"
+        ),
         "projection_fields": [CUP, PLANNED_EXECUTION_START],
         "source_observed_date": OBSERVED_DATE.isoformat(),
     }
