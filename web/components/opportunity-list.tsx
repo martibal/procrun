@@ -19,7 +19,6 @@ function sourceTextCell(item: CustomerOpportunity) {
           <summary>Show exact source text</summary>
           <div className="evidence">{item.projectEvidence}</div>
         </details>
-        {item.unresolvedEvidence.length > 0 && <div className="micro state-copy">Text needing review: {item.unresolvedEvidence.join(" | ")}</div>}
       </>
     );
   }
@@ -28,7 +27,23 @@ function sourceTextCell(item: CustomerOpportunity) {
     <>
       <div className="micro evidence-label">{item.projectEvidenceType}</div>
       <div className="evidence source-text-preview">{item.projectEvidence}</div>
-      {item.unresolvedEvidence.length > 0 && <div className="micro state-copy">Text needing review: {item.unresolvedEvidence.join(" | ")}</div>}
+    </>
+  );
+}
+
+function unresolvedEvidenceCell(item: CustomerOpportunity) {
+  if (item.state !== "UNRESOLVED" || item.unresolvedEvidence.length === 0) {
+    return <span className="micro">—</span>;
+  }
+
+  return (
+    <>
+      {item.unresolvedEvidence.map((text, index) => (
+        <div className="evidence" key={`${item.id}:unresolved:${index}`}>
+          {text}
+        </div>
+      ))}
+      <div className="micro state-copy">Verbatim text from the published project document that ProcRun could not resolve safely.</div>
     </>
   );
 }
@@ -56,6 +71,7 @@ export function OpportunityList({ items }: { items: readonly CustomerOpportunity
           <tr>
             <th>Project / purchasing need</th>
             <th>Published source text</th>
+            <th>Why unresolved — exact project text</th>
             <th>TED status</th>
             <th>ProcRun interpretation — helper, not a definitive answer</th>
             <th aria-label="Open details" />
@@ -72,6 +88,7 @@ export function OpportunityList({ items }: { items: readonly CustomerOpportunity
                 {item.valueEur != null && <div className="micro">Approved funding: €{item.valueEur.toLocaleString("en-US")}</div>}
               </td>
               <td>{sourceTextCell(item)}</td>
+              <td>{unresolvedEvidenceCell(item)}</td>
               <td>{tedFacts(item)}</td>
               <td>
                 <p className="small interpretation">{item.interpretation}</p>
