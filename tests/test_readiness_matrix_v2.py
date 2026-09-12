@@ -1,7 +1,13 @@
 from datetime import UTC, datetime
 
 from procrun.readiness_matrix import AdvisorConfirmation, AdvisorState, build_readiness_matrix
-from procrun.readiness_source import PublishedRequirement, RequirementKind, SourceDocument, SourcePackage
+from procrun.readiness_source import (
+    PublishedRequirement,
+    RequirementKind,
+    SourceDocument,
+    SourcePackage,
+    SourceReuseMode,
+)
 
 
 def _package() -> SourcePackage:
@@ -12,6 +18,9 @@ def _package() -> SourcePackage:
         public_url="https://example.invalid/bando",
         sha256="b" * 64,
         observed_at=datetime(2026, 9, 1, tzinfo=UTC),
+        reuse_mode=SourceReuseMode.COMMERCIAL_REUSE_CONFIRMED,
+        reuse_basis_url="https://example.invalid/public-reuse-policy",
+        reuse_basis_note="Public test fixture licence permits commercial reuse.",
     )
     return SourcePackage(
         source_package_id="pkg",
