@@ -6,11 +6,10 @@ project/company facts. The module performs no external lookup and makes no bindi
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Mapping
-
 
 RULE_ENGINE_VERSION = "preapplication-rules-v1"
 DISCLAIMER = (
@@ -105,11 +104,16 @@ def _evaluate_rule(rule: RuleDefinition, inputs: Mapping[str, object]) -> RuleEv
     else:  # pragma: no cover - enum exhaustiveness guard
         raise ValueError(f"unsupported rule kind: {rule.kind}")
 
+    reason = (
+        "Input satisfies the encoded public rule."
+        if passed
+        else "Input does not satisfy the encoded public rule."
+    )
     return RuleEvaluation(
         rule_id=rule.rule_id,
         outcome=(RuleOutcome.LIKELY_ELIGIBLE if passed else RuleOutcome.LIKELY_NOT_ELIGIBLE),
         customer_label=rule.customer_label,
-        reason=("Input satisfies the encoded public rule." if passed else "Input does not satisfy the encoded public rule."),
+        reason=reason,
         source_url=rule.public_source_url,
         source_citation=rule.public_source_citation,
     )
@@ -125,7 +129,9 @@ def _aggregate(evaluations: tuple[RuleEvaluation, ...]) -> RuleOutcome:
     return RuleOutcome.LIKELY_ELIGIBLE
 
 
-def evaluate_ruleset(ruleset: RuleSet, inputs: Mapping[str, object]) -> tuple[ModuleEvaluation, ...]:
+def evaluate_ruleset(
+    ruleset: RuleSet, inputs: Mapping[str, object]
+) -> tuple[ModuleEvaluation, ...]:
     """Evaluate one immutable ruleset without any external data access."""
     modules = sorted({rule.module for rule in ruleset.rules})
     results: list[ModuleEvaluation] = []
