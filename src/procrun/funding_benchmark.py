@@ -6,13 +6,12 @@ It consumes already-admitted project facts and produces a frozen, descriptive be
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 from math import inf
 from statistics import median
-from typing import Iterable
-
 
 ENGINE_VERSION = "funded-project-benchmark-v1"
 
@@ -61,7 +60,9 @@ class Comparable:
     source_url: str | None
 
 
-def completed_calendar_months(start: date | None, end: date | None) -> tuple[int | None, ExclusionReason | None]:
+def completed_calendar_months(
+    start: date | None, end: date | None
+) -> tuple[int | None, ExclusionReason | None]:
     """Return completed calendar months using the frozen v1 rule."""
     if start is None:
         return None, ExclusionReason.MISSING_START_DATE
@@ -119,7 +120,9 @@ def _nearest_rank(values: tuple[int, ...], percentile: float) -> int:
     return ordered[rank - 1]
 
 
-def _summary(values: tuple[int, ...], tier: GovernanceTier, user_value: int | None) -> dict[str, object]:
+def _summary(
+    values: tuple[int, ...], tier: GovernanceTier, user_value: int | None
+) -> dict[str, object]:
     if tier is GovernanceTier.REFERENCE_ONLY:
         return {"n": len(values), "tier": tier.value}
 
@@ -136,7 +139,9 @@ def _summary(values: tuple[int, ...], tier: GovernanceTier, user_value: int | No
                 "q1": _nearest_rank(values, 0.25),
                 "q3": _nearest_rank(values, 0.75),
                 "p90": _nearest_rank(values, 0.90),
-                "user_percentile": None if user_value is None else right_ecdf(values, user_value),
+                "user_percentile": (
+                    None if user_value is None else right_ecdf(values, user_value)
+                ),
             }
         )
     return result
@@ -158,21 +163,26 @@ def compute_benchmark(
     if proposed_duration_months is not None and proposed_duration_months < 0:
         raise ValueError("proposed_duration_months must be non-negative")
 
-    prepared = tuple(sorted((prepare_observation(o) for o in observations), key=lambda o: o.operation_code))
+    prepared = tuple(
+        sorted(
+            (prepare_observation(observation) for observation in observations),
+            key=lambda observation: observation.operation_code,
+        )
+    )
     funding_values = tuple(
-        o.approved_funding_eur
-        for o in prepared
-        if o.approved_funding_eur is not None
+        observation.approved_funding_eur
+        for observation in prepared
+        if observation.approved_funding_eur is not None
     )
     duration_values = tuple(
-        o.duration_months for o in prepared if o.duration_months is not None
+        observation.duration_months
+        for observation in prepared
+        if observation.duration_months is not None
     )
     funding_tier = governance_tier(len(funding_values))
     duration_tier = governance_tier(len(duration_values))
 
-    use_duration_distance = (
-        proposed_duration_months is not None and len(duration_values) >= 15
-    )
+    use_duration_distance = proposed_duration_months is not None and len(duration_values) >= 15
 
     ranked: list[tuple[float, int, float, PreparedObservation]] = []
     for item in prepared:
@@ -233,6 +243,26 @@ def compute_benchmark(
         for item in high_end_items
     ]
 
+    exclusions = []
+    for item in prepared:
+        if item.funding_exclusion_reason is None and item.duration_exclusion_reason is None:
+            continue
+        exclusions.append(
+            {
+                "operation_code": item.operation_code,
+                "funding": (
+                    None
+                    if item.funding_exclusion_reason is None
+                    else item.funding_exclusion_reason.value
+                ),
+                "duration": (
+                    None
+                    if item.duration_exclusion_reason is None
+                    else item.duration_exclusion_reason.value
+                ),
+            }
+        )
+
     return {
         "engine_version": ENGINE_VERSION,
         "governance": {
@@ -244,15 +274,9 @@ def compute_benchmark(
             "duration": _summary(duration_values, duration_tier, proposed_duration_months),
         },
         "comparables": {"closest": closest, "high_end": high_end},
-        "exclusions": [
-            {
-                "operation_code": item.operation_code,
-                "funding": None if item.funding_exclusion_reason is None else item.funding_exclusion_reason.value,
-                "duration": None if item.duration_exclusion_reason is None else item.duration_exclusion_reason.value,
-            }
-            for item in prepared
-            if item.funding_exclusion_reason is not None
-            or item.duration_exclusion_reason is not None
-        ],
-        "language_contract": "Historical descriptive comparison only; no approval prediction or funding recommendation.",
+        "exclusions": exclusions,
+        "language_contract": (
+            "Historical descriptive comparison only; no approval prediction or funding "
+            "recommendation."
+        ),
     }
