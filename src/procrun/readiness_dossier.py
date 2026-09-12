@@ -43,6 +43,7 @@ class DossierBuildInput:
     benchmark_snapshot_id: str
     benchmark_data_through: str
     benchmark_snapshot_sha256: str
+    benchmark_source_binding: dict[str, object]
     observations: tuple[BenchmarkObservation, ...]
     proposed_funding_eur: int
     proposed_duration_months: int | None
@@ -107,6 +108,18 @@ def build_dossier(input_data: DossierBuildInput) -> tuple[dict[str, object], byt
     if len(input_data.benchmark_snapshot_sha256) != 64:
         raise ValueError("benchmark snapshot sha256 must be 64 hex characters")
     int(input_data.benchmark_snapshot_sha256, 16)
+    required_binding_fields = {
+        "funding_source_id",
+        "funding_source_sha256",
+        "cohort_source_id",
+        "cohort_source_sha256",
+        "cohort_membership_semantics",
+    }
+    missing_binding = required_binding_fields - set(input_data.benchmark_source_binding)
+    if missing_binding:
+        raise DossierBlockedError(
+            f"benchmark source binding is incomplete: {sorted(missing_binding)}"
+        )
 
     project_inputs = {
         "proposed_funding_eur": input_data.proposed_funding_eur,
@@ -167,6 +180,7 @@ def build_dossier(input_data: DossierBuildInput) -> tuple[dict[str, object], byt
             "snapshot_id": input_data.benchmark_snapshot_id,
             "data_through": input_data.benchmark_data_through,
             "snapshot_sha256": input_data.benchmark_snapshot_sha256,
+            "source_binding": input_data.benchmark_source_binding,
             "analysis": benchmark,
         },
         "epistemic_contract": epistemic_contract,
