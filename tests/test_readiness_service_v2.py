@@ -10,6 +10,7 @@ def _package() -> SourcePackage:
     return SourcePackage(
         source_package_id="pkg",
         bando_code="BANDO-X",
+        benchmark_cohort_id="SAME_BANDO:BANDO-X",
         version=1,
         verified_at=verified,
         documents=(
