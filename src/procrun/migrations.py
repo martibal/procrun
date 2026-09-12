@@ -4,12 +4,14 @@ from typing import Any
 
 from psycopg import Connection
 
+from procrun.benchmark_reports import apply_benchmark_migration
 from procrun.evidence_provenance import apply_evidence_provenance_migration
 from procrun.ledger import apply_migrations as apply_ledger_migrations
 
 
 def apply_all_migrations(conn: Connection[Any]) -> None:
-    """Apply every production migration required by the web-facing runway contract."""
+    """Apply every production migration required by the web-facing contracts."""
 
     apply_ledger_migrations(conn)
     apply_evidence_provenance_migration(conn)
+    apply_benchmark_migration(conn)
