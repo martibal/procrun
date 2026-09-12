@@ -7,8 +7,9 @@ from typing import Any
 
 from psycopg import Connection
 
-from procrun.readiness_dossier import CANONICALIZATION_VERSION
-from procrun.readiness_matrix import AdvisorConfirmation
+from procrun.readiness_benchmark import compute_historical_dimensioning
+from procrun.readiness_dossier import CANONICALIZATION_VERSION, DossierBlockedError
+from procrun.readiness_matrix import AdvisorConfirmation, build_readiness_matrix
 from procrun.readiness_persistence import (
     insert_dossier,
     load_benchmark_observations,
@@ -17,6 +18,7 @@ from procrun.readiness_persistence import (
     load_latest_source_package,
 )
 from procrun.readiness_service import PreviewRequest, PreviewResponse, create_paid_dossier, preview
+from procrun.readiness_source import SourcePackageState, package_manifest, package_sha256
 
 
 class ReadinessNotFoundError(LookupError):
@@ -46,6 +48,64 @@ def preview_by_bando(
             as_of=as_of,
         )
     )
+
+
+def unlock_paid_analysis(
+    conn: Connection[Any],
+    *,
+    bando_code: str,
+    benchmark_snapshot_id: str,
+    proposed_funding_eur: int,
+    proposed_duration_months: int | None,
+    as_of: datetime,
+) -> dict[str, object]:
+    """Return the purchased analysis before advisor confirmations freeze the dossier."""
+    package = load_latest_source_package(conn, bando_code)
+    if package is None:
+        raise ReadinessNotFoundError(f"no source package for bando {bando_code}")
+    invalidated_at = load_latest_invalidation_at(conn, package.source_package_id)
+    state = package.state_at(as_of, invalidated_at=invalidated_at)
+    if state is not SourcePackageState.FRESH:
+        raise DossierBlockedError(f"paid analysis unavailable: source package state is {state.value}")
+    snapshot = load_benchmark_snapshot_metadata(conn, benchmark_snapshot_id)
+    if snapshot is None:
+        raise ReadinessNotFoundError(f"unknown benchmark snapshot {benchmark_snapshot_id}")
+    data_through, snapshot_sha256 = snapshot
+    observations = load_benchmark_observations(
+        conn,
+        snapshot_id=benchmark_snapshot_id,
+        cohort_id=package.benchmark_cohort_id,
+    )
+    project_inputs = {
+        "proposed_funding_eur": proposed_funding_eur,
+        "proposed_duration_months": proposed_duration_months,
+    }
+    return {
+        "source_package": {
+            "source_package_id": package.source_package_id,
+            "bando_code": package.bando_code,
+            "benchmark_cohort_id": package.benchmark_cohort_id,
+            "verified_at": package.verified_at.isoformat(),
+            "refresh_due_at": package.refresh_due_at.isoformat(),
+            "package_sha256": package_sha256(package),
+            "manifest": package_manifest(package),
+        },
+        "published_requirements_matrix": build_readiness_matrix(
+            package,
+            project_inputs=project_inputs,
+            confirmations=(),
+        ),
+        "historical_dimensioning": {
+            "snapshot_id": benchmark_snapshot_id,
+            "data_through": data_through,
+            "snapshot_sha256": snapshot_sha256,
+            "analysis": compute_historical_dimensioning(
+                observations,
+                proposed_funding_eur=proposed_funding_eur,
+                proposed_duration_months=proposed_duration_months,
+            ),
+        },
+    }
 
 
 def create_and_persist_dossier(
