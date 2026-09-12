@@ -61,20 +61,40 @@ def main() -> int:
 
     positives = set(dev_labels["positive_operation_codes"])
     ambiguous = set(dev_labels["ambiguous_operation_codes"])
-    dev_cases = [c for c in dev["cases"] if str(c["operation_code"]) not in ambiguous]
-    x_dev_text = [_text(c) for c in dev_cases]
-    y_dev = np.asarray([1 if str(c["operation_code"]) in positives else 0 for c in dev_cases], dtype=np.int64)
+    dev_cases = [
+        case
+        for case in dev["cases"]
+        if str(case["operation_code"]) not in ambiguous
+    ]
+    x_dev_text = [_text(case) for case in dev_cases]
+    y_dev = np.asarray(
+        [1 if str(case["operation_code"]) in positives else 0 for case in dev_cases],
+        dtype=np.int64,
+    )
 
     h_pos = set(hold_labels["positive_operation_codes"])
     h_neg = set(hold_labels["negative_operation_codes"])
-    hold_cases = [c for c in holdout["cases"] if str(c["operation_code"]) in h_pos | h_neg]
-    hold_codes = [str(c["operation_code"]) for c in hold_cases]
-    x_hold_text = [_text(c) for c in hold_cases]
-    y_hold = np.asarray([1 if code in h_pos else 0 for code in hold_codes], dtype=np.int64)
+    hold_cases = [
+        case
+        for case in holdout["cases"]
+        if str(case["operation_code"]) in h_pos | h_neg
+    ]
+    hold_codes = [str(case["operation_code"]) for case in hold_cases]
+    x_hold_text = [_text(case) for case in hold_cases]
+    y_hold = np.asarray(
+        [1 if code in h_pos else 0 for code in hold_codes],
+        dtype=np.int64,
+    )
 
     embedder = LocalSentenceTransformersEmbedder(candidate["model"]["embedding_model"])
-    dev_emb = np.asarray(embedder.encode(x_dev_text, kind="passage"), dtype=np.float64)
-    hold_emb = np.asarray(embedder.encode(x_hold_text, kind="passage"), dtype=np.float64)
+    dev_emb = np.asarray(
+        embedder.encode(x_dev_text, kind="passage"),
+        dtype=np.float64,
+    )
+    hold_emb = np.asarray(
+        embedder.encode(x_hold_text, kind="passage"),
+        dtype=np.float64,
+    )
     weight = float(candidate["model"]["embedding_weight"])
 
     vectorizer = _vectorizer()
@@ -100,7 +120,10 @@ def main() -> int:
     fp_mask = predicted & (y_hold == 0)
     fn_mask = (~predicted) & (y_hold == 1)
     tn_mask = (~predicted) & (y_hold == 0)
-    tp, fp, fn, tn = map(int, [tp_mask.sum(), fp_mask.sum(), fn_mask.sum(), tn_mask.sum()])
+    tp, fp, fn, tn = map(
+        int,
+        [tp_mask.sum(), fp_mask.sum(), fn_mask.sum(), tn_mask.sum()],
+    )
     recall = tp / (tp + fn)
     precision = tp / (tp + fp)
     f1 = 2 * recall * precision / (recall + precision)
@@ -115,16 +138,26 @@ def main() -> int:
         "negative_cases": len(h_neg),
         "ambiguous_cases_excluded": int(hold_labels["ambiguous_count"]),
         "threshold": threshold,
-        "tp": tp, "fp": fp, "fn": fn, "tn": tn,
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "tn": tn,
         "recall": round(recall, 6),
         "precision": round(precision, 6),
         "f1": round(f1, 6),
-        "false_positive_operation_codes": [hold_codes[i] for i in np.flatnonzero(fp_mask)],
-        "false_negative_operation_codes": [hold_codes[i] for i in np.flatnonzero(fn_mask)],
+        "false_positive_operation_codes": [
+            hold_codes[i] for i in np.flatnonzero(fp_mask)
+        ],
+        "false_negative_operation_codes": [
+            hold_codes[i] for i in np.flatnonzero(fn_mask)
+        ],
         "final_gate_pass": final_gate,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    args.output.write_text(
+        json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
     print(f"ENGINE_V2_RC2_FINAL_RECALL={result['recall']}")
     print(f"ENGINE_V2_RC2_FINAL_PRECISION={result['precision']}")
     print(f"ENGINE_V2_RC2_FINAL_F1={result['f1']}")

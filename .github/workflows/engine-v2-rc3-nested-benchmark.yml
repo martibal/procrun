@@ -1,12 +1,20 @@
-name: engine-v2-rc2-final-score
+name: engine-v2-rc3-nested-benchmark
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'data/engine_v2/rc2_final_result_v1.json'
+      - 'scripts/build_engine_v2_rc3_development.py'
+      - 'scripts/adjudicate_engine_v2_rc3_development.py'
+      - 'scripts/benchmark_engine_v2_rc3_nested.py'
+      - '.github/workflows/engine-v2-rc3-nested-benchmark.yml'
   workflow_dispatch:
 
 jobs:
-  score-final-holdout:
+  nested-benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
@@ -21,25 +29,25 @@ jobs:
         run: python scripts/build_a21a_sanitized_source_pool.py --output artifacts/a21a-sanitized-source-pool.json
       - name: Validate sanctioned source pool
         run: python scripts/validate_a21a_sanitized_source_pool.py --input artifacts/a21a-sanitized-source-pool.json --output artifacts/a21a-sanitized-source-ingress-report.json
-      - name: Rebuild RC1 development sample for exclusion only
+      - name: Rebuild RC1 development
         run: python scripts/build_engine_v2_blind_sample.py --input artifacts/a21a-sanitized-source-pool.json --output artifacts/engine-v2-blind-development-sample.json --size 200
-      - name: Rebuild consumed RC1 holdout for exclusion only
+      - name: Rebuild RC1 holdout
         run: python scripts/build_engine_v2_final_holdout.py --source-pool artifacts/a21a-sanitized-source-pool.json --development-sample artifacts/engine-v2-blind-development-sample.json --output artifacts/engine-v2-final-holdout-source-only.json --size 400
-      - name: Rebuild RC2 development sample
+      - name: Rebuild RC2 development
         run: python scripts/build_engine_v2_rc2_development.py --source-pool artifacts/a21a-sanitized-source-pool.json --rc1-development artifacts/engine-v2-blind-development-sample.json --rc1-holdout artifacts/engine-v2-final-holdout-source-only.json --output artifacts/engine-v2-rc2-development-source-only.json --size 800
-      - name: Build RC2 development labels
-        run: python scripts/adjudicate_engine_v2_rc2_development.py --input artifacts/engine-v2-rc2-development-source-only.json --output artifacts/engine-v2-rc2-development-labels.json
-      - name: Rebuild frozen RC2 final holdout
+      - name: Rebuild RC2 final holdout
         run: python scripts/build_engine_v2_rc2_final_holdout.py --source-pool artifacts/a21a-sanitized-source-pool.json --rc1-development artifacts/engine-v2-blind-development-sample.json --rc1-holdout artifacts/engine-v2-final-holdout-source-only.json --rc2-development artifacts/engine-v2-rc2-development-source-only.json --candidate data/engine_v2/rc2_candidate_v1.json --output artifacts/engine-v2-rc2-final-holdout-source-only.json --size 800
-      - name: Blind adjudicate frozen final holdout
-        run: python scripts/adjudicate_engine_v2_rc2_final_holdout.py --input artifacts/engine-v2-rc2-final-holdout-source-only.json --output artifacts/engine-v2-rc2-final-holdout-labels.json
-      - name: Score frozen RC2
-        run: python scripts/score_engine_v2_rc2_final_holdout.py --development artifacts/engine-v2-rc2-development-source-only.json --development-labels artifacts/engine-v2-rc2-development-labels.json --holdout artifacts/engine-v2-rc2-final-holdout-source-only.json --holdout-labels artifacts/engine-v2-rc2-final-holdout-labels.json --candidate data/engine_v2/rc2_candidate_v1.json --output artifacts/engine-v2-rc2-final-holdout-result.json
+      - name: Build RC3 consumed development population
+        run: python scripts/build_engine_v2_rc3_development.py --rc1-development artifacts/engine-v2-blind-development-sample.json --rc1-holdout artifacts/engine-v2-final-holdout-source-only.json --rc2-development artifacts/engine-v2-rc2-development-source-only.json --rc2-holdout artifacts/engine-v2-rc2-final-holdout-source-only.json --output artifacts/engine-v2-rc3-development-source-only.json
+      - name: Build RC3 source-only labels
+        run: python scripts/adjudicate_engine_v2_rc3_development.py --input artifacts/engine-v2-rc3-development-source-only.json --output artifacts/engine-v2-rc3-development-labels.json
+      - name: Run nested RC3 benchmark
+        run: python scripts/benchmark_engine_v2_rc3_nested.py --sample artifacts/engine-v2-rc3-development-source-only.json --labels artifacts/engine-v2-rc3-development-labels.json --output artifacts/engine-v2-rc3-nested-benchmark.json
       - uses: actions/upload-artifact@v4
         with:
-          name: engine-v2-rc2-final-holdout-result
+          name: engine-v2-rc3-nested-benchmark
           path: |
             artifacts/a21a-sanitized-source-ingress-report.json
-            artifacts/engine-v2-rc2-final-holdout-labels.json
-            artifacts/engine-v2-rc2-final-holdout-result.json
+            artifacts/engine-v2-rc3-development-labels.json
+            artifacts/engine-v2-rc3-nested-benchmark.json
           retention-days: 30
