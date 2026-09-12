@@ -1,0 +1,10 @@
+{
+  "artifact_digest": "sha256:06de734164dc42035e9a46d847bb0a31de3d716e00465dd775b9461a150ad03c",
+  "artifact_id": 10294914688,
+  "canonical_cohort_sha256": "daea98e853ba49ed8b69e0221a2d844c00462fdddce14f7f93a97b8c3a1608e2",
+  "compressed_repository_file": "cohort.jsonl.gz",
+  "compressed_repository_file_sha256": "ebaf37a567b7f5148688d02bbd419755d04714c72aef947d2caa2d4824714598",
+  "freeze_protocol_commit": "c3c782e57145d73edd12f504f18bbb1cd15f44f0",
+  "freeze_workflow_run_id": 34685092831,
+  "protocol_sha256": "86edef7cbfde2793715e0aa21d6466e0461a793d2bb131a6255a87940dda4294"
+}

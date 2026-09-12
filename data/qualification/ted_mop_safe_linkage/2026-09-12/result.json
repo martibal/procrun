@@ -1,0 +1,41 @@
+{
+  "artifact_digest": "sha256:fa58a6efea519c829ece4ad9492f76dfb2c950deabbc8fcae9d75858763a4d06",
+  "artifact_id": 10295776049,
+  "decision": "BLOCKED_NO_STRUCTURED_CUP_EVIDENCE",
+  "endpoint": "https://api.ted.europa.eu/v3/notices/search",
+  "field_support": {
+    "classification-cpv": true,
+    "estimated-value-cur-proc": true,
+    "estimated-value-proc": true,
+    "notice-type": true,
+    "publication-date": true,
+    "publication-number": true
+  },
+  "free_text_received": false,
+  "identity_fields_received": false,
+  "internal_identifier_values_received": false,
+  "measurement_contract": "ted-mop-safe-linkage-qualification-v1",
+  "outcome_rows_persisted": false,
+  "preregistration_commit": "4f928bb0f6959f2a61f7da3b8be8c01571c6d33b",
+  "projection_fields": [
+    "publication-number",
+    "publication-date",
+    "notice-type",
+    "classification-cpv",
+    "estimated-value-proc",
+    "estimated-value-cur-proc"
+  ],
+  "query_field": "internal-identifier-proc",
+  "query_syntax_attempts": 1,
+  "query_template_selected": "internal-identifier-proc = \"{cup}\"",
+  "raw_notices_persisted": false,
+  "returned_notice_objects": 0,
+  "route_evidenced": false,
+  "sample_cups_with_hits": 0,
+  "sample_max_notice_matches_per_cup": 0,
+  "sample_rule": "first 20 lexicographically sorted CUPs from frozen 12m cohort",
+  "sample_size": 20,
+  "sample_total_notice_matches": 0,
+  "source_id": "ted_search_api",
+  "workflow_run_id": 34685668395
+}

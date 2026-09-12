@@ -1,0 +1,26 @@
+name: opencoesione-api-options-metadata
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe-api-metadata:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Probe OPTIONS metadata only
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          ./scripts/probe_opencoesione_api_options_metadata.ps1 | Out-File -Encoding utf8 artifacts/opencoesione-api-options-metadata.json
+      - name: Upload metadata-only result
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencoesione-api-options-metadata
+          path: artifacts/opencoesione-api-options-metadata.json
+          if-no-files-found: error
+          retention-days: 30
