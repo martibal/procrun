@@ -1,8 +1,7 @@
 """Administrative import path for Readiness Dossier source packages and benchmark snapshots.
 
-This CLI deliberately accepts only already-curated, non-PII JSON artifacts. It performs no
-human contact and no beneficiary lookup. Source-package refreshes and benchmark snapshots are
-append-only production records.
+This CLI accepts only curated, non-PII JSON artifacts. It performs no human contact and no
+beneficiary lookup. Source-package refreshes and benchmark snapshots are append-only records.
 """
 
 from __future__ import annotations
@@ -21,8 +20,7 @@ import psycopg
 from procrun.migrations import apply_all_migrations
 from procrun.readiness_benchmark import BenchmarkObservation
 from procrun.readiness_persistence import (
-    insert_benchmark_membership,
-    insert_benchmark_snapshot,
+    insert_benchmark_snapshot_bundle,
     insert_invalidation,
     insert_source_package,
 )
@@ -47,7 +45,15 @@ def _load_json(path: str) -> Any:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def _object_list(value: object, label: str) -> list[dict[str, Any]]:
+    if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+        raise ValueError(f"{label} must be a JSON list of objects")
+    return value
+
+
 def _parse_source_package(data: dict[str, Any]) -> SourcePackage:
+    raw_documents = _object_list(data.get("documents"), "documents")
+    raw_requirements = _object_list(data.get("requirements"), "requirements")
     documents = tuple(
         SourceDocument(
             document_id=str(item["document_id"]),
@@ -57,7 +63,7 @@ def _parse_source_package(data: dict[str, Any]) -> SourcePackage:
             sha256=str(item["sha256"]),
             observed_at=datetime.fromisoformat(str(item["observed_at"])),
         )
-        for item in data["documents"]
+        for item in raw_documents
     )
     requirements = tuple(
         PublishedRequirement(
@@ -68,9 +74,11 @@ def _parse_source_package(data: dict[str, Any]) -> SourcePackage:
             source_citation=str(item["source_citation"]),
             source_text=str(item["source_text"]),
             scope_note=str(item["scope_note"]),
-            boundary_value=None if item.get("boundary_value") is None else int(item["boundary_value"]),
+            boundary_value=(
+                None if item.get("boundary_value") is None else int(item["boundary_value"])
+            ),
         )
-        for item in data["requirements"]
+        for item in raw_requirements
     )
     package = SourcePackage(
         source_package_id=str(data["source_package_id"]),
@@ -115,6 +123,8 @@ def invalidate_source_package(source_package_id: str, reason: str, invalidated_a
     timestamp = datetime.fromisoformat(invalidated_at)
     if timestamp.tzinfo is None:
         raise ValueError("invalidated_at must include a timezone")
+    if not reason.strip():
+        raise ValueError("invalidation reason is required")
     invalidation_id = str(uuid4())
     with psycopg.connect(_database_url()) as conn:
         apply_all_migrations(conn)
@@ -136,52 +146,76 @@ def import_benchmark_snapshot(path: str) -> str:
     raw = _load_json(path)
     if not isinstance(raw, dict):
         raise ValueError("benchmark snapshot must be a JSON object")
-    rows = raw.get("memberships")
-    if not isinstance(rows, list):
-        raise ValueError("memberships must be a JSON list")
+    if raw.get("schema_version") != "readiness-benchmark-snapshot-v2":
+        raise ValueError("unsupported benchmark snapshot schema_version")
+    rows = _object_list(raw.get("memberships"), "memberships")
+    source_binding = raw.get("source_binding")
+    if not isinstance(source_binding, dict):
+        raise ValueError("benchmark snapshot requires source_binding")
+    for field in ("funding_source_sha256", "cohort_source_sha256"):
+        digest_value = str(source_binding.get(field, ""))
+        if len(digest_value) != 64:
+            raise ValueError(f"{field} must contain 64 hex characters")
+        int(digest_value, 16)
+
     snapshot_id = str(raw["snapshot_id"])
     data_through = date.fromisoformat(str(raw["data_through"]))
     ingested_at = datetime.fromisoformat(str(raw["ingested_at"]))
     if ingested_at.tzinfo is None:
         raise ValueError("ingested_at must include a timezone")
-    canonical = _canonical_snapshot_payload(raw)
-    digest = hashlib.sha256(canonical).hexdigest()
-    with psycopg.connect(_database_url()) as conn:
-        apply_all_migrations(conn)
-        insert_benchmark_snapshot(
-            conn,
-            snapshot_id=snapshot_id,
-            data_through=data_through,
-            ingested_at=ingested_at,
-            raw_record_count=len(rows),
-            canonical_sha256=digest,
+    raw_record_count = int(raw["raw_record_count"])
+    if raw_record_count < 0:
+        raise ValueError("raw_record_count must be non-negative")
+
+    memberships: list[tuple[str, BenchmarkObservation]] = []
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        cohort_id = str(row["cohort_id"])
+        operation_code = str(row["operation_code"])
+        key = (cohort_id, operation_code)
+        if key in seen:
+            raise ValueError(f"duplicate benchmark membership {key!r}")
+        seen.add(key)
+        start = (
+            None
+            if row.get("project_start") is None
+            else date.fromisoformat(str(row["project_start"]))
         )
-        seen: set[tuple[str, str]] = set()
-        for row in rows:
-            if not isinstance(row, dict):
-                raise ValueError("each benchmark membership must be an object")
-            cohort_id = str(row["cohort_id"])
-            operation_code = str(row["operation_code"])
-            key = (cohort_id, operation_code)
-            if key in seen:
-                raise ValueError(f"duplicate benchmark membership {key!r}")
-            seen.add(key)
-            start = None if row.get("project_start") is None else date.fromisoformat(str(row["project_start"]))
-            end = None if row.get("project_end") is None else date.fromisoformat(str(row["project_end"]))
-            funding = row.get("approved_funding_eur")
-            insert_benchmark_membership(
-                conn,
-                snapshot_id=snapshot_id,
-                cohort_id=cohort_id,
-                observation=BenchmarkObservation(
+        end = (
+            None
+            if row.get("project_end") is None
+            else date.fromisoformat(str(row["project_end"]))
+        )
+        funding = row.get("approved_funding_eur")
+        memberships.append(
+            (
+                cohort_id,
+                BenchmarkObservation(
                     operation_code=operation_code,
                     approved_funding_eur=None if funding is None else int(funding),
                     project_start=start,
                     project_end=end,
-                    project_title=None if row.get("project_title") is None else str(row["project_title"]),
+                    project_title=(
+                        None if row.get("project_title") is None else str(row["project_title"])
+                    ),
                     source_url=None if row.get("source_url") is None else str(row["source_url"]),
                 ),
             )
+        )
+
+    canonical = _canonical_snapshot_payload(raw)
+    digest = hashlib.sha256(canonical).hexdigest()
+    with psycopg.connect(_database_url()) as conn:
+        apply_all_migrations(conn)
+        insert_benchmark_snapshot_bundle(
+            conn,
+            snapshot_id=snapshot_id,
+            data_through=data_through,
+            ingested_at=ingested_at,
+            raw_record_count=raw_record_count,
+            canonical_sha256=digest,
+            memberships=memberships,
+        )
     return digest
 
 
