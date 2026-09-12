@@ -19,14 +19,14 @@ jobs:
           cache: pip
       - name: Install runtime
         run: python -m pip install -c requirements-runtime.lock -e .
-      - name: Qualify safe MOP gare projection
+      - name: Inspect MOP gare OData schema only
         run: |
           mkdir -p artifacts
-          python scripts/qualify_openbdap_mop_gare_projection.py > artifacts/openbdap-mop-gare-projection.json
-      - name: Upload projection report
+          python scripts/qualify_openbdap_mop_gare_projection.py > artifacts/openbdap-mop-gare-schema.json
+      - name: Upload schema report
         uses: actions/upload-artifact@v4
         with:
-          name: openbdap-mop-gare-projection
-          path: artifacts/openbdap-mop-gare-projection.json
+          name: openbdap-mop-gare-schema
+          path: artifacts/openbdap-mop-gare-schema.json
           if-no-files-found: error
           retention-days: 30
