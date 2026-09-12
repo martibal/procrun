@@ -26,6 +26,7 @@ from procrun.readiness_source import (
     RequirementKind,
     SourceDocument,
     SourcePackage,
+    SourceReuseMode,
     package_manifest,
     package_sha256,
 )
@@ -59,6 +60,9 @@ def _parse_source_package(data: dict[str, Any]) -> SourcePackage:
             public_url=str(item["public_url"]),
             sha256=str(item["sha256"]),
             observed_at=datetime.fromisoformat(str(item["observed_at"])),
+            reuse_mode=SourceReuseMode(str(item["reuse_mode"])),
+            reuse_basis_url=str(item["reuse_basis_url"]),
+            reuse_basis_note=str(item["reuse_basis_note"]),
         )
         for item in raw_documents
     )
