@@ -6,16 +6,17 @@ through its authenticated server layer; calculations remain in Python as the sin
 
 from __future__ import annotations
 
+import json
+import os
 from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import json
-import os
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 import psycopg
 
+from procrun.migrations import apply_all_migrations
 from procrun.readiness_application import (
     ReadinessNotFoundError,
     create_and_persist_dossier,
@@ -23,7 +24,6 @@ from procrun.readiness_application import (
 )
 from procrun.readiness_dossier import DossierBlockedError
 from procrun.readiness_matrix import AdvisorConfirmation, AdvisorState
-from procrun.migrations import apply_all_migrations
 
 
 def _database_url() -> str:
@@ -111,7 +111,6 @@ class ReadinessHandler(BaseHTTPRequestHandler):
                 AdvisorConfirmation(
                     requirement_id=str(item["requirement_id"]),
                     state=AdvisorState(str(item["state"])),
-                    note=None if item.get("note") is None else str(item["note"]),
                 )
                 for item in body.get("confirmations", [])
             )
