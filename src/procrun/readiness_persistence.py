@@ -2,10 +2,20 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from psycopg import Connection
+from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
+
+from procrun.readiness_benchmark import BenchmarkObservation
+from procrun.readiness_source import (
+    PublishedRequirement,
+    RequirementKind,
+    SourceDocument,
+    SourcePackage,
+)
 
 
 MIGRATION_SQL = r"""
@@ -14,6 +24,7 @@ CREATE SCHEMA IF NOT EXISTS procrun_readiness;
 CREATE TABLE IF NOT EXISTS procrun_readiness.source_packages (
     source_package_id text PRIMARY KEY,
     bando_code text NOT NULL,
+    benchmark_cohort_id text NOT NULL,
     version integer NOT NULL CHECK (version >= 1),
     verified_at timestamptz NOT NULL,
     refresh_due_at timestamptz NOT NULL,
@@ -114,6 +125,7 @@ def insert_source_package(
     *,
     source_package_id: str,
     bando_code: str,
+    benchmark_cohort_id: str,
     version: int,
     verified_at: object,
     refresh_due_at: object,
@@ -125,13 +137,14 @@ def insert_source_package(
         cur.execute(
             """
             INSERT INTO procrun_readiness.source_packages
-            (source_package_id,bando_code,version,verified_at,refresh_due_at,
+            (source_package_id,bando_code,benchmark_cohort_id,version,verified_at,refresh_due_at,
              completeness_attested,package_sha256,manifest)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """,
             (
                 source_package_id,
                 bando_code,
+                benchmark_cohort_id,
                 version,
                 verified_at,
                 refresh_due_at,
@@ -159,6 +172,56 @@ def insert_invalidation(
             VALUES (%s,%s,%s,%s)
             """,
             (invalidation_id, source_package_id, invalidated_at, reason),
+        )
+    conn.commit()
+
+
+def insert_benchmark_snapshot(
+    conn: Connection[Any],
+    *,
+    snapshot_id: str,
+    data_through: object,
+    ingested_at: object,
+    raw_record_count: int,
+    canonical_sha256: str,
+) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO procrun_readiness.benchmark_snapshots
+            (snapshot_id,data_through,ingested_at,raw_record_count,canonical_sha256)
+            VALUES (%s,%s,%s,%s,%s)
+            """,
+            (snapshot_id, data_through, ingested_at, raw_record_count, canonical_sha256),
+        )
+    conn.commit()
+
+
+def insert_benchmark_membership(
+    conn: Connection[Any],
+    *,
+    snapshot_id: str,
+    cohort_id: str,
+    observation: BenchmarkObservation,
+) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO procrun_readiness.benchmark_cohort_memberships
+            (snapshot_id,cohort_id,operation_code,approved_funding_eur,project_start,project_end,
+             project_title,source_url)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            """,
+            (
+                snapshot_id,
+                cohort_id,
+                observation.operation_code,
+                observation.approved_funding_eur,
+                observation.project_start,
+                observation.project_end,
+                observation.project_title,
+                observation.source_url,
+            ),
         )
     conn.commit()
 
@@ -199,3 +262,128 @@ def insert_dossier(
             ),
         )
     conn.commit()
+
+
+def _source_package_from_manifest(manifest: dict[str, Any]) -> SourcePackage:
+    documents = tuple(
+        SourceDocument(
+            document_id=str(item["document_id"]),
+            document_type=str(item["document_type"]),
+            title=str(item["title"]),
+            public_url=str(item["public_url"]),
+            sha256=str(item["sha256"]),
+            observed_at=datetime.fromisoformat(str(item["observed_at"])),
+        )
+        for item in manifest["documents"]
+    )
+    requirements = tuple(
+        PublishedRequirement(
+            requirement_id=str(item["requirement_id"]),
+            kind=RequirementKind(str(item["kind"])),
+            label=str(item["label"]),
+            source_document_id=str(item["source_document_id"]),
+            source_citation=str(item["source_citation"]),
+            source_text=str(item["source_text"]),
+            scope_note=str(item["scope_note"]),
+            boundary_value=None if item["boundary_value"] is None else int(item["boundary_value"]),
+        )
+        for item in manifest["requirements"]
+    )
+    return SourcePackage(
+        source_package_id=str(manifest["source_package_id"]),
+        bando_code=str(manifest["bando_code"]),
+        benchmark_cohort_id=str(manifest["benchmark_cohort_id"]),
+        version=int(manifest["version"]),
+        verified_at=datetime.fromisoformat(str(manifest["verified_at"])),
+        documents=documents,
+        requirements=requirements,
+        completeness_attested=bool(manifest["completeness_attested"]),
+    )
+
+
+def load_latest_source_package(conn: Connection[Any], bando_code: str) -> SourcePackage | None:
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT manifest
+            FROM procrun_readiness.source_packages
+            WHERE bando_code=%s
+            ORDER BY version DESC
+            LIMIT 1
+            """,
+            (bando_code,),
+        )
+        row = cur.fetchone()
+    if row is None:
+        return None
+    manifest = row["manifest"]
+    if not isinstance(manifest, dict):
+        raise TypeError("stored source package manifest must be an object")
+    return _source_package_from_manifest(manifest)
+
+
+def load_latest_invalidation_at(
+    conn: Connection[Any], source_package_id: str
+) -> datetime | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT max(invalidated_at)
+            FROM procrun_readiness.source_package_invalidations
+            WHERE source_package_id=%s
+            """,
+            (source_package_id,),
+        )
+        row = cur.fetchone()
+    if row is None or row[0] is None:
+        return None
+    value = row[0]
+    if not isinstance(value, datetime):
+        raise TypeError("stored invalidation timestamp must be datetime")
+    return value
+
+
+def load_benchmark_snapshot_metadata(
+    conn: Connection[Any], snapshot_id: str
+) -> tuple[str, str] | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT data_through, canonical_sha256
+            FROM procrun_readiness.benchmark_snapshots
+            WHERE snapshot_id=%s
+            """,
+            (snapshot_id,),
+        )
+        row = cur.fetchone()
+    if row is None:
+        return None
+    return str(row[0]), str(row[1])
+
+
+def load_benchmark_observations(
+    conn: Connection[Any], *, snapshot_id: str, cohort_id: str
+) -> tuple[BenchmarkObservation, ...]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT operation_code, approved_funding_eur, project_start, project_end,
+                   project_title, source_url
+            FROM procrun_readiness.benchmark_cohort_memberships
+            WHERE snapshot_id=%s AND cohort_id=%s
+            ORDER BY operation_code
+            """,
+            (snapshot_id, cohort_id),
+        )
+        rows = cur.fetchall()
+    return tuple(
+        BenchmarkObservation(
+            operation_code=str(row[0]),
+            approved_funding_eur=None if row[1] is None else int(row[1]),
+            project_start=row[2],
+            project_end=row[3],
+            project_title=None if row[4] is None else str(row[4]),
+            source_url=None if row[5] is None else str(row[5]),
+        )
+        for row in rows
+    )
