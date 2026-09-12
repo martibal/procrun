@@ -7,7 +7,9 @@ on:
       - 'src/procrun/evidence_retrieval_v2.py'
       - 'scripts/build_engine_v2_blind_sample.py'
       - 'scripts/benchmark_engine_v2_clean_dev.py'
+      - 'scripts/benchmark_engine_v2_relevance_gate.py'
       - 'data/engine_v2/clean_dev_labels_v1.json'
+      - 'pyproject.toml'
       - '.github/workflows/engine-v2-blind-development-sample.yml'
   workflow_dispatch:
 
@@ -31,12 +33,15 @@ jobs:
         run: python scripts/validate_a21a_sanitized_source_pool.py --input artifacts/a21a-sanitized-source-pool.json --output artifacts/a21a-sanitized-source-ingress-report.json
       - name: Rebuild frozen blind development sample
         run: python scripts/build_engine_v2_blind_sample.py --input artifacts/a21a-sanitized-source-pool.json --output artifacts/engine-v2-blind-development-sample.json --size 200
-      - name: Run Engine V2 clean development benchmark
+      - name: Run Engine V2 semantic benchmark
         run: python scripts/benchmark_engine_v2_clean_dev.py --sample artifacts/engine-v2-blind-development-sample.json --labels data/engine_v2/clean_dev_labels_v1.json --output artifacts/engine-v2-clean-dev-benchmark.json
+      - name: Run Engine V2 supervised relevance gate OOF benchmark
+        run: python scripts/benchmark_engine_v2_relevance_gate.py --sample artifacts/engine-v2-blind-development-sample.json --labels data/engine_v2/clean_dev_labels_v1.json --output artifacts/engine-v2-relevance-gate-oof.json
       - uses: actions/upload-artifact@v4
         with:
           name: engine-v2-clean-development-benchmark
           path: |
             artifacts/a21a-sanitized-source-ingress-report.json
             artifacts/engine-v2-clean-dev-benchmark.json
+            artifacts/engine-v2-relevance-gate-oof.json
           retention-days: 30
