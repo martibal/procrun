@@ -6,7 +6,6 @@ from typing import Any
 
 from psycopg import Connection
 
-
 DDL = """
 CREATE TABLE IF NOT EXISTS benchmark_source_snapshots (
     snapshot_id VARCHAR(64) PRIMARY KEY,
