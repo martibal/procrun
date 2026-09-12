@@ -16,6 +16,7 @@ from procrun.readiness_source import (
     RequirementKind,
     SourceDocument,
     SourcePackage,
+    SourceReuseMode,
 )
 
 
@@ -28,6 +29,9 @@ def _package() -> SourcePackage:
         public_url="https://example.invalid/bando",
         sha256="c" * 64,
         observed_at=verified,
+        reuse_mode=SourceReuseMode.COMMERCIAL_REUSE_CONFIRMED,
+        reuse_basis_url="https://example.invalid/public-reuse-policy",
+        reuse_basis_note="Public test fixture licence permits commercial reuse.",
     )
     return SourcePackage(
         source_package_id="pkg-1",
@@ -98,6 +102,8 @@ def test_dossier_binds_source_snapshot_and_is_byte_verifiable() -> None:
         payload["source_package"]["manifest"]["benchmark_cohort_id"]
         == "SAME_BANDO:BANDO-X"
     )
+    source_document = payload["source_package"]["manifest"]["documents"][0]
+    assert source_document["reuse_mode"] == "COMMERCIAL_REUSE_CONFIRMED"
     historical = payload["historical_dimensioning"]
     assert historical["snapshot_id"] == "snapshot-1"
     assert historical["source_binding"]["cohort_source_id"] == "lombardia-structured"
