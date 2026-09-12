@@ -73,15 +73,32 @@ CREATE TABLE IF NOT EXISTS benchmark_reports (
 
 CREATE INDEX IF NOT EXISTS idx_benchmark_reports_sha256
 ON benchmark_reports (canonical_sha256);
+
+CREATE OR REPLACE FUNCTION procrun_reject_mutation() RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION 'ProcRun immutable record cannot be updated or deleted: %', TG_TABLE_NAME;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rulesets_immutable ON preapplication_rulesets;
+CREATE TRIGGER trg_rulesets_immutable
+BEFORE UPDATE OR DELETE ON preapplication_rulesets
+FOR EACH ROW EXECUTE FUNCTION procrun_reject_mutation();
+
+DROP TRIGGER IF EXISTS trg_rules_immutable ON preapplication_rules;
+CREATE TRIGGER trg_rules_immutable
+BEFORE UPDATE OR DELETE ON preapplication_rules
+FOR EACH ROW EXECUTE FUNCTION procrun_reject_mutation();
+
+DROP TRIGGER IF EXISTS trg_reports_immutable ON benchmark_reports;
+CREATE TRIGGER trg_reports_immutable
+BEFORE UPDATE OR DELETE ON benchmark_reports
+FOR EACH ROW EXECUTE FUNCTION procrun_reject_mutation();
 """
 
 
 def apply_preapplication_migration(conn: Connection[Any]) -> None:
-    """Create append-only benchmark/report/ruleset structures.
-
-    Application code must never UPDATE an existing ruleset or report record; a changed rule
-    or source snapshot gets a new identifier/version.
-    """
+    """Create immutable benchmark/report/ruleset structures."""
     with conn.cursor() as cursor:
         cursor.execute(DDL)
     conn.commit()
