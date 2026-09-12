@@ -1,15 +1,6 @@
 name: engine-v2-clean-development-benchmark
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'src/procrun/evidence_retrieval_v2.py'
-      - 'scripts/build_engine_v2_blind_sample.py'
-      - 'scripts/benchmark_engine_v2_relevance_gate.py'
-      - 'data/engine_v2/clean_dev_labels_v1.json'
-      - 'pyproject.toml'
-      - '.github/workflows/engine-v2-blind-development-sample.yml'
   workflow_dispatch:
 
 jobs:

@@ -1,12 +1,18 @@
-name: engine-v2-final-holdout-freeze
+name: engine-v2-final-holdout-score
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'data/engine_v2/final_holdout_labels_v1.json'
+      - 'scripts/score_engine_v2_final_holdout.py'
+      - '.github/workflows/engine-v2-final-holdout-score.yml'
   workflow_dispatch:
 
 jobs:
-  freeze-source-only-holdout:
+  score-final-holdout:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -15,20 +21,22 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - name: Install Python
-        run: python -m pip install -c requirements-runtime.lock -e '.[dev]'
+      - name: Install Python and local retrieval runtime
+        run: python -m pip install -c requirements-runtime.lock -e '.[dev,retrieval]'
       - name: Build sanctioned sanitized source pool
         run: python scripts/build_a21a_sanitized_source_pool.py --output artifacts/a21a-sanitized-source-pool.json
       - name: Validate sanctioned source pool
         run: python scripts/validate_a21a_sanitized_source_pool.py --input artifacts/a21a-sanitized-source-pool.json --output artifacts/a21a-sanitized-source-ingress-report.json
-      - name: Rebuild frozen development sample for exclusion only
+      - name: Rebuild frozen development sample
         run: python scripts/build_engine_v2_blind_sample.py --input artifacts/a21a-sanitized-source-pool.json --output artifacts/engine-v2-blind-development-sample.json --size 200
-      - name: Freeze source-only disjoint final holdout
+      - name: Rebuild frozen final holdout
         run: python scripts/build_engine_v2_final_holdout.py --source-pool artifacts/a21a-sanitized-source-pool.json --development-sample artifacts/engine-v2-blind-development-sample.json --output artifacts/engine-v2-final-holdout-source-only.json --size 400
+      - name: Score frozen RC1 on final holdout
+        run: python scripts/score_engine_v2_final_holdout.py --development-sample artifacts/engine-v2-blind-development-sample.json --development-labels data/engine_v2/clean_dev_labels_v1.json --holdout artifacts/engine-v2-final-holdout-source-only.json --holdout-labels data/engine_v2/final_holdout_labels_v1.json --output artifacts/engine-v2-rc1-final-holdout-result.json
       - uses: actions/upload-artifact@v4
         with:
-          name: engine-v2-final-holdout-source-only
+          name: engine-v2-rc1-final-holdout-result
           path: |
             artifacts/a21a-sanitized-source-ingress-report.json
-            artifacts/engine-v2-final-holdout-source-only.json
+            artifacts/engine-v2-rc1-final-holdout-result.json
           retention-days: 30
