@@ -90,7 +90,9 @@ def main() -> int:
 
     labels = {
         "schema_version": "engine-v2-rc3-development-labels-v1",
-        "adjudication_basis": "source-only conservative procurement-need rubric refined after RC2 was closed",
+        "adjudication_basis": (
+            "source-only conservative procurement-need rubric refined after RC2 was closed"
+        ),
         "sample_canonical_sha256": _canonical_sha(sample),
         "positive_count": len(buckets["POSITIVE"]),
         "negative_count": len(buckets["NEGATIVE"]),

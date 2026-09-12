@@ -1,0 +1,59 @@
+{
+  "schema_version": "engine-v2-rc3-candidate-v1",
+  "candidate_id": "engine-v2-rc3",
+  "frozen_date": "2026-09-12",
+  "source_pool_case_count": 4305,
+  "source_pool_sha256": "bddfc9698cb90c0c0c5b927819cbe8f3ab38ea467b812d834bc94703d26a6ac3",
+  "development_case_count": 2200,
+  "development_sample_canonical_sha256": "30f8679826f891fa7855b071674b34ac81b20d1de9d20552948c629e619cad63",
+  "development_labels": {
+    "positive": 561,
+    "negative": 757,
+    "ambiguous_excluded": 882
+  },
+  "nested_benchmark_run_id": 34692187651,
+  "nested_benchmark_artifact_id": 10297319886,
+  "nested_benchmark_artifact_digest": "sha256:605d09d461b5e4eb294adc2b7e72e6e3aedb4443c2a796d267caf0fb335cdec0",
+  "nested_outer_metric": {
+    "recall": 0.964349,
+    "precision": 0.973022,
+    "f1": 0.968666,
+    "tp": 541,
+    "fp": 15,
+    "fn": 20,
+    "tn": 742
+  },
+  "model": {
+    "family": "charword",
+    "char_tfidf": {
+      "analyzer": "char_wb",
+      "ngram_range": [3, 5],
+      "min_df": 2,
+      "max_features": 25000,
+      "sublinear_tf": true,
+      "lowercase": true
+    },
+    "word_tfidf": {
+      "analyzer": "word",
+      "ngram_range": [1, 2],
+      "min_df": 2,
+      "max_features": 30000,
+      "sublinear_tf": true,
+      "lowercase": true
+    },
+    "logistic_regression": {
+      "C": 3.0,
+      "class_weight": "balanced",
+      "max_iter": 5000,
+      "solver": "liblinear",
+      "random_state": 20260912
+    },
+    "decision_threshold": 0.631623
+  },
+  "final_gate": {
+    "minimum_recall": 0.95,
+    "minimum_precision": 0.95,
+    "both_required": true
+  },
+  "freeze_rule": "No model, feature, adjudication rule, threshold or preprocessing change is permitted after RC3 final holdout contents are opened."
+}
