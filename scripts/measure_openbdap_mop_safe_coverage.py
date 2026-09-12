@@ -2,11 +2,11 @@
 """Measure safe OpenBDAP MOP national counts, lifecycle runway and Lombardia overlap.
 
 The diagnostic uses only server-side projected OData requests. National scale and
-lifecycle cohorts use OData inline counts with CUP-only projection and at most one
-returned row. Lifecycle fields appear only in server-side filters; their row values
-are never returned or persisted. The Lombardia overlap requests only CUP, project
-status, intervention sector and effective works cost for CUPs already in the frozen
-corpus. Raw MOP rows are never persisted.
+lifecycle cohorts use the OData /$count endpoint, so count probes receive only an
+integer and no MOP row values. Lifecycle fields appear only in server-side filters;
+their row values are never returned or persisted. The Lombardia overlap requests
+only CUP, project status, intervention sector and effective works cost for CUPs
+already in the frozen corpus. Raw MOP rows are never persisted.
 """
 from __future__ import annotations
 
@@ -37,6 +37,7 @@ BASE_URL: Final = (
     "https://bdap-opendata.rgs.mef.gov.it/"
     f"ODataProxy/MdData('{RESOURCE_ID}')/DataRows"
 )
+COUNT_URL: Final = f"{BASE_URL}/$count"
 ALLOWED_HOST: Final = "bdap-opendata.rgs.mef.gov.it"
 CUP: Final = "Cccodice_cup_1267962549"
 STATUS_CODE: Final = "Cccodice_stato_1426672593"
@@ -47,10 +48,10 @@ PLANNED_EXECUTION_START: Final = "Ccinizio_esecuz2103627579"
 ACTUAL_EXECUTION_START: Final = "Ccinizio_esecuzi167207395"
 SAFE_FIELDS: Final = (CUP, STATUS_CODE, STATUS_DESC, SECTOR, COST_EFFECTIVE)
 ALLOWED_RETURNED_KEYS: Final = set(SAFE_FIELDS) | {"row_id"}
-COUNT_ALLOWED_RETURNED_KEYS: Final = {CUP, "row_id"}
 BATCH_SIZE: Final = 60
 MAX_ROWS_PER_BATCH: Final = 300
 MAX_RESPONSE_BYTES: Final = 2_000_000
+MAX_COUNT_RESPONSE_BYTES: Final = 128
 MAX_ATTEMPTS: Final = 3
 REPORT_PATH = Path("artifacts/openbdap-mop-safe-coverage.json")
 
@@ -111,55 +112,25 @@ def _count_rows(
     client: httpx.Client,
     filter_expr: str | None = None,
 ) -> tuple[int, int]:
-    """Count exactly with one OData inline-count request and CUP-only projection."""
-    params = {
-        "$select": CUP,
-        "$top": "1",
-        "$inlinecount": "allpages",
-        "$format": "json",
-    }
+    """Count exactly with one OData /$count request and no returned row values."""
+    params: dict[str, str] = {}
     if filter_expr:
         params["$filter"] = filter_expr
 
-    response = client.get(BASE_URL, params=params)
+    response = client.get(COUNT_URL, params=params)
     if response.is_redirect:
-        raise RuntimeError("OpenBDAP inline-count request redirected")
+        raise RuntimeError("OpenBDAP count request redirected")
     response.raise_for_status()
-    if len(response.content) > MAX_RESPONSE_BYTES:
-        raise RuntimeError("OpenBDAP inline-count response exceeded safety bound")
+    if len(response.content) > MAX_COUNT_RESPONSE_BYTES:
+        raise RuntimeError("OpenBDAP count response exceeded scalar safety bound")
 
-    payload = response.json()
-    rows = _extract_rows(payload)
-    if len(rows) > 1:
-        raise RuntimeError("OpenBDAP top=1 inline-count returned more than one row")
-    for row in rows:
-        unexpected = _data_keys(row) - COUNT_ALLOWED_RETURNED_KEYS
-        if unexpected:
-            raise RuntimeError(
-                "OpenBDAP CUP-only count projection escaped allowlist: "
-                + ", ".join(sorted(unexpected))
-            )
-        if not _norm(row.get(CUP)):
-            raise RuntimeError("OpenBDAP CUP-only inline-count returned no CUP")
-
-    data = payload.get("d")
-    if not isinstance(data, dict):
-        raise RuntimeError("OpenBDAP inline-count response has no d object")
-    raw_count = data.get("__count")
-    if raw_count is None:
-        raw_count = data.get("@odata.count")
-    if raw_count is None:
-        raise RuntimeError("OpenBDAP did not return an inline row count")
+    raw_count = response.text.strip()
     try:
-        count = int(str(raw_count))
+        count = int(raw_count)
     except ValueError as exc:
-        raise RuntimeError("OpenBDAP returned a non-integer inline count") from exc
+        raise RuntimeError("OpenBDAP /$count returned a non-integer response") from exc
     if count < 0:
-        raise RuntimeError("OpenBDAP returned a negative inline count")
-    if count == 0 and rows:
-        raise RuntimeError("OpenBDAP zero inline count returned a row")
-    if count > 0 and len(rows) != 1:
-        raise RuntimeError("OpenBDAP positive inline count returned no CUP row")
+        raise RuntimeError("OpenBDAP returned a negative count")
     return count, 1
 
 
@@ -269,12 +240,15 @@ def _fetch_batch(client: httpx.Client, cups: list[str]) -> list[dict[str, Any]]:
 
 def main() -> int:
     parsed = urlparse(BASE_URL)
+    count_parsed = urlparse(COUNT_URL)
     if parsed.scheme != "https" or parsed.hostname != ALLOWED_HOST:
         raise RuntimeError("OpenBDAP endpoint left the frozen origin")
+    if count_parsed.scheme != "https" or count_parsed.hostname != ALLOWED_HOST:
+        raise RuntimeError("OpenBDAP count endpoint left the frozen origin")
 
     headers = {
-        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/6.0",
-        "Accept": "application/json",
+        "User-Agent": "ProcRun-OpenBDAP-MOP-Safe-Coverage/6.1",
+        "Accept": "application/json, text/plain",
     }
     timeout = httpx.Timeout(30.0, connect=15.0)
     with httpx.Client(timeout=timeout, follow_redirects=False, headers=headers) as client:
@@ -400,11 +374,9 @@ def main() -> int:
     )
 
     report = {
-        "measurement_contract": "openbdap-mop-safe-coverage-v6",
+        "measurement_contract": "openbdap-mop-safe-coverage-v6.1",
         "resource_id": RESOURCE_ID,
-        "national_count_method": (
-            "OData inlinecount=allpages with top=1 and CUP-only projection"
-        ),
+        "national_count_method": "OData /$count scalar endpoint with server-side filters",
         "national_count_probe_values_persisted": False,
         "national_total_count_probe_requests": total_count_requests,
         "national_active_count_probe_requests": active_count_requests,
