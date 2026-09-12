@@ -19,11 +19,8 @@ import psycopg
 
 from procrun.migrations import apply_all_migrations
 from procrun.readiness_benchmark import BenchmarkObservation
-from procrun.readiness_persistence import (
-    insert_benchmark_snapshot_bundle,
-    insert_invalidation,
-    insert_source_package,
-)
+from procrun.readiness_persistence import insert_invalidation, insert_source_package
+from procrun.readiness_snapshot_provenance import insert_snapshot_bundle_with_provenance
 from procrun.readiness_source import (
     PublishedRequirement,
     RequirementKind,
@@ -139,7 +136,9 @@ def invalidate_source_package(source_package_id: str, reason: str, invalidated_a
 
 
 def _canonical_snapshot_payload(data: dict[str, Any]) -> bytes:
-    return json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+        "utf-8"
+    )
 
 
 def import_benchmark_snapshot(path: str) -> str:
@@ -149,11 +148,22 @@ def import_benchmark_snapshot(path: str) -> str:
     if raw.get("schema_version") != "readiness-benchmark-snapshot-v2":
         raise ValueError("unsupported benchmark snapshot schema_version")
     rows = _object_list(raw.get("memberships"), "memberships")
-    source_binding = raw.get("source_binding")
-    if not isinstance(source_binding, dict):
+    source_binding_raw = raw.get("source_binding")
+    if not isinstance(source_binding_raw, dict):
         raise ValueError("benchmark snapshot requires source_binding")
+    source_binding: dict[str, object] = dict(source_binding_raw)
+    required_binding_fields = (
+        "funding_source_id",
+        "funding_source_sha256",
+        "cohort_source_id",
+        "cohort_source_sha256",
+        "cohort_membership_semantics",
+    )
+    for field in required_binding_fields:
+        if not str(source_binding.get(field, "")).strip():
+            raise ValueError(f"source_binding requires {field}")
     for field in ("funding_source_sha256", "cohort_source_sha256"):
-        digest_value = str(source_binding.get(field, ""))
+        digest_value = str(source_binding[field])
         if len(digest_value) != 64:
             raise ValueError(f"{field} must contain 64 hex characters")
         int(digest_value, 16)
@@ -207,13 +217,14 @@ def import_benchmark_snapshot(path: str) -> str:
     digest = hashlib.sha256(canonical).hexdigest()
     with psycopg.connect(_database_url()) as conn:
         apply_all_migrations(conn)
-        insert_benchmark_snapshot_bundle(
+        insert_snapshot_bundle_with_provenance(
             conn,
             snapshot_id=snapshot_id,
             data_through=data_through,
             ingested_at=ingested_at,
             raw_record_count=raw_record_count,
             canonical_sha256=digest,
+            source_binding=source_binding,
             memberships=memberships,
         )
     return digest
