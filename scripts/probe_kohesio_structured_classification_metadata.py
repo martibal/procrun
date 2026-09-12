@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Metadata-only qualification probe for Kohesio/EU Knowledge Graph classification properties.
 
-This probe is deliberately restricted to Wikibase property metadata. It MUST NOT request item/project
-entities, project rows, beneficiary values, free text, or SPARQL result rows. Its only purpose is to
-establish whether an explicit structured property exists for intervention/category classification
-before any row-level qualification can be considered.
+The probe is restricted to Wikibase property metadata. Access failure is a qualification result, not
+an invitation to broaden the request: no item/project entity, project row, beneficiary value, free
+text or SPARQL row may be requested as fallback.
 """
 
 from __future__ import annotations
@@ -32,83 +31,97 @@ SEARCH_TERMS = (
 )
 
 
-def request_json(params: dict[str, str]) -> tuple[dict[str, object], str]:
+def http_status(error: BaseException) -> int | None:
+    return error.code if isinstance(error, urllib.error.HTTPError) else None
+
+
+def request_json(params: dict[str, str]) -> tuple[dict[str, object] | None, dict[str, object]]:
     encoded = urllib.parse.urlencode(params)
+    attempts: list[dict[str, object]] = []
+
     get_request = urllib.request.Request(ENDPOINT + "?" + encoded, headers=HEADERS)
     try:
         with urllib.request.urlopen(get_request, timeout=30) as response:
-            return json.load(response), "GET"
-    except urllib.error.HTTPError as error:
-        if error.code not in {403, 405, 429}:
-            raise
+            return json.load(response), {"transport": "GET", "status": response.status}
+    except (urllib.error.HTTPError, urllib.error.URLError) as error:
+        attempts.append({"transport": "GET", "status": http_status(error), "error": type(error).__name__})
 
-    # The public endpoint has previously rejected query-string GETs from hosted runners while
-    # accepting the exact same read-only Wikibase action as form-encoded POST. The parameter set is
-    # unchanged and remains property-metadata-only.
     post_request = urllib.request.Request(
         ENDPOINT,
         data=encoded.encode("utf-8"),
         headers={**HEADERS, "Content-Type": "application/x-www-form-urlencoded"},
         method="POST",
     )
-    with urllib.request.urlopen(post_request, timeout=30) as response:
-        return json.load(response), "POST"
+    try:
+        with urllib.request.urlopen(post_request, timeout=30) as response:
+            return json.load(response), {"transport": "POST", "status": response.status}
+    except (urllib.error.HTTPError, urllib.error.URLError) as error:
+        attempts.append({"transport": "POST", "status": http_status(error), "error": type(error).__name__})
+        return None, {"attempts": attempts}
 
 
-def request_property_search(term: str) -> tuple[list[dict[str, str | None]], str]:
-    payload, transport = request_json(
-        {
-            "action": "wbsearchentities",
-            "search": term,
-            "language": "en",
-            "type": "property",
-            "limit": "10",
-            "format": "json",
-        }
-    )
-
-    rows: list[dict[str, str | None]] = []
-    for item in payload.get("search", []):
-        if not isinstance(item, dict):
-            raise RuntimeError("unexpected non-object result from property-only search")
-        entity_id = str(item.get("id", ""))
-        if not entity_id.startswith("P"):
-            raise RuntimeError(f"non-property entity returned by property-only search: {entity_id}")
-        rows.append(
-            {
-                "id": entity_id,
-                "label": item.get("label") if isinstance(item.get("label"), str) else None,
-                "description": item.get("description") if isinstance(item.get("description"), str) else None,
-            }
-        )
-    return rows, transport
+def boundary() -> dict[str, bool]:
+    return {
+        "property_metadata_only": True,
+        "item_entities_requested": False,
+        "project_rows_requested": False,
+        "beneficiary_data_requested": False,
+        "free_text_requested": False,
+        "sparql_rows_requested": False,
+    }
 
 
 def main() -> int:
     searches: dict[str, list[dict[str, str | None]]] = {}
     transports: set[str] = set()
+    access_failures: list[dict[str, object]] = []
+
     for term in SEARCH_TERMS:
-        rows, transport = request_property_search(term)
+        payload, request_result = request_json(
+            {
+                "action": "wbsearchentities",
+                "search": term,
+                "language": "en",
+                "type": "property",
+                "limit": "10",
+                "format": "json",
+            }
+        )
+        if payload is None:
+            access_failures.append({"term": term, **request_result})
+            break
+
+        transports.add(str(request_result["transport"]))
+        rows: list[dict[str, str | None]] = []
+        for item in payload.get("search", []):
+            if not isinstance(item, dict):
+                raise RuntimeError("unexpected non-object result from property-only search")
+            entity_id = str(item.get("id", ""))
+            if not entity_id.startswith("P"):
+                raise RuntimeError(f"non-property entity returned by property-only search: {entity_id}")
+            rows.append(
+                {
+                    "id": entity_id,
+                    "label": item.get("label") if isinstance(item.get("label"), str) else None,
+                    "description": item.get("description") if isinstance(item.get("description"), str) else None,
+                }
+            )
         searches[term] = rows
-        transports.add(transport)
 
     unique: dict[str, dict[str, str | None]] = {}
     for rows in searches.values():
         for row in rows:
             unique[str(row["id"])] = row
 
+    access_ok = not access_failures
     report = {
         "probe_contract": "kohesio-structured-classification-property-metadata-only-v1",
         "endpoint": ENDPOINT,
+        "qualification_result": "METADATA_ACCESS_OK" if access_ok else "BLOCKED_AUTOMATED_METADATA_ACCESS",
+        "access_ok": access_ok,
         "transports_used": sorted(transports),
-        "boundary": {
-            "property_metadata_only": True,
-            "item_entities_requested": False,
-            "project_rows_requested": False,
-            "beneficiary_data_requested": False,
-            "free_text_requested": False,
-            "sparql_rows_requested": False,
-        },
+        "access_failures": access_failures,
+        "boundary": boundary(),
         "search_terms": list(SEARCH_TERMS),
         "searches": searches,
         "unique_property_candidates": [unique[key] for key in sorted(unique)],
