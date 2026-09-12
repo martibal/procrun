@@ -24,6 +24,9 @@ dev = [
   "ruff>=0.6,<1",
   "mypy>=1.11,<2",
 ]
+retrieval = [
+  "sentence-transformers>=5,<6",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/procrun"]
