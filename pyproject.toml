@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 procrun-model-benchmark = "procrun.benchmark_runner:main"
+procrun-readiness-api = "procrun.readiness_http:main"
 
 [project.optional-dependencies]
 dev = [
