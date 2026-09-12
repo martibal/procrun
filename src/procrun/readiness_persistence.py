@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from collections.abc import Sequence
+from datetime import date, datetime
 from typing import Any
 
 from psycopg import Connection
@@ -72,7 +73,7 @@ CREATE INDEX IF NOT EXISTS readiness_cohort_lookup_idx
 CREATE TABLE IF NOT EXISTS procrun_readiness.dossiers (
     dossier_id uuid PRIMARY KEY,
     tenant_key text NOT NULL CHECK (tenant_key ~ '^org_[0-9a-f]{32}$'),
-    purchase_reference text NOT NULL CHECK (length(purchase_reference) BETWEEN 1 AND 512),
+    purchase_reference text NOT NULL CHECK (purchase_reference ~ '^[A-Za-z0-9_.:-]{1,128}$'),
     source_package_id text NOT NULL REFERENCES procrun_readiness.source_packages(source_package_id),
     benchmark_snapshot_id text NOT NULL REFERENCES procrun_readiness.benchmark_snapshots(snapshot_id),
     created_at timestamptz NOT NULL,
@@ -97,12 +98,19 @@ CREATE TRIGGER source_packages_immutable
 BEFORE UPDATE OR DELETE ON procrun_readiness.source_packages
 FOR EACH ROW EXECUTE FUNCTION procrun_readiness.reject_immutable_mutation();
 
+DROP TRIGGER IF EXISTS source_package_invalidations_immutable
+    ON procrun_readiness.source_package_invalidations;
+CREATE TRIGGER source_package_invalidations_immutable
+BEFORE UPDATE OR DELETE ON procrun_readiness.source_package_invalidations
+FOR EACH ROW EXECUTE FUNCTION procrun_readiness.reject_immutable_mutation();
+
 DROP TRIGGER IF EXISTS benchmark_snapshots_immutable ON procrun_readiness.benchmark_snapshots;
 CREATE TRIGGER benchmark_snapshots_immutable
 BEFORE UPDATE OR DELETE ON procrun_readiness.benchmark_snapshots
 FOR EACH ROW EXECUTE FUNCTION procrun_readiness.reject_immutable_mutation();
 
-DROP TRIGGER IF EXISTS benchmark_memberships_immutable ON procrun_readiness.benchmark_cohort_memberships;
+DROP TRIGGER IF EXISTS benchmark_memberships_immutable
+    ON procrun_readiness.benchmark_cohort_memberships;
 CREATE TRIGGER benchmark_memberships_immutable
 BEFORE UPDATE OR DELETE ON procrun_readiness.benchmark_cohort_memberships
 FOR EACH ROW EXECUTE FUNCTION procrun_readiness.reject_immutable_mutation();
@@ -127,13 +135,13 @@ def insert_source_package(
     bando_code: str,
     benchmark_cohort_id: str,
     version: int,
-    verified_at: object,
-    refresh_due_at: object,
+    verified_at: datetime,
+    refresh_due_at: datetime,
     completeness_attested: bool,
     package_sha256: str,
     manifest: dict[str, object],
 ) -> None:
-    with conn.cursor() as cur:
+    with conn.transaction(), conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO procrun_readiness.source_packages
@@ -153,7 +161,6 @@ def insert_source_package(
                 Jsonb(manifest),
             ),
         )
-    conn.commit()
 
 
 def insert_invalidation(
@@ -161,10 +168,10 @@ def insert_invalidation(
     *,
     invalidation_id: str,
     source_package_id: str,
-    invalidated_at: object,
+    invalidated_at: datetime,
     reason: str,
 ) -> None:
-    with conn.cursor() as cur:
+    with conn.transaction(), conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO procrun_readiness.source_package_invalidations
@@ -173,19 +180,33 @@ def insert_invalidation(
             """,
             (invalidation_id, source_package_id, invalidated_at, reason),
         )
-    conn.commit()
 
 
-def insert_benchmark_snapshot(
+def insert_benchmark_snapshot_bundle(
     conn: Connection[Any],
     *,
     snapshot_id: str,
-    data_through: object,
-    ingested_at: object,
+    data_through: date,
+    ingested_at: datetime,
     raw_record_count: int,
     canonical_sha256: str,
+    memberships: Sequence[tuple[str, BenchmarkObservation]],
 ) -> None:
-    with conn.cursor() as cur:
+    """Insert snapshot metadata and every cohort membership in one transaction."""
+    rows = [
+        (
+            snapshot_id,
+            cohort_id,
+            observation.operation_code,
+            observation.approved_funding_eur,
+            observation.project_start,
+            observation.project_end,
+            observation.project_title,
+            observation.source_url,
+        )
+        for cohort_id, observation in memberships
+    ]
+    with conn.transaction(), conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO procrun_readiness.benchmark_snapshots
@@ -194,36 +215,15 @@ def insert_benchmark_snapshot(
             """,
             (snapshot_id, data_through, ingested_at, raw_record_count, canonical_sha256),
         )
-    conn.commit()
-
-
-def insert_benchmark_membership(
-    conn: Connection[Any],
-    *,
-    snapshot_id: str,
-    cohort_id: str,
-    observation: BenchmarkObservation,
-) -> None:
-    with conn.cursor() as cur:
-        cur.execute(
+        cur.executemany(
             """
             INSERT INTO procrun_readiness.benchmark_cohort_memberships
             (snapshot_id,cohort_id,operation_code,approved_funding_eur,project_start,project_end,
              project_title,source_url)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
             """,
-            (
-                snapshot_id,
-                cohort_id,
-                observation.operation_code,
-                observation.approved_funding_eur,
-                observation.project_start,
-                observation.project_end,
-                observation.project_title,
-                observation.source_url,
-            ),
+            rows,
         )
-    conn.commit()
 
 
 def insert_dossier(
@@ -234,13 +234,13 @@ def insert_dossier(
     purchase_reference: str,
     source_package_id: str,
     benchmark_snapshot_id: str,
-    created_at: object,
+    created_at: datetime,
     canonicalization_version: str,
     canonical_sha256: str,
     canonical_jcs_bytes: bytes,
     canonical_payload: dict[str, object],
 ) -> None:
-    with conn.cursor() as cur:
+    with conn.transaction(), conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO procrun_readiness.dossiers
@@ -261,10 +261,13 @@ def insert_dossier(
                 Jsonb(canonical_payload),
             ),
         )
-    conn.commit()
 
 
 def _source_package_from_manifest(manifest: dict[str, Any]) -> SourcePackage:
+    raw_documents = manifest.get("documents")
+    raw_requirements = manifest.get("requirements")
+    if not isinstance(raw_documents, list) or not isinstance(raw_requirements, list):
+        raise TypeError("stored source package manifest lists are invalid")
     documents = tuple(
         SourceDocument(
             document_id=str(item["document_id"]),
@@ -274,7 +277,8 @@ def _source_package_from_manifest(manifest: dict[str, Any]) -> SourcePackage:
             sha256=str(item["sha256"]),
             observed_at=datetime.fromisoformat(str(item["observed_at"])),
         )
-        for item in manifest["documents"]
+        for item in raw_documents
+        if isinstance(item, dict)
     )
     requirements = tuple(
         PublishedRequirement(
@@ -285,10 +289,15 @@ def _source_package_from_manifest(manifest: dict[str, Any]) -> SourcePackage:
             source_citation=str(item["source_citation"]),
             source_text=str(item["source_text"]),
             scope_note=str(item["scope_note"]),
-            boundary_value=None if item["boundary_value"] is None else int(item["boundary_value"]),
+            boundary_value=(
+                None if item.get("boundary_value") is None else int(item["boundary_value"])
+            ),
         )
-        for item in manifest["requirements"]
+        for item in raw_requirements
+        if isinstance(item, dict)
     )
+    if len(documents) != len(raw_documents) or len(requirements) != len(raw_requirements):
+        raise TypeError("stored source package manifest contains non-object entries")
     return SourcePackage(
         source_package_id=str(manifest["source_package_id"]),
         bando_code=str(manifest["bando_code"]),
