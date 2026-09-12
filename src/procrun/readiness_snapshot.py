@@ -11,6 +11,11 @@ import json
 from collections.abc import Mapping
 from datetime import UTC, date, datetime
 
+from procrun.collectors.opencoesione import (
+    OPENCOESIONE_SOURCE_ID,
+    OpenCoesioneBatch,
+    to_funding_projects,
+)
 from procrun.domain import FundingProject
 
 SNAPSHOT_SCHEMA_VERSION = "readiness-benchmark-snapshot-v2"
@@ -100,3 +105,25 @@ def build_snapshot_payload(
         separators=(",", ":"),
     ).encode("utf-8")
     return payload, canonical, hashlib.sha256(canonical).hexdigest()
+
+
+def build_snapshot_from_opencoesione(
+    *,
+    snapshot_id: str,
+    batch: OpenCoesioneBatch,
+    cohort_memberships: Mapping[str, tuple[str, ...]],
+    cohort_source_id: str,
+    cohort_source_sha256: str,
+) -> tuple[dict[str, object], bytes, str]:
+    """Bridge the approved OpenCoesione collector into the readiness snapshot contract."""
+    return build_snapshot_payload(
+        snapshot_id=snapshot_id,
+        data_through=batch.list_updated_on,
+        ingested_at=batch.observed_at,
+        projects=to_funding_projects(batch),
+        cohort_memberships=cohort_memberships,
+        funding_source_id=OPENCOESIONE_SOURCE_ID,
+        funding_source_sha256=batch.source_sha256,
+        cohort_source_id=cohort_source_id,
+        cohort_source_sha256=cohort_source_sha256,
+    )
