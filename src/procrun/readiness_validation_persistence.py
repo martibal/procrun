@@ -41,7 +41,37 @@ def apply_readiness_validation_migration(conn: Connection[Any]) -> None:
 def insert_validation_release(conn: Connection[Any], release: ReadinessValidationRelease) -> str:
     digest = validation_sha256(release)
     manifest = validation_manifest(release)
-    with conn.transaction(), conn.cursor() as cur:
+    with conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT bando_code, package_sha256
+            FROM procrun_readiness.source_packages
+            WHERE source_package_id = %s
+            """,
+            (release.source_package_id,),
+        )
+        source_row = cur.fetchone()
+        if source_row is None:
+            raise ValueError("validation release references unknown source package")
+        if str(source_row["bando_code"]) != release.bando_code:
+            raise ValueError("validation release bando_code does not match source package")
+        if str(source_row["package_sha256"]) != release.source_package_sha256:
+            raise ValueError("validation release source package hash does not match stored package")
+
+        cur.execute(
+            """
+            SELECT canonical_sha256
+            FROM procrun_readiness.benchmark_snapshots
+            WHERE snapshot_id = %s
+            """,
+            (release.benchmark_snapshot_id,),
+        )
+        snapshot_row = cur.fetchone()
+        if snapshot_row is None:
+            raise ValueError("validation release references unknown benchmark snapshot")
+        if str(snapshot_row["canonical_sha256"]) != release.benchmark_snapshot_sha256:
+            raise ValueError("validation release benchmark hash does not match stored snapshot")
+
         cur.execute(
             """
             INSERT INTO procrun_readiness.validation_releases
