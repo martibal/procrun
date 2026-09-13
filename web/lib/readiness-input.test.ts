@@ -11,6 +11,7 @@ function paidBody() {
     purchase_expires_unix: 2_000_000_000,
     bando_code: "BANDO-X",
     benchmark_snapshot_id: "snapshot-1",
+    proposed_project_cost_eur: 300_000,
     proposed_funding_eur: 250_000,
     proposed_duration_months: 12,
   };
@@ -19,6 +20,12 @@ function paidBody() {
 describe("readiness input boundary", () => {
   it("accepts only structured paid fields", () => {
     expect(parsePaidBody(paidBody(), false)).toEqual(paidBody());
+  });
+
+  it("keeps project cost distinct from requested funding", () => {
+    const result = parsePaidBody(paidBody(), false);
+    expect(result.proposed_project_cost_eur).toBe(300_000);
+    expect(result.proposed_funding_eur).toBe(250_000);
   });
 
   it("rejects arbitrary free text fields", () => {
