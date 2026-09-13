@@ -20,7 +20,9 @@ def _case() -> ValidationCase:
         source_citation="Art. 4",
         expected_result="BELOW_PUBLISHED_MINIMUM",
         actual_result="BELOW_PUBLISHED_MINIMUM",
-        independent_reconstruction_method="Blind structured keyword/search reconstruction from frozen source",
+        independent_reconstruction_method=(
+            "Blind structured keyword/search reconstruction from frozen source"
+        ),
         reconstruction_blind_to_first_extraction=True,
         passed=True,
     )
