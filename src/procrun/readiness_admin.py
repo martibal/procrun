@@ -196,8 +196,16 @@ def import_benchmark_snapshot(path: str) -> str:
         if key in seen:
             raise ValueError(f"duplicate benchmark membership {key!r}")
         seen.add(key)
-        start = None if row.get("project_start") is None else date.fromisoformat(str(row["project_start"]))
-        end = None if row.get("project_end") is None else date.fromisoformat(str(row["project_end"]))
+        start = (
+            None
+            if row.get("project_start") is None
+            else date.fromisoformat(str(row["project_start"]))
+        )
+        end = (
+            None
+            if row.get("project_end") is None
+            else date.fromisoformat(str(row["project_end"]))
+        )
         funding = row.get("approved_funding_eur")
         memberships.append(
             (
@@ -207,8 +215,14 @@ def import_benchmark_snapshot(path: str) -> str:
                     approved_funding_eur=None if funding is None else int(funding),
                     project_start=start,
                     project_end=end,
-                    project_title=None if row.get("project_title") is None else str(row["project_title"]),
-                    source_url=None if row.get("source_url") is None else str(row["source_url"]),
+                    project_title=(
+                        None
+                        if row.get("project_title") is None
+                        else str(row["project_title"])
+                    ),
+                    source_url=(
+                        None if row.get("source_url") is None else str(row["source_url"])
+                    ),
                 ),
             )
         )
