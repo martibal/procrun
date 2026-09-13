@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from procrun.readiness_source import (
+    ProjectInputField,
     PublishedRequirement,
     RequirementKind,
     SourceDocument,
@@ -37,7 +38,7 @@ def _package(*, complete: bool = True) -> SourcePackage:
     observed = datetime(2026, 9, 1, 8, tzinfo=UTC)
     document = _document()
     requirement = PublishedRequirement(
-        requirement_id="min-funding",
+        requirement_id="min-project-cost",
         kind=RequirementKind.MINIMUM_EUR,
         label="Published minimum investment",
         source_document_id="bando",
@@ -45,6 +46,7 @@ def _package(*, complete: bool = True) -> SourcePackage:
         source_text="Minimum investment EUR 100,000",
         scope_note="Applies to the selected project class.",
         boundary_value=100_000,
+        input_field=ProjectInputField.PROPOSED_PROJECT_COST_EUR,
     )
     return SourcePackage(
         source_package_id="pkg-1",
@@ -77,13 +79,24 @@ def test_invalidation_overrides_ttl_and_incomplete_fails_closed() -> None:
     assert _package(complete=False).state_at(package.verified_at) is SourcePackageState.INCOMPLETE
 
 
-def test_package_hash_is_deterministic_and_binds_cohort_and_reuse_basis() -> None:
+def test_package_hash_is_deterministic_and_binds_cohort_reuse_and_input_field() -> None:
     package = _package()
     assert package_sha256(package) == package_sha256(_package())
     assert package.benchmark_cohort_id == "SAME_BANDO:BANDO-X"
-    document = package_manifest(package)["documents"][0]
+    manifest = package_manifest(package)
+    document = manifest["documents"][0]
+    requirement = manifest["requirements"][0]
     assert document["reuse_mode"] == "COMMERCIAL_REUSE_CONFIRMED"
     assert document["reuse_basis_url"] == "https://example.invalid/public-reuse-policy"
+    assert requirement["input_field"] == "proposed_project_cost_eur"
+
+
+def test_mechanical_requirement_requires_explicit_compatible_input_field() -> None:
+    requirement = _package().requirements[0]
+    with pytest.raises(ValueError, match="explicit project input field"):
+        replace(requirement, input_field=None)
+    with pytest.raises(ValueError, match="EUR boundaries"):
+        replace(requirement, input_field=ProjectInputField.PROPOSED_DURATION_MONTHS)
 
 
 def test_source_document_requires_public_reuse_basis() -> None:
