@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
 SOURCE_PACKAGE_TTL_DAYS = 7
-SOURCE_PACKAGE_SCHEMA_VERSION = "readiness-source-package-v2"
+SOURCE_PACKAGE_SCHEMA_VERSION = "readiness-source-package-v3"
 
 
 class SourcePackageState(StrEnum):
@@ -33,6 +33,12 @@ class RequirementKind(StrEnum):
     MAXIMUM_MONTHS = "MAXIMUM_MONTHS"
     ADVISOR_CONFIRMATION = "ADVISOR_CONFIRMATION"
     PROFESSIONAL_VERIFICATION = "PROFESSIONAL_VERIFICATION"
+
+
+class ProjectInputField(StrEnum):
+    PROPOSED_PROJECT_COST_EUR = "proposed_project_cost_eur"
+    PROPOSED_FUNDING_EUR = "proposed_funding_eur"
+    PROPOSED_DURATION_MONTHS = "proposed_duration_months"
 
 
 @dataclass(frozen=True)
@@ -67,18 +73,30 @@ class PublishedRequirement:
     source_text: str
     scope_note: str
     boundary_value: int | None = None
+    input_field: ProjectInputField | None = None
 
     def __post_init__(self) -> None:
-        needs_boundary = self.kind in {
-            RequirementKind.MINIMUM_EUR,
-            RequirementKind.MAXIMUM_EUR,
+        mechanical_eur = self.kind in {RequirementKind.MINIMUM_EUR, RequirementKind.MAXIMUM_EUR}
+        mechanical_months = self.kind in {
             RequirementKind.MINIMUM_MONTHS,
             RequirementKind.MAXIMUM_MONTHS,
         }
-        if needs_boundary != (self.boundary_value is not None):
+        mechanical = mechanical_eur or mechanical_months
+        if mechanical != (self.boundary_value is not None):
             raise ValueError("mechanical requirements require exactly one integer boundary")
+        if mechanical != (self.input_field is not None):
+            raise ValueError("mechanical requirements require an explicit project input field")
         if self.boundary_value is not None and self.boundary_value < 0:
             raise ValueError("boundary_value must be non-negative")
+        if mechanical_eur and self.input_field not in {
+            ProjectInputField.PROPOSED_PROJECT_COST_EUR,
+            ProjectInputField.PROPOSED_FUNDING_EUR,
+        }:
+            raise ValueError("EUR boundaries must bind to an explicit EUR project input")
+        if mechanical_months and self.input_field is not ProjectInputField.PROPOSED_DURATION_MONTHS:
+            raise ValueError("month boundaries must bind to proposed_duration_months")
+        if not mechanical and self.input_field is not None:
+            raise ValueError("non-mechanical requirements cannot bind a project input field")
 
 
 @dataclass(frozen=True)
@@ -179,6 +197,7 @@ def package_manifest(package: SourcePackage) -> dict[str, object]:
                 "source_text": item.source_text,
                 "scope_note": item.scope_note,
                 "boundary_value": item.boundary_value,
+                "input_field": None if item.input_field is None else item.input_field.value,
             }
             for item in package.requirements
         ],
