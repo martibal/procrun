@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OPENCOESIONE_ATTRIBUTION, TED_ATTRIBUTION } from "@/lib/source-attribution";
 
 const publicLinks = [
   ["Methodology", "/methodology"],
@@ -28,7 +29,7 @@ export function PublicFooter() {
       <div className="public-footer-grid">
         <div>
           <Link href="/" className="brand">ProcRun</Link>
-          <p className="small footer-copy">Evidence-bounded funded-project procurement intelligence for suppliers.</p>
+          <p className="small footer-copy">Evidence-bounded procurement intelligence for business and professional use.</p>
         </div>
         <div>
           <div className="footer-label">Explore</div>
@@ -36,9 +37,9 @@ export function PublicFooter() {
           <Link href="/pricing">Pricing</Link>
         </div>
         <div>
-          <div className="footer-label">Account</div>
-          <Link href="/login">Sign in</Link>
-          <Link href="/app">Open demo</Link>
+          <div className="footer-label">Sources</div>
+          <a href={OPENCOESIONE_ATTRIBUTION.licenceUrl} target="_blank" rel="noreferrer">OpenCoesione · {OPENCOESIONE_ATTRIBUTION.licence}</a>
+          <a href={TED_ATTRIBUTION.licenceUrl} target="_blank" rel="noreferrer">TED · reuse terms</a>
         </div>
         <div>
           <div className="footer-label">Legal</div>
@@ -47,8 +48,9 @@ export function PublicFooter() {
         </div>
       </div>
       <div className="footer-bottom">
-        <span>Source wording and ProcRun interpretation are kept separate.</span>
-        <span>No source, government body or EU institution endorses ProcRun.</span>
+        <span>{OPENCOESIONE_ATTRIBUTION.note}</span>
+        <span>{TED_ATTRIBUTION.note}</span>
+        <span>Paid checkout remains disabled until mandatory merchant disclosures are configured.</span>
       </div>
     </footer>
   );
