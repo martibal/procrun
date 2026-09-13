@@ -8,6 +8,8 @@ This gate separates **visual design work** from **commercial activation** withou
 
 The Readiness backend contract is sufficiently frozen to design the customer interface. GUI design may proceed against the headless API and domain contracts in `main` only after `docs/LEGAL_HARDENING_GATE.md` and its regression tests are green.
 
+The cross-track information architecture is additionally frozen in `docs/GUI_INFORMATION_ARCHITECTURE.md`. Visual work must preserve its shared three-layer mental model and terminology/source-text rules.
+
 This does **not** release a bando, enable paid analysis, enable checkout, or permit a dossier to be generated without an exact immutable commercial validation release.
 
 ## Frozen product surfaces for GUI design
@@ -29,6 +31,26 @@ The GUI must be designed around exactly these three server-side Readiness surfac
 
 Python remains the single source of truth for all calculations and classification. The GUI must not reimplement thresholds, requirement logic, benchmark calculations or eligibility-like inference in TypeScript.
 
+## Shared cross-track mental model
+
+Both funded-project procurement intelligence and Readiness must use the same semantic ordering:
+
+1. **Source fact**;
+2. **ProcRun interpretation**;
+3. **Professional review**.
+
+This shared model is the primary unifying product principle. Geometry may differ between desktop and mobile, but visual design may not merge these epistemic layers.
+
+The status vocabularies are intentionally not identical:
+
+- funded-project procurement uses component/project states such as `OPEN`, `CLOSED`, `UNRESOLVED` and, at project level, `PARTIAL`;
+- Readiness mechanical comparisons use explicit published-boundary result codes;
+- Readiness context-dependent requirements use adviser/professional states.
+
+The GUI must explain this difference at the transition between tracks. It must not imply that these labels answer the same question merely because they share a design system.
+
+Canonical rules: `docs/GUI_INFORMATION_ARCHITECTURE.md`.
+
 ## Input contract
 
 The GUI may collect only the structured Readiness inputs already admitted by the backend contract:
@@ -48,6 +70,7 @@ Visual components must preserve the source contract, not merely the data shape:
 
 - verbatim source wording may be rendered only where commercial republication is permitted;
 - `FACT_EXTRACTION_ONLY` Readiness documents render structured facts, citation and official link, never protected wording;
+- when wording is withheld because the document is `FACT_EXTRACTION_ONLY`, the GUI must say so explicitly; a missing quote must never look like missing data or an ingestion failure;
 - source attribution must remain visible and source-specific;
 - ProcRun must never imply endorsement by TED, EU institutions, OpenCoesione, Regione Lombardia or another source publisher;
 - the customer intelligence plane must not receive natural-person identity/contact fields;
@@ -61,7 +84,7 @@ Visual design must preserve the frozen semantics in `docs/READINESS_DOSSIER_V2.m
 - never approval probability;
 - never a claim that ProcRun performed professional/legal eligibility verification;
 - mechanical results are factual comparisons to an exact published boundary;
-- context-dependent items remain `PROFESSIONAL_VERIFICATION_REQUIRED` or structured adviser confirmations;
+- context-dependent items remain `PROFESSIONAL_REVIEW_REQUIRED` or structured adviser confirmations;
 - source provenance and hashes remain visible/auditable in the paid dossier.
 
 ## Commercial activation invariant
@@ -82,9 +105,12 @@ The project is ready to enter GUI design when all of the following are true:
 - project cost, requested funding and duration are distinct typed inputs;
 - source reuse governance is fail-closed;
 - legal hardening gate is present and tested;
+- the unified information-architecture contract is frozen;
 - OpenCoesione identity fields remain outside FundingProject/read model/customer exports under the frozen legal-person publication contract;
 - source attribution metadata exists for TED and OpenCoesione;
 - marketing copy does not promise universal verbatim wording;
+- `FACT_EXTRACTION_ONLY` source-text absence is explicitly explained in the UI contract;
+- procurement and Readiness vocabularies are semantically distinguished rather than silently conflated;
 - merchant disclosures are fail-closed rather than fabricated;
 - source freshness/invalidation is fail-closed;
 - paid unlock and dossier generation require exact commercial validation release binding;
