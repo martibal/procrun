@@ -8,7 +8,11 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from procrun.readiness_validation import ReadinessValidationRelease, validation_manifest, validation_sha256
+from procrun.readiness_validation import (
+    ReadinessValidationRelease,
+    validation_manifest,
+    validation_sha256,
+)
 
 MIGRATION_SQL = r"""
 CREATE TABLE IF NOT EXISTS procrun_readiness.validation_releases (
