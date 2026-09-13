@@ -17,6 +17,7 @@ from procrun.readiness_source import (
     SourceDocument,
     SourcePackage,
     SourceReuseMode,
+    package_sha256,
 )
 
 
@@ -65,11 +66,12 @@ def _input(created_at: datetime) -> DossierBuildInput:
         )
         for i in range(30)
     )
+    package = _package()
     return DossierBuildInput(
         dossier_id="11111111-1111-1111-1111-111111111111",
         tenant_key="org_0123456789abcdef0123456789abcdef",
         purchase_reference="purchase-1",
-        source_package=_package(),
+        source_package=package,
         invalidated_at=None,
         benchmark_snapshot_id="snapshot-1",
         benchmark_data_through="2026-09-10",
@@ -80,6 +82,14 @@ def _input(created_at: datetime) -> DossierBuildInput:
             "cohort_source_id": "lombardia-structured",
             "cohort_source_sha256": "b" * 64,
             "cohort_membership_semantics": "Exact structured membership only.",
+        },
+        validation_release_binding={
+            "validation_id": "validation-1",
+            "validation_sha256": "e" * 64,
+            "source_package_id": package.source_package_id,
+            "source_package_sha256": package_sha256(package),
+            "benchmark_snapshot_id": "snapshot-1",
+            "benchmark_snapshot_sha256": "d" * 64,
         },
         observations=observations,
         proposed_funding_eur=250_000,
@@ -94,7 +104,7 @@ def _input(created_at: datetime) -> DossierBuildInput:
     )
 
 
-def test_dossier_binds_source_snapshot_and_is_byte_verifiable() -> None:
+def test_dossier_binds_source_snapshot_validation_and_is_byte_verifiable() -> None:
     created = _package().verified_at + timedelta(days=1)
     payload, canonical, digest = build_dossier(_input(created))
     assert payload["source_package"]["source_package_id"] == "pkg-1"
@@ -104,6 +114,7 @@ def test_dossier_binds_source_snapshot_and_is_byte_verifiable() -> None:
     )
     source_document = payload["source_package"]["manifest"]["documents"][0]
     assert source_document["reuse_mode"] == "COMMERCIAL_REUSE_CONFIRMED"
+    assert payload["commercial_validation_release"]["validation_id"] == "validation-1"
     historical = payload["historical_dimensioning"]
     assert historical["snapshot_id"] == "snapshot-1"
     assert historical["source_binding"]["cohort_source_id"] == "lombardia-structured"
@@ -137,3 +148,16 @@ def test_missing_benchmark_source_binding_blocks_dossier() -> None:
     missing = replace(_input(current), benchmark_source_binding={})
     with pytest.raises(DossierBlockedError, match="source binding is incomplete"):
         build_dossier(missing)
+
+
+def test_missing_or_mismatched_validation_release_blocks_dossier() -> None:
+    current = _package().verified_at + timedelta(days=1)
+    missing = replace(_input(current), validation_release_binding={})
+    with pytest.raises(DossierBlockedError, match="validation release is incomplete"):
+        build_dossier(missing)
+
+    wrong_snapshot = dict(_input(current).validation_release_binding)
+    wrong_snapshot["benchmark_snapshot_sha256"] = "f" * 64
+    mismatched = replace(_input(current), validation_release_binding=wrong_snapshot)
+    with pytest.raises(DossierBlockedError, match="does not bind exact benchmark_snapshot_sha256"):
+        build_dossier(mismatched)
