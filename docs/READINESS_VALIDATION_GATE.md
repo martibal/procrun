@@ -81,6 +81,16 @@ Paid unlock and paid dossier creation MUST fail if the exact source-package/snap
 matching immutable `RELEASED` validation record. A web page, checkout configuration, API route or other
 presentation layer may never override this gate.
 
+## GUI design versus commercial activation
+
+Visual design is allowed once the headless contracts and fail-closed commercial boundary are frozen.
+Design work may use fixtures and non-production states to establish hierarchy, flows, responsive layout
+and component behaviour. It does not make a bando sellable and must not introduce client-side readiness
+logic.
+
+Production checkout, paid unlock and paid dossier activation remain subject to the full per-bando release
+requirements above. The canonical visual-design boundary is `docs/GUI_DESIGN_GATE.md`.
+
 ## Launch strategy
 
 ProcRun is explicitly a quality-over-breadth product. Initial launch SHALL use **one fully validated
@@ -95,8 +105,11 @@ Sequence:
 5. perform blind independent reconstruction for every automated claim;
 6. run boundary and adversarial end-to-end golden cases;
 7. create the immutable commercial validation release;
-8. only then proceed to customer GUI/checkout for that bando;
+8. activate production checkout/paid analysis for that bando only after step 7;
 9. learn from real use before deciding whether a second bando is operationally defensible.
+
+GUI design may run in parallel after the headless/fail-closed contract is frozen, but production activation
+may not move ahead of this sequence.
 
 ## Accepted limitation
 
