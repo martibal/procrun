@@ -92,6 +92,7 @@ def _input(created_at: datetime) -> DossierBuildInput:
             "benchmark_snapshot_sha256": "d" * 64,
         },
         observations=observations,
+        proposed_project_cost_eur=300_000,
         proposed_funding_eur=250_000,
         proposed_duration_months=12,
         confirmations=(
@@ -115,6 +116,7 @@ def test_dossier_binds_source_snapshot_validation_and_is_byte_verifiable() -> No
     source_document = payload["source_package"]["manifest"]["documents"][0]
     assert source_document["reuse_mode"] == "COMMERCIAL_REUSE_CONFIRMED"
     assert payload["commercial_validation_release"]["validation_id"] == "validation-1"
+    assert payload["project_inputs"]["proposed_project_cost_eur"] == 300_000
     historical = payload["historical_dimensioning"]
     assert historical["snapshot_id"] == "snapshot-1"
     assert historical["source_binding"]["cohort_source_id"] == "lombardia-structured"

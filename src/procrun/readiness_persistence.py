@@ -12,6 +12,7 @@ from psycopg.types.json import Jsonb
 
 from procrun.readiness_benchmark import BenchmarkObservation
 from procrun.readiness_source import (
+    ProjectInputField,
     PublishedRequirement,
     RequirementKind,
     SourceDocument,
@@ -264,6 +265,8 @@ def insert_dossier(
 
 
 def _source_package_from_manifest(manifest: dict[str, Any]) -> SourcePackage:
+    if manifest.get("schema_version") != "readiness-source-package-v3":
+        raise ValueError("stored source package requires explicit v3 input bindings")
     raw_documents = manifest.get("documents")
     raw_requirements = manifest.get("requirements")
     if not isinstance(raw_documents, list) or not isinstance(raw_requirements, list):
@@ -294,6 +297,11 @@ def _source_package_from_manifest(manifest: dict[str, Any]) -> SourcePackage:
             scope_note=str(item["scope_note"]),
             boundary_value=(
                 None if item.get("boundary_value") is None else int(item["boundary_value"])
+            ),
+            input_field=(
+                None
+                if item.get("input_field") is None
+                else ProjectInputField(str(item["input_field"]))
             ),
         )
         for item in raw_requirements

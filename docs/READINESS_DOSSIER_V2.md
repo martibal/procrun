@@ -62,9 +62,14 @@ protected expression.
 
 ### RD-5 — Mechanical checks are narrow factual comparisons
 
-Automation is permitted only where the package declares an objective integer boundary and its scope.
+Automation is permitted only where the package declares an objective integer boundary, its scope and
+the exact structured project input to which the boundary applies. There is no implicit mapping from a
+requirement kind to a project field. In particular, project cost, requested/approved funding and
+project duration are separate inputs and may never be substituted for one another.
+
 The result states the user value relative to that published boundary. It never converts the comparison
-into a broader qualification decision.
+into a broader qualification decision. A source package that omits the explicit input binding for a
+mechanical requirement is invalid and fails closed.
 
 ### RD-6 — Professional judgment stays with the adviser
 
@@ -119,7 +124,7 @@ A paid dossier binds:
 - opaque trusted purchase reference;
 - exact source package ID/version/hash and source manifest;
 - exact benchmark snapshot ID/hash and data-through date;
-- project funding/duration inputs;
+- project cost/funding/duration inputs used by the analysis;
 - structured adviser confirmations;
 - full generated matrix and historical analysis;
 - canonical bytes and SHA-256.

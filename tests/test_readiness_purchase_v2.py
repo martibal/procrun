@@ -14,6 +14,7 @@ def _scope() -> PurchaseScope:
         purchase_reference="pay_opaque_123",
         bando_code="BANDO-X",
         benchmark_snapshot_id="snapshot-1",
+        proposed_project_cost_eur=300_000,
         proposed_funding_eur=250_000,
         proposed_duration_months=12,
         expires_unix=2_000_000_000,
@@ -26,9 +27,13 @@ def test_purchase_capability_is_bound_to_exact_analysis_scope() -> None:
     token = sign_purchase_capability(scope, secret)
     verify_purchase_capability(scope, token, secret, now_unix=1_900_000_000)
 
-    changed = PurchaseScope(**{**scope.__dict__, "proposed_funding_eur": 260_000})
+    changed_funding = PurchaseScope(**{**scope.__dict__, "proposed_funding_eur": 260_000})
     with pytest.raises(PurchaseCapabilityError, match="signature"):
-        verify_purchase_capability(changed, token, secret, now_unix=1_900_000_000)
+        verify_purchase_capability(changed_funding, token, secret, now_unix=1_900_000_000)
+
+    changed_cost = PurchaseScope(**{**scope.__dict__, "proposed_project_cost_eur": 310_000})
+    with pytest.raises(PurchaseCapabilityError, match="signature"):
+        verify_purchase_capability(changed_cost, token, secret, now_unix=1_900_000_000)
 
 
 def test_expired_purchase_capability_fails_closed() -> None:

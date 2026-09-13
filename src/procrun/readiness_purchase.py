@@ -17,12 +17,16 @@ class PurchaseScope:
     purchase_reference: str
     bando_code: str
     benchmark_snapshot_id: str
+    proposed_project_cost_eur: int | None
     proposed_funding_eur: int
     proposed_duration_months: int | None
     expires_unix: int
 
 
 def _message(scope: PurchaseScope) -> bytes:
+    project_cost = (
+        "" if scope.proposed_project_cost_eur is None else str(scope.proposed_project_cost_eur)
+    )
     duration = "" if scope.proposed_duration_months is None else str(scope.proposed_duration_months)
     return "|".join(
         (
@@ -30,6 +34,7 @@ def _message(scope: PurchaseScope) -> bytes:
             scope.purchase_reference,
             scope.bando_code,
             scope.benchmark_snapshot_id,
+            project_cost,
             str(scope.proposed_funding_eur),
             duration,
             str(scope.expires_unix),

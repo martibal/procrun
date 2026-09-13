@@ -49,17 +49,23 @@ export function parsePaidBody(value: unknown, withConfirmations: boolean): Recor
     "purchase_expires_unix",
     "bando_code",
     "benchmark_snapshot_id",
+    "proposed_project_cost_eur",
     "proposed_funding_eur",
     "proposed_duration_months",
   ]);
   if (withConfirmations) allowed.add("confirmations");
   exactKeys(input, allowed);
 
+  const projectCost = input.proposed_project_cost_eur;
   const duration = input.proposed_duration_months;
   const result: Record<string, unknown> = {
     purchase_reference: opaque(input.purchase_reference, "purchase_reference"),
     bando_code: opaque(input.bando_code, "bando_code"),
     benchmark_snapshot_id: opaque(input.benchmark_snapshot_id, "benchmark_snapshot_id"),
+    proposed_project_cost_eur:
+      projectCost === null || projectCost === undefined
+        ? null
+        : nonNegativeInt(projectCost, "proposed_project_cost_eur"),
     proposed_funding_eur: nonNegativeInt(input.proposed_funding_eur, "proposed_funding_eur"),
     proposed_duration_months:
       duration === null || duration === undefined

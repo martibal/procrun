@@ -34,21 +34,13 @@ class AdvisorConfirmation:
     state: AdvisorState
 
 
-def _field_for(kind: RequirementKind) -> str | None:
-    if kind in {RequirementKind.MINIMUM_EUR, RequirementKind.MAXIMUM_EUR}:
-        return "proposed_funding_eur"
-    if kind in {RequirementKind.MINIMUM_MONTHS, RequirementKind.MAXIMUM_MONTHS}:
-        return "proposed_duration_months"
-    return None
-
-
 def _mechanical_result(
     requirement: PublishedRequirement,
     project_inputs: Mapping[str, int | None],
 ) -> dict[str, object] | None:
-    field = _field_for(requirement.kind)
-    if field is None:
+    if requirement.input_field is None:
         return None
+    field = requirement.input_field.value
     boundary = requirement.boundary_value
     assert boundary is not None
     value = project_inputs.get(field)

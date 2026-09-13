@@ -22,6 +22,7 @@ from procrun.readiness_benchmark import BenchmarkObservation
 from procrun.readiness_persistence import insert_invalidation, insert_source_package
 from procrun.readiness_snapshot_provenance import insert_snapshot_bundle_with_provenance
 from procrun.readiness_source import (
+    ProjectInputField,
     PublishedRequirement,
     RequirementKind,
     SourceDocument,
@@ -56,6 +57,8 @@ def _object_list(value: object, label: str) -> list[dict[str, Any]]:
 
 
 def _parse_source_package(data: dict[str, Any]) -> SourcePackage:
+    if data.get("schema_version") != "readiness-source-package-v3":
+        raise ValueError("production source-package import requires readiness-source-package-v3")
     raw_documents = _object_list(data.get("documents"), "documents")
     raw_requirements = _object_list(data.get("requirements"), "requirements")
     documents = tuple(
@@ -83,6 +86,11 @@ def _parse_source_package(data: dict[str, Any]) -> SourcePackage:
             scope_note=str(item["scope_note"]),
             boundary_value=(
                 None if item.get("boundary_value") is None else int(item["boundary_value"])
+            ),
+            input_field=(
+                None
+                if item.get("input_field") is None
+                else ProjectInputField(str(item["input_field"]))
             ),
         )
         for item in raw_requirements
