@@ -1,7 +1,7 @@
-"""Administrative import path for Readiness Dossier source packages and benchmark snapshots.
+"""Administrative import path for Readiness Dossier production artifacts.
 
 This CLI accepts only curated, non-PII JSON artifacts. It performs no human contact and no
-beneficiary lookup. Source-package refreshes and benchmark snapshots are append-only records.
+beneficiary lookup. Source packages, snapshots and validation releases are append-only records.
 """
 
 from __future__ import annotations
@@ -30,6 +30,12 @@ from procrun.readiness_source import (
     package_manifest,
     package_sha256,
 )
+from procrun.readiness_validation import (
+    ClaimCategory,
+    ReadinessValidationRelease,
+    ValidationCase,
+)
+from procrun.readiness_validation_persistence import insert_validation_release
 
 
 def _database_url() -> str:
@@ -190,16 +196,8 @@ def import_benchmark_snapshot(path: str) -> str:
         if key in seen:
             raise ValueError(f"duplicate benchmark membership {key!r}")
         seen.add(key)
-        start = (
-            None
-            if row.get("project_start") is None
-            else date.fromisoformat(str(row["project_start"]))
-        )
-        end = (
-            None
-            if row.get("project_end") is None
-            else date.fromisoformat(str(row["project_end"]))
-        )
+        start = None if row.get("project_start") is None else date.fromisoformat(str(row["project_start"]))
+        end = None if row.get("project_end") is None else date.fromisoformat(str(row["project_end"]))
         funding = row.get("approved_funding_eur")
         memberships.append(
             (
@@ -209,9 +207,7 @@ def import_benchmark_snapshot(path: str) -> str:
                     approved_funding_eur=None if funding is None else int(funding),
                     project_start=start,
                     project_end=end,
-                    project_title=(
-                        None if row.get("project_title") is None else str(row["project_title"])
-                    ),
+                    project_title=None if row.get("project_title") is None else str(row["project_title"]),
                     source_url=None if row.get("source_url") is None else str(row["source_url"]),
                 ),
             )
@@ -234,6 +230,56 @@ def import_benchmark_snapshot(path: str) -> str:
     return digest
 
 
+def _parse_validation_release(data: dict[str, Any]) -> ReadinessValidationRelease:
+    if data.get("schema_version") != "readiness-validation-v1":
+        raise ValueError("unsupported readiness validation schema_version")
+    raw_cases = _object_list(data.get("cases"), "cases")
+    cases = tuple(
+        ValidationCase(
+            case_id=str(item["case_id"]),
+            requirement_id=str(item["requirement_id"]),
+            claim_category=ClaimCategory(str(item["claim_category"])),
+            source_document_id=str(item["source_document_id"]),
+            source_citation=str(item["source_citation"]),
+            expected_result=str(item["expected_result"]),
+            actual_result=str(item["actual_result"]),
+            independent_reconstruction_method=str(item["independent_reconstruction_method"]),
+            reconstruction_blind_to_first_extraction=bool(
+                item["reconstruction_blind_to_first_extraction"]
+            ),
+            passed=bool(item["passed"]),
+        )
+        for item in raw_cases
+    )
+    return ReadinessValidationRelease(
+        validation_id=str(data["validation_id"]),
+        bando_code=str(data["bando_code"]),
+        source_package_id=str(data["source_package_id"]),
+        source_package_sha256=str(data["source_package_sha256"]),
+        benchmark_snapshot_id=str(data["benchmark_snapshot_id"]),
+        benchmark_snapshot_sha256=str(data["benchmark_snapshot_sha256"]),
+        validated_at=datetime.fromisoformat(str(data["validated_at"])),
+        founder_validation_only=bool(data["founder_validation_only"]),
+        external_validation_required=bool(data["external_validation_required"]),
+        ambiguity_rule_attested=bool(data["ambiguity_rule_attested"]),
+        source_universe_complete_attested=bool(data["source_universe_complete_attested"]),
+        benchmark_cohort_attested=bool(data["benchmark_cohort_attested"]),
+        dossier_semantics_attested=bool(data["dossier_semantics_attested"]),
+        adversarial_suite_passed=bool(data["adversarial_suite_passed"]),
+        cases=cases,
+    )
+
+
+def import_validation_release(path: str) -> str:
+    raw = _load_json(path)
+    if not isinstance(raw, dict):
+        raise ValueError("validation release must be a JSON object")
+    release = _parse_validation_release(raw)
+    with psycopg.connect(_database_url()) as conn:
+        apply_all_migrations(conn)
+        return insert_validation_release(conn, release)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="procrun-readiness-admin")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -249,6 +295,9 @@ def main() -> None:
     snapshot = sub.add_parser("import-benchmark-snapshot")
     snapshot.add_argument("path")
 
+    validation = sub.add_parser("import-validation-release")
+    validation.add_argument("path")
+
     args = parser.parse_args()
     if args.command == "import-source-package":
         print(import_source_package(args.path))
@@ -256,6 +305,8 @@ def main() -> None:
         print(invalidate_source_package(args.source_package_id, args.reason, args.at))
     elif args.command == "import-benchmark-snapshot":
         print(import_benchmark_snapshot(args.path))
+    elif args.command == "import-validation-release":
+        print(import_validation_release(args.path))
     else:  # pragma: no cover
         raise AssertionError("unreachable command")
 
