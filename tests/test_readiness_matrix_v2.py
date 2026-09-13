@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from procrun.readiness_matrix import AdvisorConfirmation, AdvisorState, build_readiness_matrix
 from procrun.readiness_source import (
+    ProjectInputField,
     PublishedRequirement,
     RequirementKind,
     SourceDocument,
@@ -39,6 +40,7 @@ def _package() -> SourcePackage:
                 source_text="Minimum EUR 100,000",
                 scope_note="Selected project class only.",
                 boundary_value=100_000,
+                input_field=ProjectInputField.PROPOSED_PROJECT_COST_EUR,
             ),
             PublishedRequirement(
                 requirement_id="dnsh",
@@ -57,7 +59,11 @@ def _package() -> SourcePackage:
 def test_matrix_separates_source_fact_user_fact_and_professional_judgment() -> None:
     matrix = build_readiness_matrix(
         _package(),
-        project_inputs={"proposed_funding_eur": 80_000, "proposed_duration_months": 24},
+        project_inputs={
+            "proposed_project_cost_eur": 80_000,
+            "proposed_funding_eur": 250_000,
+            "proposed_duration_months": 24,
+        },
         confirmations=(
             AdvisorConfirmation(
                 requirement_id="dnsh",
@@ -66,17 +72,33 @@ def test_matrix_separates_source_fact_user_fact_and_professional_judgment() -> N
         ),
     )
     row = matrix["rows"][0]
-    assert row["mechanical_comparison"]["result_code"] == "BELOW_PUBLISHED_MINIMUM"
-    assert "80,000" not in row["mechanical_comparison"]["statement"]
+    mechanical = row["mechanical_comparison"]
+    assert mechanical["field"] == "proposed_project_cost_eur"
+    assert mechanical["user_value"] == 80_000
+    assert mechanical["result_code"] == "BELOW_PUBLISHED_MINIMUM"
     assert matrix["points_requiring_professional_verification"][0]["requirement_id"] == "dnsh"
     assert "verdict" in matrix["completion"]["language"]
+
+
+def test_project_cost_boundary_cannot_silently_use_requested_funding() -> None:
+    matrix = build_readiness_matrix(
+        _package(),
+        project_inputs={
+            "proposed_project_cost_eur": 99_999,
+            "proposed_funding_eur": 500_000,
+        },
+        confirmations=(),
+    )
+    comparison = matrix["rows"][0]["mechanical_comparison"]
+    assert comparison["field"] == "proposed_project_cost_eur"
+    assert comparison["result_code"] == "BELOW_PUBLISHED_MINIMUM"
 
 
 def test_unknown_confirmation_fails_closed() -> None:
     try:
         build_readiness_matrix(
             _package(),
-            project_inputs={"proposed_funding_eur": 100_000},
+            project_inputs={"proposed_project_cost_eur": 100_000},
             confirmations=(AdvisorConfirmation("unknown", AdvisorState.CONFIRMED_BY_ADVISOR),),
         )
     except ValueError as exc:
