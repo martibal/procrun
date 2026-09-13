@@ -24,7 +24,10 @@ export interface ReadinessProjectInputs {
   proposed_duration_months: number | null;
 }
 
-export type ReadinessAdvisorState = "CONFIRMED" | "NOT_CONFIRMED" | "NOT_APPLICABLE";
+export type ReadinessAdvisorState =
+  | "CONFIRMED_BY_ADVISOR"
+  | "NOT_CONFIRMED"
+  | "PROFESSIONAL_REVIEW_REQUIRED";
 
 export interface ReadinessAdvisorConfirmation {
   requirement_id: string;
@@ -48,7 +51,7 @@ export interface CommercialValidationBinding {
 export interface ReadinessUnlockResponse {
   source_package: Record<string, unknown>;
   commercial_validation_release: CommercialValidationBinding;
-  published_requirements_matrix: unknown[];
+  published_requirements_matrix: Record<string, unknown>;
   historical_dimensioning: Record<string, unknown>;
 }
 
