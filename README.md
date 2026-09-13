@@ -29,32 +29,64 @@ Readiness source packages enforce this through `COMMERCIAL_REUSE_CONFIRMED`,
 `FACT_EXTRACTION_ONLY` and `BLOCKED`; reuse state and public basis are hash-bound into each immutable
 source-package manifest.
 
+## Permanent Readiness correctness rule
+
+**Ingen Readiness-bando kan selges bare fordi kode, CI, source package og benchmark er teknisk grønne.**
+Den eksakte kombinasjonen av source package og benchmark snapshot må ha en immutable `RELEASED`
+validation record før paid unlock eller dossier generation er tillatt.
+
+"100% validert" betyr at 100% av ProcRuns automatiserte kundepåstander ligger innenfor en offentlig,
+uavhengig inspiserbar og deterministisk validerbar kontrakt. Det betyr ikke at ProcRun hevder å forstå
+eller avgjøre hele støtteordningens juridiske univers.
+
+Tvetydighet skal aldri løses ved å automatisere mer: **ambiguity is not a validation problem to be
+solved; ambiguity is a reason not to automate the claim.** Krav som krever fortolkning, skjønn,
+ukjent kontekst eller ekstern verifikasjon skal forbli `PROFESSIONAL_VERIFICATION_REQUIRED`.
+
+Ingen ekstern validering kan være launch-avhengighet. Her betyr `external` utenfor prosjektet:
+myndighet, kildeeier, jurist, konsulent, rådgiver eller annen tredjepart. Grunnleggerens egen lesning,
+strukturering, koding og validering av offentlige kilder er prosjektarbeid og er tillatt. Automatiserte
+påstander krever i tillegg en blind, prosedyremessig uavhengig rekonstruksjon som ikke ser den første
+ekstraksjonen.
+
+Launch-strategien er eksplisitt kvalitet fremfor bredde: **én fullt validert bando først**. Første bando
+må passere source-universe-, scope-, benchmark-, adversarial- og end-to-end golden-case-gatene før GUI
+og checkout for den bandoen regnes som launch-arbeid.
+
+Canonical validation gate: `docs/READINESS_VALIDATION_GATE.md`.
+Runtime enforcement: `src/procrun/readiness_validation.py` og
+`src/procrun/readiness_validation_persistence.py`.
+
 # ProcRun
 
 ProcRun is an evidence-first infrastructure procurement product for suppliers.
 
 ## Canonical decision
 
-**Status: WEB PRODUCT BUILD: GO. CLASSIFICATION ENGINE PRODUCT VALIDATION: NOT YET GREEN.**
+**Status: WEB PRODUCT BUILD: GO. CLASSIFICATION ENGINE PRODUCT VALIDATION: NOT YET GREEN. READINESS COMMERCIAL RELEASE: BLOCKED UNTIL ONE BANDO HAS A RELEASED VALIDATION RECORD.**
 
 Canonical specification: `docs/PRODUCT_FOUNDATION_FINAL.md`.
 Authoritative build/release decisions: `docs/BUILD_GATES.md`, gates A20 and A21.
 Classification-engine release gate: `docs/CLASSIFICATION_ENGINE_VALIDATION_GATE.md`.
+Readiness commercial validation gate: `docs/READINESS_VALIDATION_GATE.md`.
 Frozen pre-web baseline: `docs/PREWEB_RELEASE_BASELINE.md`.
 Sequencing rule: `docs/DELIVERY_READINESS_GATE.md`.
 
 A20 authorizes the web build and records operational source/delivery readiness. A21 separately governs
 whether the final classification engine has been empirically validated as the paid core product. Green
-unit tests or successful production ingestion do not substitute for A21.
+unit tests or successful production ingestion do not substitute for A21. Readiness Dossier commercial
+release is separately blocked until the exact source-package/snapshot pair has a `RELEASED` validation
+record under the Readiness validation gate.
 
 ## Permanent sequencing rule
 
 Web implementation is authorized because the complete non-web delivery chain has passed production
-acceptance. This authorization does not itself close empirical classification validation.
+acceptance. This authorization does not itself close empirical classification validation or Readiness
+commercial correctness validation.
 
 The existing fixture/shell under `web/` is non-authoritative and may be replaced. It does not constrain
-the visual implementation, but the frozen customer-safe data, source, coverage, privacy and evidence
-contracts do constrain it.
+the visual implementation, but the frozen customer-safe data, source, coverage, privacy, evidence and
+commercial validation contracts do constrain it.
 
 ## Approved sources
 
@@ -101,6 +133,7 @@ Until then the only valid engine-level product-validation status is:
 
 ## Current engineering instruction
 
-Classification-engine validation work must follow `docs/CLASSIFICATION_ENGINE_VALIDATION_GATE.md`.
-The benchmark/gold-standard package must be frozen before release-candidate scoring and must not be
-silently weakened under launch pressure.
+Readiness work must follow `docs/READINESS_VALIDATION_GATE.md` and validate one launch bando before
+customer GUI/checkout work proceeds for Readiness. Classification-engine validation work must follow
+`docs/CLASSIFICATION_ENGINE_VALIDATION_GATE.md`. Validation gates must not be silently weakened under
+launch pressure.

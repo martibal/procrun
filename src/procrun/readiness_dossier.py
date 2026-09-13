@@ -44,6 +44,7 @@ class DossierBuildInput:
     benchmark_data_through: str
     benchmark_snapshot_sha256: str
     benchmark_source_binding: dict[str, object]
+    validation_release_binding: dict[str, object]
     observations: tuple[BenchmarkObservation, ...]
     proposed_funding_eur: int
     proposed_duration_months: int | None
@@ -109,6 +110,35 @@ def _generated_matrix_texts(matrix: dict[str, object]) -> list[str]:
     return texts
 
 
+def _validate_release_binding(input_data: DossierBuildInput) -> None:
+    required = {
+        "validation_id",
+        "validation_sha256",
+        "source_package_id",
+        "source_package_sha256",
+        "benchmark_snapshot_id",
+        "benchmark_snapshot_sha256",
+    }
+    missing = required - set(input_data.validation_release_binding)
+    if missing:
+        raise DossierBlockedError(f"commercial validation release is incomplete: {sorted(missing)}")
+    binding = input_data.validation_release_binding
+    expected_source_hash = package_sha256(input_data.source_package)
+    comparisons = {
+        "source_package_id": input_data.source_package.source_package_id,
+        "source_package_sha256": expected_source_hash,
+        "benchmark_snapshot_id": input_data.benchmark_snapshot_id,
+        "benchmark_snapshot_sha256": input_data.benchmark_snapshot_sha256,
+    }
+    for field, expected in comparisons.items():
+        if binding.get(field) != expected:
+            raise DossierBlockedError(f"commercial validation release does not bind exact {field}")
+    digest = str(binding["validation_sha256"])
+    if len(digest) != 64:
+        raise DossierBlockedError("commercial validation release hash is invalid")
+    int(digest, 16)
+
+
 def build_dossier(input_data: DossierBuildInput) -> tuple[dict[str, object], bytes, str]:
     if input_data.created_at.tzinfo is None:
         raise ValueError("created_at must be timezone-aware")
@@ -137,6 +167,7 @@ def build_dossier(input_data: DossierBuildInput) -> tuple[dict[str, object], byt
         raise DossierBlockedError(
             f"benchmark source binding is incomplete: {sorted(missing_binding)}"
         )
+    _validate_release_binding(input_data)
 
     project_inputs = {
         "proposed_funding_eur": input_data.proposed_funding_eur,
@@ -188,6 +219,7 @@ def build_dossier(input_data: DossierBuildInput) -> tuple[dict[str, object], byt
             "package_sha256": package_sha256(input_data.source_package),
             "manifest": package_manifest(input_data.source_package),
         },
+        "commercial_validation_release": input_data.validation_release_binding,
         "published_requirements_matrix": matrix,
         "historical_dimensioning": {
             "snapshot_id": input_data.benchmark_snapshot_id,

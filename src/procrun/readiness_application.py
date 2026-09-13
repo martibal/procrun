@@ -20,6 +20,7 @@ from procrun.readiness_persistence import (
 from procrun.readiness_service import PreviewRequest, PreviewResponse, create_paid_dossier, preview
 from procrun.readiness_snapshot_provenance import load_snapshot_source_binding
 from procrun.readiness_source import SourcePackageState, package_manifest, package_sha256
+from procrun.readiness_validation_persistence import load_matching_validation_release
 
 
 class ReadinessNotFoundError(LookupError):
@@ -64,6 +65,38 @@ def _snapshot_context(
     return data_through, snapshot_sha256, source_binding
 
 
+def _commercial_validation_binding(
+    conn: Connection[Any],
+    *,
+    bando_code: str,
+    source_package_id: str,
+    source_package_sha256: str,
+    benchmark_snapshot_id: str,
+    benchmark_snapshot_sha256: str,
+) -> dict[str, object]:
+    release = load_matching_validation_release(
+        conn,
+        bando_code=bando_code,
+        source_package_id=source_package_id,
+        source_package_sha256=source_package_sha256,
+        benchmark_snapshot_id=benchmark_snapshot_id,
+        benchmark_snapshot_sha256=benchmark_snapshot_sha256,
+    )
+    if release is None:
+        raise DossierBlockedError(
+            "paid analysis unavailable: exact source package and benchmark snapshot "
+            "have no RELEASED validation record"
+        )
+    return {
+        "validation_id": release["validation_id"],
+        "validation_sha256": release["validation_sha256"],
+        "source_package_id": source_package_id,
+        "source_package_sha256": source_package_sha256,
+        "benchmark_snapshot_id": benchmark_snapshot_id,
+        "benchmark_snapshot_sha256": benchmark_snapshot_sha256,
+    }
+
+
 def unlock_paid_analysis(
     conn: Connection[Any],
     *,
@@ -84,6 +117,15 @@ def unlock_paid_analysis(
     data_through, snapshot_sha256, source_binding = _snapshot_context(
         conn, benchmark_snapshot_id
     )
+    source_hash = package_sha256(package)
+    validation_binding = _commercial_validation_binding(
+        conn,
+        bando_code=bando_code,
+        source_package_id=package.source_package_id,
+        source_package_sha256=source_hash,
+        benchmark_snapshot_id=benchmark_snapshot_id,
+        benchmark_snapshot_sha256=snapshot_sha256,
+    )
     observations = load_benchmark_observations(
         conn,
         snapshot_id=benchmark_snapshot_id,
@@ -100,9 +142,10 @@ def unlock_paid_analysis(
             "benchmark_cohort_id": package.benchmark_cohort_id,
             "verified_at": package.verified_at.isoformat(),
             "refresh_due_at": package.refresh_due_at.isoformat(),
-            "package_sha256": package_sha256(package),
+            "package_sha256": source_hash,
             "manifest": package_manifest(package),
         },
+        "commercial_validation_release": validation_binding,
         "published_requirements_matrix": build_readiness_matrix(
             package,
             project_inputs=project_inputs,
@@ -141,6 +184,15 @@ def create_and_persist_dossier(
     data_through, snapshot_sha256, source_binding = _snapshot_context(
         conn, benchmark_snapshot_id
     )
+    source_hash = package_sha256(package)
+    validation_binding = _commercial_validation_binding(
+        conn,
+        bando_code=bando_code,
+        source_package_id=package.source_package_id,
+        source_package_sha256=source_hash,
+        benchmark_snapshot_id=benchmark_snapshot_id,
+        benchmark_snapshot_sha256=snapshot_sha256,
+    )
     observations = load_benchmark_observations(
         conn,
         snapshot_id=benchmark_snapshot_id,
@@ -156,6 +208,7 @@ def create_and_persist_dossier(
         benchmark_data_through=data_through,
         benchmark_snapshot_sha256=snapshot_sha256,
         benchmark_source_binding=source_binding,
+        validation_release_binding=validation_binding,
         observations=observations,
         proposed_funding_eur=proposed_funding_eur,
         proposed_duration_months=proposed_duration_months,
