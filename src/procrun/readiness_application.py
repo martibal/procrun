@@ -84,7 +84,8 @@ def _commercial_validation_binding(
     )
     if release is None:
         raise DossierBlockedError(
-            "paid analysis unavailable: exact source package and benchmark snapshot have no RELEASED validation record"
+            "paid analysis unavailable: exact source package and benchmark snapshot "
+            "have no RELEASED validation record"
         )
     return {
         "validation_id": release["validation_id"],
