@@ -24,7 +24,9 @@ class PurchaseScope:
 
 
 def _message(scope: PurchaseScope) -> bytes:
-    project_cost = "" if scope.proposed_project_cost_eur is None else str(scope.proposed_project_cost_eur)
+    project_cost = (
+        "" if scope.proposed_project_cost_eur is None else str(scope.proposed_project_cost_eur)
+    )
     duration = "" if scope.proposed_duration_months is None else str(scope.proposed_duration_months)
     return "|".join(
         (
