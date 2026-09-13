@@ -46,6 +46,7 @@ class DossierBuildInput:
     benchmark_source_binding: dict[str, object]
     validation_release_binding: dict[str, object]
     observations: tuple[BenchmarkObservation, ...]
+    proposed_project_cost_eur: int | None
     proposed_funding_eur: int
     proposed_duration_months: int | None
     confirmations: tuple[AdvisorConfirmation, ...]
@@ -170,6 +171,7 @@ def build_dossier(input_data: DossierBuildInput) -> tuple[dict[str, object], byt
     _validate_release_binding(input_data)
 
     project_inputs = {
+        "proposed_project_cost_eur": input_data.proposed_project_cost_eur,
         "proposed_funding_eur": input_data.proposed_funding_eur,
         "proposed_duration_months": input_data.proposed_duration_months,
     }
