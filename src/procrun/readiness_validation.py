@@ -53,7 +53,8 @@ class ValidationCase:
         if self.claim_category is not ClaimCategory.PROFESSIONAL_VERIFICATION_REQUIRED:
             if not self.reconstruction_blind_to_first_extraction:
                 raise ValueError(
-                    "automated claims require a reconstruction performed without seeing the first extraction"
+                    "automated claims require a reconstruction performed without seeing "
+                    "the first extraction"
                 )
             if not self.passed or self.expected_result != self.actual_result:
                 raise ValueError("automated validation case did not pass exactly")
@@ -91,7 +92,8 @@ class ReadinessValidationRelease:
             raise ValueError("commercial release must not depend on validation outside the project")
         if not self.founder_validation_only:
             raise ValueError(
-                "validation must explicitly acknowledge that source interpretation is founder/project work only"
+                "validation must explicitly acknowledge that source interpretation is "
+                "founder/project work only"
             )
         mandatory = (
             self.ambiguity_rule_attested,
@@ -141,7 +143,9 @@ def validation_manifest(release: ReadinessValidationRelease) -> dict[str, object
                 "expected_result": case.expected_result,
                 "actual_result": case.actual_result,
                 "independent_reconstruction_method": case.independent_reconstruction_method,
-                "reconstruction_blind_to_first_extraction": case.reconstruction_blind_to_first_extraction,
+                "reconstruction_blind_to_first_extraction": (
+                    case.reconstruction_blind_to_first_extraction
+                ),
                 "passed": case.passed,
             }
             for case in release.cases
