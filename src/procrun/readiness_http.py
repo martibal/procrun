@@ -56,12 +56,16 @@ def _purchase_secret() -> str:
 
 
 def _purchase_scope(body: dict[str, Any]) -> PurchaseScope:
+    proposed_cost_raw = body.get("proposed_project_cost_eur")
     proposed_duration_raw = body.get("proposed_duration_months")
     return PurchaseScope(
         tenant_key=str(body["tenant_key"]),
         purchase_reference=str(body["purchase_reference"]),
         bando_code=str(body["bando_code"]),
         benchmark_snapshot_id=str(body["benchmark_snapshot_id"]),
+        proposed_project_cost_eur=(
+            None if proposed_cost_raw is None else int(proposed_cost_raw)
+        ),
         proposed_funding_eur=int(body["proposed_funding_eur"]),
         proposed_duration_months=(
             None if proposed_duration_raw is None else int(proposed_duration_raw)
@@ -160,6 +164,7 @@ class ReadinessHandler(BaseHTTPRequestHandler):
                         conn,
                         bando_code=scope.bando_code,
                         benchmark_snapshot_id=scope.benchmark_snapshot_id,
+                        proposed_project_cost_eur=scope.proposed_project_cost_eur,
                         proposed_funding_eur=scope.proposed_funding_eur,
                         proposed_duration_months=scope.proposed_duration_months,
                         as_of=datetime.now(UTC),
@@ -188,6 +193,7 @@ class ReadinessHandler(BaseHTTPRequestHandler):
                     purchase_reference=scope.purchase_reference,
                     bando_code=scope.bando_code,
                     benchmark_snapshot_id=scope.benchmark_snapshot_id,
+                    proposed_project_cost_eur=scope.proposed_project_cost_eur,
                     proposed_funding_eur=scope.proposed_funding_eur,
                     proposed_duration_months=scope.proposed_duration_months,
                     confirmations=confirmations,
