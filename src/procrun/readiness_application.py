@@ -102,6 +102,7 @@ def unlock_paid_analysis(
     *,
     bando_code: str,
     benchmark_snapshot_id: str,
+    proposed_project_cost_eur: int | None,
     proposed_funding_eur: int,
     proposed_duration_months: int | None,
     as_of: datetime,
@@ -132,6 +133,7 @@ def unlock_paid_analysis(
         cohort_id=package.benchmark_cohort_id,
     )
     project_inputs = {
+        "proposed_project_cost_eur": proposed_project_cost_eur,
         "proposed_funding_eur": proposed_funding_eur,
         "proposed_duration_months": proposed_duration_months,
     }
@@ -173,6 +175,7 @@ def create_and_persist_dossier(
     purchase_reference: str,
     bando_code: str,
     benchmark_snapshot_id: str,
+    proposed_project_cost_eur: int | None,
     proposed_funding_eur: int,
     proposed_duration_months: int | None,
     confirmations: tuple[AdvisorConfirmation, ...],
@@ -210,6 +213,7 @@ def create_and_persist_dossier(
         benchmark_source_binding=source_binding,
         validation_release_binding=validation_binding,
         observations=observations,
+        proposed_project_cost_eur=proposed_project_cost_eur,
         proposed_funding_eur=proposed_funding_eur,
         proposed_duration_months=proposed_duration_months,
         confirmations=confirmations,
