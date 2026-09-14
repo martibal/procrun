@@ -1,0 +1,21 @@
+{
+  "ambiguous_cases_excluded": 354,
+  "candidate_id": "engine-v2-rc2",
+  "evaluated_cases": 446,
+  "f1": 0.957672,
+  "final_gate_pass": false,
+  "fn": 10,
+  "fp": 6,
+  "holdout_canonical_sha256": "c1f8bfdee38f0f0b4b9f78da2bc196ad16db8af8f614b5f3fef5e558c58de758",
+  "negative_cases": 255,
+  "positive_cases": 191,
+  "precision": 0.967914,
+  "recall": 0.947644,
+  "schema_version": "engine-v2-rc2-final-holdout-result-v1",
+  "threshold": 0.569344,
+  "tn": 249,
+  "tp": 181,
+  "workflow_run_id": 34691848104,
+  "artifact_id": 10297269364,
+  "artifact_digest": "sha256:0b75ab6508931f660b48a7bc4e0bd8d3d633ce6f21683e9bd594e9ec8b0d215d"
+}
