@@ -23,7 +23,96 @@ The design may use columns on wide screens, stacked labelled sections on narrow 
 
 No visual treatment may merge source evidence and ProcRun interpretation into one undifferentiated answer.
 
-## 2. Funded-project procurement track
+## 2. Sparse customer-facing navigation
+
+A normal customer must be able to use ProcRun through no more than **three to four primary product surfaces**, including the customer's own saved/account area.
+
+The target primary structure is:
+
+1. **Home** — product understanding, trust, concise methodology explanation, pricing model and entry into the product;
+2. **Explore** — funded projects, bandi/calls, filtering, project/call detail, source evidence and procurement assessment;
+3. **Readiness** — structured project input, preview, pre-purchase disclosure, checkout and paid dossier workflow;
+4. **My ProcRun** — purchased dossiers, saved opportunities/cases when implemented, account and customer storage features.
+
+`Methodology` is the intentional supporting exception: it is a deep technical/reference surface, not a required step in the normal customer journey. `Terms` and `Privacy` are permanent legal/reference pages and are not primary product navigation.
+
+No new primary page may be created when a function can naturally exist as a state, panel, drawer, tab or step inside an existing primary surface. Project detail, bando detail, checkout review, dossier view, saved opportunities and source detail should therefore remain inside the appropriate primary surface unless a separate route is technically required for persistence, sharing, accessibility or indexing.
+
+The customer-facing mental journey should remain recognisable as:
+
+**Home → Explore → Readiness → My ProcRun**
+
+or, for returning/search-driven users:
+
+**Explore → Readiness → My ProcRun**.
+
+## 3. Methodology as semantic hub
+
+`Methodology` is the canonical semantic centre of the product.
+
+Every ProcRun-specific term used in the GUI must have:
+
+- one canonical term;
+- one short customer-facing definition;
+- one stable methodology anchor;
+- an explicit list of contexts in which the term may be used.
+
+The GUI must not invent local definitions of ProcRun-specific terminology on individual pages/components.
+
+Wherever a ProcRun-specific term appears and explanatory help is useful, the interaction pattern is:
+
+**hover/focus/tap → concise explanation → “Read more” → exact Methodology anchor**.
+
+Desktop hover must have an accessible keyboard/focus equivalent. Mobile must use tap/popover or another explicit interaction rather than relying on hover.
+
+The short explanation must be sufficient for normal use without forcing the customer to leave the current workflow. `Read more` is for customers who want the deeper technical definition, source rules, calculation details, examples or limitations.
+
+Methodology therefore operates as a hub-and-spoke semantic architecture:
+
+- Home consumes canonical terms;
+- Explore consumes canonical terms;
+- Readiness consumes canonical terms;
+- My ProcRun/dossiers consume canonical terms;
+- future product modules may consume the same canonical terms without creating cross-page definition meshes.
+
+A future product surface should connect to the semantic hub instead of requiring indirect explanatory links to every other product surface.
+
+## 4. SEO architecture: indexed states, not page proliferation
+
+Organic search is part of the information architecture, not a later marketing layer.
+
+ProcRun must not respond to SEO needs by creating a large blog-like or page-per-feature navigation tree. Instead, the **Explore** product surface must support stable, crawlable, indexable routes for validated entities and high-intent search entry points.
+
+Examples include:
+
+- `/explore/<stable-bando-or-call-slug-or-id>`;
+- `/explore/<stable-funded-project-slug-or-id>`.
+
+A routed entity detail is an **indexed state of Explore**, not a new conceptual product page. A customer arriving directly from a search engine must still recognise that they are inside Explore and must be able to continue directly into Readiness when applicable.
+
+The preferred organic journey is:
+
+**Search engine → specific validated Explore entity → optional Methodology drill-down → Readiness → My ProcRun**.
+
+SEO content should therefore be generated from validated structured product data and source-backed facts wherever possible, rather than from generic keyword articles written solely to attract traffic.
+
+Each indexable Explore entity must be independently understandable when entered directly from search. At minimum it should expose, subject to source/reuse rules:
+
+- canonical entity title and stable identifier;
+- current state/freshness where applicable;
+- who/what the programme or project concerns;
+- key published structured facts;
+- source attribution and official source access;
+- ProcRun's bounded interpretation where available;
+- clear explanation of what ProcRun can and cannot establish;
+- relevant Readiness entry point when an exact validated call/bando supports it;
+- contextual links to Methodology terms rather than duplicated local methodology prose.
+
+SEO metadata and rendered copy must never outrun the validation state. A non-released or incomplete entity may be discoverable only to the extent permitted by the product/source contract and must not be described as commercially validated when it is not.
+
+The architecture must preserve canonical URLs and avoid creating multiple crawlable routes that represent the same entity/state without a deliberate canonicalisation rule.
+
+## 5. Funded-project procurement track
 
 ### Source fact
 
@@ -45,7 +134,7 @@ These labels answer a bounded procurement question about a component/project und
 
 `UNRESOLVED` is not a generic failure state. The UI must expose the exact admitted source evidence that triggered or explains the unresolved condition, subject to source-reuse rights. Where verbatim republication is not allowed, show the permitted structured fact/citation/link and explain why the source wording is not reproduced.
 
-## 3. Readiness track
+## 6. Readiness track
 
 Readiness intentionally does **not** reuse `OPEN/CLOSED/UNRESOLVED` for requirement outcomes.
 
@@ -74,7 +163,7 @@ Context-dependent requirements use adviser/professional states:
 
 The UI must treat professional review as a first-class outcome, not as an error, footnote or disabled-state afterthought.
 
-## 4. Terminology rule across tracks
+## 7. Terminology rule across tracks
 
 The vocabulary is intentionally different because the underlying questions are different.
 
@@ -90,7 +179,7 @@ Where a customer moves from a funded-project view into Readiness, the transition
 
 This explanatory boundary should be available at the transition point and through contextual help, rather than repeated as long disclaimer text on every row.
 
-## 5. Source-text visibility rule
+## 8. Source-text visibility rule
 
 Source-text visibility is a rights-controlled product behaviour, not a formatting accident.
 
@@ -117,7 +206,7 @@ The document must not appear in a production customer analysis.
 
 The absence of a quote must therefore never look like missing data or an ingestion error when the reuse mode is `FACT_EXTRACTION_ONLY`.
 
-## 6. Cross-track visual consistency
+## 9. Cross-track visual consistency
 
 The shared design system must encode epistemic role rather than product module.
 
@@ -131,22 +220,31 @@ Colour alone must not carry this distinction. Labels, section headings, iconogra
 
 Status colours for `OPEN/CLOSED/UNRESOLVED` must not be reused in a way that suggests equivalence with Readiness mechanical results or professional-review states.
 
-## 7. Navigation and product continuity
+## 10. Navigation and product continuity
 
 The navigation must reinforce one workflow rather than two products:
 
-1. discover and inspect a funded project;
+1. discover and inspect a funded project or validated call/bando;
 2. understand the source evidence and bounded procurement assessment;
 3. where applicable, move into Readiness for a specific bando/call;
 4. compare structured project inputs with published requirements and historical context;
-5. identify what is mechanically established and what still requires professional review.
+5. identify what is mechanically established and what still requires professional review;
+6. preserve purchased/saved work in My ProcRun where the product contract supports storage.
 
-A Readiness entry point from a project must therefore explain why it is relevant to that project/call instead of behaving like navigation to a separate application.
+A Readiness entry point from a project or bando must therefore explain why it is relevant instead of behaving like navigation to a separate application.
 
-## 8. Design acceptance criteria
+## 11. Design acceptance criteria
 
 A GUI design is not acceptable unless all of the following are true:
 
+- a normal customer journey uses no more than three to four primary product surfaces including the customer account/storage area;
+- Methodology is the canonical semantic hub for ProcRun-specific terminology;
+- contextual help provides a concise definition and a direct `Read more` path to the correct Methodology anchor;
+- no product surface maintains a conflicting local definition of a canonical ProcRun term;
+- indexed SEO routes are represented as states of Explore rather than new conceptual product sections;
+- a search-engine visitor can land directly on an indexed Explore entity and understand it without visiting Home first;
+- validated structured product data is preferred over generic SEO-article proliferation;
+- canonical URL handling prevents accidental duplicate indexed representations of the same entity;
 - a user can distinguish source fact from ProcRun interpretation without opening methodology documentation;
 - professional-review items are visually first-class and cannot be mistaken for system errors;
 - `OPEN/CLOSED/UNRESOLVED` is never used as a Readiness eligibility vocabulary;

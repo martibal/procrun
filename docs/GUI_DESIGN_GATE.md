@@ -8,7 +8,7 @@ This gate separates **visual design work** from **commercial activation** withou
 
 The Readiness backend contract is sufficiently frozen to design the customer interface. GUI design may proceed against the headless API and domain contracts in `main` only after `docs/LEGAL_HARDENING_GATE.md` and its regression tests are green.
 
-The cross-track information architecture is additionally frozen in `docs/GUI_INFORMATION_ARCHITECTURE.md`. Visual work must preserve its shared three-layer mental model and terminology/source-text rules.
+The cross-track information architecture is additionally frozen in `docs/GUI_INFORMATION_ARCHITECTURE.md`. Visual work must preserve its shared three-layer mental model, sparse customer-facing navigation, Methodology semantic-hub contract, terminology/source-text rules and SEO-as-Explore-state architecture.
 
 This does **not** release a bando, enable paid analysis, enable checkout, or permit a dossier to be generated without an exact immutable commercial validation release.
 
@@ -30,6 +30,45 @@ The GUI must be designed around exactly these three server-side Readiness surfac
    - freezes structured adviser confirmations and returns the immutable dossier hash.
 
 Python remains the single source of truth for all calculations and classification. The GUI must not reimplement thresholds, requirement logic, benchmark calculations or eligibility-like inference in TypeScript.
+
+## Sparse customer-facing navigation
+
+A normal customer must complete the product journey inside no more than three to four primary product surfaces, including the customer's own storage/account surface.
+
+Target surfaces:
+
+- Home;
+- Explore;
+- Readiness;
+- My ProcRun.
+
+Methodology is a deep supporting/reference surface rather than a required workflow step. Terms and Privacy remain legal/reference surfaces outside the primary product-navigation count.
+
+Visual implementation must prefer panels, drawers, tabs and staged states inside these primary surfaces over adding new conceptual pages. A new route may exist for technical reasons such as persistence, sharing, deep linking or indexing without becoming a new conceptual product section.
+
+## Methodology semantic-hub invariant
+
+Every ProcRun-specific term used in the customer GUI must resolve to one canonical frontend terminology definition and one stable Methodology anchor.
+
+The expected interaction pattern is:
+
+**hover/focus/tap → short explanation → Read more → exact Methodology anchor**.
+
+Desktop and mobile may use different interaction mechanics, but both must preserve access to the short definition and deep methodology reference.
+
+Components may consume canonical terminology; they must not maintain independent definitions that can drift from the Methodology contract.
+
+## SEO / Explore invariant
+
+SEO must not create product-page sprawl.
+
+Validated bandi/calls and funded projects may have stable, crawlable entity routes under Explore, but these routes are states of the Explore product surface rather than additional conceptual product sections.
+
+A search-engine visitor entering directly on an Explore entity route must be able to understand the entity without visiting Home first and, where applicable, continue directly into Readiness.
+
+Structured, validated product/source facts should provide the primary indexable content. Generic SEO article proliferation is not the default strategy.
+
+Canonical URL handling must avoid duplicate crawlable representations of the same entity/state, and rendered metadata must never describe an entity as commercially validated beyond its actual validation state.
 
 ## Shared cross-track mental model
 
@@ -106,6 +145,11 @@ The project is ready to enter GUI design when all of the following are true:
 - source reuse governance is fail-closed;
 - legal hardening gate is present and tested;
 - the unified information-architecture contract is frozen;
+- the normal customer journey is constrained to three to four primary product surfaces including the customer storage/account area;
+- Methodology is frozen as the canonical semantic hub for ProcRun-specific terminology;
+- tooltip/popover definitions and `Read more` deep links resolve to stable Methodology anchors;
+- SEO entity routes are treated as indexed Explore states, not navigation/page proliferation;
+- direct organic entry into an Explore entity is understandable without a prior Home visit;
 - OpenCoesione identity fields remain outside FundingProject/read model/customer exports under the frozen legal-person publication contract;
 - source attribution metadata exists for TED and OpenCoesione;
 - marketing copy does not promise universal verbatim wording;
